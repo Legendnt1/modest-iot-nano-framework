@@ -387,7 +387,7 @@ HttpGatewayClient httpGateway(*secureSocket, "https://api.example.com/device/tel
 
 ## Examples
 
-The framework ships with 22 example sketches demonstrating various use cases:
+The framework ships with 23 example sketches demonstrating various use cases:
 
 | Example | Description |
 |---|---|
@@ -400,7 +400,7 @@ The framework ships with 22 example sketches demonstrating various use cases:
 | `SmartBandMqtt` | Wearable device with pulse, DHT temperature/humidity, and button; publishes via MQTT. |
 | `AirConditioningDevice` | HVAC monitor with DHT sensor, buttons, and LCD display; demonstrates I²C actuator on sampler task. |
 | `AirQualityMonitor` | Gas sensor with MQTT telemetry; demonstrates keep-alive and reconnection. |
-| `ClimateDataUploader` | DHT22 sensor with HTTP telemetry, Bearer token acquisition via GET request, response body parsing, and authenticated POST telemetry. |
+| `ClimateDataUploader` | DHT22 sensor with HTTP telemetry, Bearer token acquisition, and offline buffering; demonstrates `TelemetryBuffer` for LittleFS persistence when the network is unavailable, with FIFO eviction and replay on reconnection. |
 | `CropMonitoringStation` | Multi-sensor agricultural monitoring with tickless scheduling and MQTT telemetry. |
 | `DriverAssistantDevice` | GPS and ultrasonic distance monitoring; demonstrates multi-sensor coordination. |
 | `HomeSecurityDevice` | Water leak, door/window, PIR, and buzzer; demonstrates interrupt-driven home security. |
@@ -412,7 +412,8 @@ The framework ships with 22 example sketches demonstrating various use cases:
 | `TogglableLedDevice` | Button-controlled LED with MQTT telemetry; demonstrates CQRS command/event separation. |
 | `WaterFlowMonitor` | YF-S201 water flow sensor with hybrid interrupt/periodic scheduling. |
 | `MqttTlsDevice` | Secure environmental monitor with encrypted MQTT (TLS); demonstrates `WiFiConnectivityDriver::createSecureSocket()` builder method for TLS socket creation. |
-| `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor. |
+| `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor; demonstrates `PowerManager` for battery voltage sensing, level calculation, and low-battery alerts. |
+| `OtaUpdateDevice` | Minimal device with DHT22 and OTA firmware updates; demonstrates `OtaUpdateHandler` with hostname configuration, password protection, progress/error/start/end callbacks, and `service()` in `maintainNetworkServices()`. |
 
 ## Testing
 
