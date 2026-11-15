@@ -212,6 +212,19 @@ getFirmwareVersion	KEYWORD2
 setTelemetrySchemaVersion	KEYWORD2
 getTelemetrySchemaVersion	KEYWORD2
 
+# PowerManager
+PowerManager	KEYWORD1
+begin	KEYWORD2
+getBatteryVoltageInMillivolts	KEYWORD2
+getBatteryLevelInPercentage	KEYWORD2
+isLowBattery	KEYWORD2
+setLowBatteryThresholdInMillivolts	KEYWORD2
+getLowBatteryThresholdInMillivolts	KEYWORD2
+setBatteryVoltageRange	KEYWORD2
+getMinVoltageInMillivolts	KEYWORD2
+getMaxVoltageInMillivolts	KEYWORD2
+isInitialized	KEYWORD2
+
 # Sensor data getters
 getTemperatureInCelsius	KEYWORD2
 getHumidityInPercentage	KEYWORD2
