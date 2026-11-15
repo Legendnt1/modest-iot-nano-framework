@@ -78,7 +78,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.0 (cu
 
 | Aspect          | Traditional `loop()`                         | Modest IoT v1.1.0 (current)                                                 | Modest IoT v1.2.0 (planned)                                 |
 |-----------------|----------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| First build     | Works with the board package                 | All 22 examples compile in CI; 2 dependencies                                 | Same                                                                |
+| First build     | Works with the board package                 | All 23 examples compile in CI; 2 dependencies                                 | Same                                                                |
 | Structure       | One growing `loop()` with `millis()` flags   | Sensors emit events, a `Device` mediates, actuators take commands             | Same, with event aggregation for composite patterns (W29)    |
 | Adding a sensor | New globals, new timing variable, new branch | Subclass or reuse, register in the scheduler; per-sensor default periods; `PowerManager` for battery-aware sensors | Same, with event aggregation for composite patterns (W29)                  |
 | Sampling rates  | Hand-written per-sensor timers               | Per-slot periods, minimums enforced, staggering handled                       | Same, with event aggregation for composite patterns (W29)                |
