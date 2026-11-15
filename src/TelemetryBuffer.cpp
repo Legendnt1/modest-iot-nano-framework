@@ -18,15 +18,17 @@
 static constexpr auto TELEMETRY_BUFFER_COMPONENT = "TelemetryBuffer";
 
 bool TelemetryBuffer::initialized = false;
-int TelemetryBuffer::maxPackets = DEFAULT_MAX_BUFFERED_PACKETS;
+int TelemetryBuffer::maxPacketsCount = DEFAULT_MAX_BUFFERED_PACKETS;
 int TelemetryBuffer::packetCount = 0;
+unsigned int TelemetryBuffer::nextWriteIndex = 0;
+TelemetryBuffer::EvictionCallback TelemetryBuffer::onEvictionCallback = nullptr;
 
-String TelemetryBuffer::getFilePath(int index) {
+String TelemetryBuffer::getFilePath(unsigned int index) {
     String path(TELEMETRY_BUFFER_DIRECTORY);
     path += '/';
-    // Zero-padded 5-digit index for correct alphabetical sorting
+    // Zero-padded 5-digit monotonic index
     char num[6];
-    snprintf(num, sizeof(num), "%05d", index + 1);
+    snprintf(num, sizeof(num), "%05u", index + 1);
     path += num;
     path += ".json";
     return path;
@@ -35,27 +37,58 @@ String TelemetryBuffer::getFilePath(int index) {
 int TelemetryBuffer::countPackets() {
     int count = 0;
 #ifdef ARDUINO_ARCH_ESP32
+    unsigned int maxIndex = 0;
     if (File dir = LittleFS.open(TELEMETRY_BUFFER_DIRECTORY, "r"); dir && dir.isDirectory()) {
         while (File file = dir.openNextFile()) {
             if (!file.isDirectory()) {
                 count++;
+                // Extract the monotonic index from the filename (e.g., "00003.json" -> 2)
+                const char* name = file.name();
+                unsigned int fileIndex = 0;
+                sscanf(name, "%05u", &fileIndex);
+                fileIndex--; // Convert back to 0-based index
+                if (fileIndex >= maxIndex) {
+                    maxIndex = fileIndex + 1;
+                }
             }
         }
     }
+    // Set nextWriteIndex to one past the highest existing index
+    nextWriteIndex = maxIndex;
 #endif
     return count;
 }
 
+String TelemetryBuffer::findOldestFilePath() {
+    String oldestPath;
+#ifdef ARDUINO_ARCH_ESP32
+    unsigned int minIndex = 0xFFFFFFFF;
+    if (File dir = LittleFS.open(TELEMETRY_BUFFER_DIRECTORY, "r"); dir && dir.isDirectory()) {
+        while (File file = dir.openNextFile()) {
+            if (!file.isDirectory()) {
+                const char* name = file.name();
+                unsigned int fileIndex = 0;
+                sscanf(name, "%05u", &fileIndex);
+                fileIndex--; // Convert back to 0-based index
+                if (fileIndex < minIndex) {
+                    minIndex = fileIndex;
+                    oldestPath = getFilePath(minIndex);
+                }
+            }
+        }
+    }
+#endif
+    return oldestPath;
+}
+
 bool TelemetryBuffer::removeOldestPacket() {
 #ifdef ARDUINO_ARCH_ESP32
-    const String path = getFilePath(0);
+    const String path = findOldestFilePath();
+    if (path.isEmpty()) {
+        return false;
+    }
+    // Simply delete the oldest file — no shifting needed with monotonic indices
     if (LittleFS.remove(path)) {
-        // Shift all remaining files down by one index
-        for (int i = 1; i < packetCount; i++) {
-            String oldPath = getFilePath(i);
-            String newPath = getFilePath(i - 1);
-            LittleFS.rename(oldPath.c_str(), newPath.c_str());
-        }
         packetCount--;
         return true;
     }
@@ -70,9 +103,9 @@ bool TelemetryBuffer::removeOldestPacket() {
 #endif
 }
 
-bool TelemetryBuffer::begin(const int maxBufferedPackets) {
-    if (maxBufferedPackets <= 0) {
-        MODEST_LOG_E(TELEMETRY_BUFFER_COMPONENT, "Invalid max buffered packets: %d", maxBufferedPackets);
+bool TelemetryBuffer::begin(const int maxBufferedPacketsCount) {
+    if (maxBufferedPacketsCount <= 0) {
+        MODEST_LOG_E(TELEMETRY_BUFFER_COMPONENT, "Invalid max buffered packets: %d", maxBufferedPacketsCount);
         return false;
     }
 
@@ -92,7 +125,7 @@ bool TelemetryBuffer::begin(const int maxBufferedPackets) {
         }
     }
 
-    TelemetryBuffer::maxPackets = maxBufferedPackets;
+    TelemetryBuffer::maxPacketsCount = maxBufferedPacketsCount;
     packetCount = countPackets();
     initialized = true;
 
@@ -100,12 +133,13 @@ bool TelemetryBuffer::begin(const int maxBufferedPackets) {
         MODEST_LOG_W(TELEMETRY_BUFFER_COMPONENT, "Found %d buffered packets from previous session", packetCount);
     }
 
-    MODEST_LOG_I(TELEMETRY_BUFFER_COMPONENT, "Telemetry buffer initialized (max %d packets)", maxBufferedPackets);
+    MODEST_LOG_I(TELEMETRY_BUFFER_COMPONENT, "Telemetry buffer initialized (max %d packets)", maxBufferedPacketsCount);
     return true;
 #else
     // Host testing: simulate initialization
-    TelemetryBuffer::maxPackets = maxBufferedPackets;
+    TelemetryBuffer::maxPacketsCount = maxBufferedPacketsCount;
     packetCount = 0;
+    nextWriteIndex = 0;
     initialized = true;
     return true;
 #endif
@@ -117,15 +151,20 @@ bool TelemetryBuffer::store(const String& jsonStringTelemetryPacket) {
     }
 
     // If at capacity, remove oldest packet first
-    if (packetCount >= maxPackets) {
+    if (packetCount >= maxPacketsCount) {
         if (!removeOldestPacket()) {
             MODEST_LOG_W(TELEMETRY_BUFFER_COMPONENT, "Failed to evict oldest packet; cannot store new packet");
             return false;
         }
+        // Notify eviction callback after successful removal
+        if (onEvictionCallback) {
+            onEvictionCallback();
+        }
     }
 
 #ifdef ARDUINO_ARCH_ESP32
-    const String path = getFilePath(packetCount);
+    // Append at the next monotonic index — no shifting needed
+    const String path = getFilePath(nextWriteIndex);
     File file = LittleFS.open(path, "w");
     if (!file) {
         MODEST_LOG_E(TELEMETRY_BUFFER_COMPONENT, "Failed to create buffer file: %s", path.c_str());
@@ -136,6 +175,7 @@ bool TelemetryBuffer::store(const String& jsonStringTelemetryPacket) {
     file.close();
 
     if (written == jsonStringTelemetryPacket.length()) {
+        nextWriteIndex++;
         packetCount++;
         return true;
     }
@@ -157,7 +197,12 @@ bool TelemetryBuffer::retrieveNext(String& outJsonBufferedPacket) {
     }
 
 #ifdef ARDUINO_ARCH_ESP32
-    const String path = getFilePath(0);
+    // Find and read the oldest file by monotonic index — no shifting needed
+    const String path = findOldestFilePath();
+    if (path.isEmpty()) {
+        MODEST_LOG_E(TELEMETRY_BUFFER_COMPONENT, "No oldest packet found");
+        return false;
+    }
     File file = LittleFS.open(path, "r");
     if (!file || !file.isDirectory()) {
         MODEST_LOG_E(TELEMETRY_BUFFER_COMPONENT, "Failed to open buffered packet: %s", path.c_str());
@@ -174,13 +219,8 @@ bool TelemetryBuffer::retrieveNext(String& outJsonBufferedPacket) {
         return false;
     }
 
-    // Remove the retrieved file and shift remaining files
+    // Remove only the retrieved file — no shifting needed with monotonic indices
     LittleFS.remove(path);
-    for (int i = 1; i < packetCount; i++) {
-        String oldPath = getFilePath(i);
-        String newPath = getFilePath(i - 1);
-        LittleFS.rename(oldPath.c_str(), newPath.c_str());
-    }
     packetCount--;
     return true;
 #else
@@ -205,6 +245,13 @@ int TelemetryBuffer::getBufferedPacketCount() {
     return packetCount;
 }
 
+int TelemetryBuffer::getMaxPacketsCount() {
+    if (!initialized) {
+        return DEFAULT_MAX_BUFFERED_PACKETS;
+    }
+    return maxPacketsCount;
+}
+
 bool TelemetryBuffer::hasBufferedPackets() {
     return initialized && packetCount > 0;
 }
@@ -215,19 +262,34 @@ bool TelemetryBuffer::clear() {
     }
 
 #ifdef ARDUINO_ARCH_ESP32
-    for (int i = packetCount - 1; i >= 0; i--) {
-        LittleFS.remove(getFilePath(i));
+    // Iterate over all files in the directory and remove them
+    // (monotonic indices mean files are not at sequential positions)
+    if (File dir = LittleFS.open(TELEMETRY_BUFFER_DIRECTORY, "r"); dir && dir.isDirectory()) {
+        while (File file = dir.openNextFile()) {
+            if (!file.isDirectory()) {
+                String path = TELEMETRY_BUFFER_DIRECTORY;
+                path += '/';
+                path += file.name();
+                LittleFS.remove(path);
+            }
+        }
     }
     packetCount = 0;
+    nextWriteIndex = 0;
     MODEST_LOG_I(TELEMETRY_BUFFER_COMPONENT, "Buffer cleared");
     return true;
 #else
     // Host testing: simulate clear
     packetCount = 0;
+    nextWriteIndex = 0;
     return true;
 #endif
 }
 
 bool TelemetryBuffer::isInitialized() {
     return initialized;
+}
+
+void TelemetryBuffer::onEviction(EvictionCallback callback) {
+    onEvictionCallback = callback;
 }
