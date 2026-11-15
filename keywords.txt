@@ -225,6 +225,16 @@ getMinVoltageInMillivolts	KEYWORD2
 getMaxVoltageInMillivolts	KEYWORD2
 isInitialized	KEYWORD2
 
+# TelemetryBuffer
+TelemetryBuffer	KEYWORD1
+store	KEYWORD2
+retrieveNext	KEYWORD2
+getBufferedPacketCount	KEYWORD2
+hasBufferedPackets	KEYWORD2
+clear	KEYWORD2
+DEFAULT_MAX_BUFFERED_PACKETS	LITERAL1
+TELEMETRY_BUFFER_DIRECTORY	LITERAL1
+
 # Sensor data getters
 getTemperatureInCelsius	KEYWORD2
 getHumidityInPercentage	KEYWORD2
