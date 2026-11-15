@@ -63,10 +63,10 @@ float PowerManager::getBatteryLevelInPercentage() {
     }
 
     // Linear interpolation between min and max voltage
-    const float level = static_cast<float>(voltageInMillivolts - minVoltageInMillivolts) /
+    const float levelInPercentage = static_cast<float>(voltageInMillivolts - minVoltageInMillivolts) /
                   static_cast<float>(maxVoltageInMillivolts - minVoltageInMillivolts) * 100.0f;
 
-    return level;
+    return levelInPercentage;
 }
 
 bool PowerManager::isLowBattery() {
@@ -74,8 +74,8 @@ bool PowerManager::isLowBattery() {
         return false;
     }
 
-    uint32_t voltage = getBatteryVoltageInMillivolts();
-    return voltage < lowBatteryThresholdInMillivolts;
+    const uint32_t voltageInMillivolts = getBatteryVoltageInMillivolts();
+    return voltageInMillivolts < lowBatteryThresholdInMillivolts;
 }
 
 void PowerManager::setLowBatteryThresholdInMillivolts(const uint32_t thresholdInMillivolts) {
