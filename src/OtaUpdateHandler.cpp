@@ -1,6 +1,6 @@
 /**
  * @file OtaUpdateHandler.cpp
- * @brief Implements the OtaUpdateHandler class for Over-The-Air firmware updates via WiFi.
+ * @brief Implements the OtaUpdateHandler class for Over-The-Air firmware updates via Wi-Fi.
  * @ingroup core_module
  * @copyright (c) 2025-2026 Angel Velasquez
  * @date 2026-11-14
