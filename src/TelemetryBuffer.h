@@ -14,7 +14,7 @@
 
 /**
  * @brief Maximum number of buffered packets before dropping oldest.
- * 
+ *
  * Each buffered packet is stored as a separate JSON file in LittleFS.
  * Default of 50 packets provides ~25-50 KB of buffer depending on payload size.
  */
@@ -23,37 +23,37 @@ constexpr int DEFAULT_MAX_BUFFERED_PACKETS = 50;
 /**
  * @brief LittleFS directory path for buffered telemetry packets.
  */
-constexpr const char* TELEMETRY_BUFFER_DIRECTORY = "/telemetry_buffer";
+constexpr auto TELEMETRY_BUFFER_DIRECTORY = "/telemetry_buffer";
 
 /**
  * @brief Persistent telemetry buffer backed by LittleFS for offline replay.
  * @ingroup core_module
- * 
+ *
  * When the network is unavailable, telemetry packets that fail to send can be
  * persisted to LittleFS instead of being dropped. When connectivity is restored,
  * buffered packets are replayed in FIFO order.
- * 
+ *
  * The buffer uses a file-per-packet strategy with sequential naming
  * (e.g., `/telemetry_buffer/00001.json`) for simple FIFO ordering.
- * 
+ *
  * @par Thread Safety
  * All public methods are designed to be called from the network dispatcher task.
  * The buffer is not thread-safe across multiple tasks; use from a single context.
- * 
+ *
  * @par Memory Usage
  * Each buffered packet consumes approximately 100-300 bytes in LittleFS depending
  * on payload size. With the default limit of 50 packets, expect ~5-15 KB usage.
- * 
+ *
  * @par Example
  * @code
  * // Initialize the buffer in setup()
  * TelemetryBuffer::begin();
- * 
+ *
  * // In processQueuedTelemetryData(), if send fails:
  * if (!gatewayClient.sendTelemetryRecord(*packet)) {
  *     TelemetryBuffer::store(packet->toJsonString());
  * }
- * 
+ *
  * // When connectivity is restored, replay buffered packets:
  * if (gatewayClient.isConnected() && TelemetryBuffer::hasBufferedPackets()) {
  *     String buffered;
@@ -93,10 +93,10 @@ public:
      * @brief Initializes the telemetry buffer in LittleFS.
      * @param maxBufferedPackets Maximum number of packets to buffer (default: 50).
      * @return `true` if LittleFS was mounted and the buffer directory exists.
-     * 
+     *
      * Creates the buffer directory if it doesn't exist and counts any
      * remaining packets from a previous session (e.g., unexpected reboot).
-     * 
+     *
      * @note Must be called before any other buffer operations.
      * Call once during device setup, after LittleFS is available.
      */
@@ -104,25 +104,25 @@ public:
 
     /**
      * @brief Stores a serialized telemetry packet in the buffer.
-     * @param jsonString The JSON string representation of the telemetry packet.
+     * @param jsonStringTelemetryPacket The JSON string representation of the telemetry packet.
      * @return `true` if the packet was stored, `false` if buffer is full and oldest couldn't be removed.
-     * 
+     *
      * If the buffer is at capacity, the oldest packet is automatically removed
      * to make room for the new one (FIFO eviction).
-     * 
+     *
      * @note Should be called when `sendTelemetryRecord()` returns false.
      */
-    static bool store(const String& jsonString);
+    static bool store(const String& jsonStringTelemetryPacket);
 
     /**
      * @brief Retrieves the next buffered packet in FIFO order.
-     * @param outJson Reference to receive the JSON string content.
+     * @param outJsonBufferedPacket Reference to receive the JSON string content.
      * @return `true` if a packet was retrieved, `false` if buffer is empty.
-     * 
+     *
      * Returns the oldest buffered packet and removes it from storage.
      * Call repeatedly until it returns false to drain the buffer.
      */
-    static bool retrieveNext(String& outJson);
+    static bool retrieveNext(String& outJsonBufferedPacket);
 
     /**
      * @brief Returns the number of buffered packets.
@@ -139,7 +139,7 @@ public:
     /**
      * @brief Clears all buffered packets from LittleFS.
      * @return `true` if the directory was cleared successfully.
-     * 
+     *
      * Use this to discard all buffered packets (e.g., after a firmware update
      * where old schema packets should not be replayed).
      */

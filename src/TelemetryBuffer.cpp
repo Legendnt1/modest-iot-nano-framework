@@ -47,7 +47,7 @@ int TelemetryBuffer::countPackets() {
 }
 
 bool TelemetryBuffer::removeOldestPacket() {
-    String path = getFilePath(0);
+    const String path = getFilePath(0);
 #ifdef ARDUINO_ARCH_ESP32
     if (LittleFS.remove(path)) {
         // Shift all remaining files down by one index
@@ -63,7 +63,7 @@ bool TelemetryBuffer::removeOldestPacket() {
     return false;
 }
 
-bool TelemetryBuffer::begin(int maxBufferedPackets) {
+bool TelemetryBuffer::begin(const int maxBufferedPackets) {
     if (maxBufferedPackets <= 0) {
         MODEST_LOG_E(TELEMETRY_BUFFER_COMPONENT, "Invalid max buffered packets: %d", maxBufferedPackets);
         return false;
@@ -104,8 +104,8 @@ bool TelemetryBuffer::begin(int maxBufferedPackets) {
 #endif
 }
 
-bool TelemetryBuffer::store(const String& jsonString) {
-    if (!initialized || jsonString.length() == 0) {
+bool TelemetryBuffer::store(const String& jsonStringTelemetryPacket) {
+    if (!initialized || jsonStringTelemetryPacket.length() == 0) {
         return false;
     }
 
@@ -118,17 +118,17 @@ bool TelemetryBuffer::store(const String& jsonString) {
     }
 
 #ifdef ARDUINO_ARCH_ESP32
-    String path = getFilePath(packetCount);
+    const String path = getFilePath(packetCount);
     File file = LittleFS.open(path, "w");
     if (!file) {
         MODEST_LOG_E(TELEMETRY_BUFFER_COMPONENT, "Failed to create buffer file: %s", path.c_str());
         return false;
     }
 
-    size_t written = file.print(jsonString);
+    const size_t written = file.print(jsonStringTelemetryPacket);
     file.close();
 
-    if (written == jsonString.length()) {
+    if (written == jsonStringTelemetryPacket.length()) {
         packetCount++;
         return true;
     }
@@ -144,7 +144,7 @@ bool TelemetryBuffer::store(const String& jsonString) {
 #endif
 }
 
-bool TelemetryBuffer::retrieveNext(String& outJson) {
+bool TelemetryBuffer::retrieveNext(String& outJsonBufferedPacket) {
     if (!initialized || packetCount <= 0) {
         return false;
     }
@@ -157,10 +157,10 @@ bool TelemetryBuffer::retrieveNext(String& outJson) {
         return false;
     }
 
-    outJson = file.readString();
+    outJsonBufferedPacket = file.readString();
     file.close();
 
-    if (outJson.isEmpty()) {
+    if (outJsonBufferedPacket.isEmpty()) {
         LittleFS.remove(path);
         MODEST_LOG_W(TELEMETRY_BUFFER_COMPONENT, "Empty buffered packet removed");
         packetCount--;
@@ -179,7 +179,7 @@ bool TelemetryBuffer::retrieveNext(String& outJson) {
 #else
     // Host testing: simulate retrieval
     if (packetCount > 0) {
-        outJson.assign("{\"sequence\":1,\"timestamp\":0,\"test\":true}");
+        outJsonBufferedPacket.assign("{\"sequence\":1,\"timestamp\":0,\"test\":true}");
         packetCount--;
         return true;
     }
