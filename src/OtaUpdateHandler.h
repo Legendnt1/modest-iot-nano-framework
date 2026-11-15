@@ -1,6 +1,6 @@
 /**
- * @file OverTheAirUpdateHandler.h
- * @brief Declares the OverTheAirUpdateHandler class for Over-The-Air firmware updates via Wi-Fi
+ * @file OtaUpdateHandler.h
+ * @brief Declares the OtaUpdateHandler class for Over-The-Air firmware updates via Wi-Fi
  * @ingroup core_module
  * @copyright (c) 2025-2026 Angel Velasquez
  * @date 2026-11-14
@@ -16,7 +16,7 @@
 /**
  * @brief OTA update status codes for tracking the current state of an update.
  */
-enum class OverTheAirUpdateStatus : uint8_t {
+enum class OtaUpdateStatus : uint8_t {
     Idle,         ///< No update in progress; ready to accept a new update.
     Starting,     ///< Update has been initiated; waiting for data.
     Running,      ///< Firmware data is being received and written.
@@ -40,6 +40,16 @@ using OtaProgressCallback = std::function<void(uint32_t progressInNumberOfBytesW
 using OtaErrorCallback = std::function<void(int errorCode)>;
 
 /**
+ * @brief Callback type for when an OTA update starts.
+ */
+using OtaStartCallback = std::function<void()>;
+
+/**
+ * @brief Callback type for when an OTA update ends.
+ */
+using OtaEndCallback = std::function<void()>;
+
+/**
  * @brief Manages Over-The-Air (OTA) firmware updates via WiFi.
  *
  * Wraps the ESP32 ArduinoOTA library to provide a simple, static API for
@@ -52,11 +62,11 @@ using OtaErrorCallback = std::function<void(int errorCode)>;
  * @par Example
  * @code
  * // Configure OTA updates in setup()
- * OverTheAirUpdateHandler::begin("my-device-name");
- * OverTheAirUpdateHandler::setPassword("secret123");
+ * OtaUpdateHandler::begin("my-device-name");
+ * OtaUpdateHandler::setPassword("secret123");
  *
  * // Optional: track progress
- * OverTheAirUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
+ * OtaUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
  *     float percent = (float)progressInNumberOfBytesWritten / (float)totalNumberOfBytes * 100.0f;
  *     Serial.printf("OTA Progress: %.1f%%\r", percent);
  * });
@@ -64,7 +74,7 @@ using OtaErrorCallback = std::function<void(int errorCode)>;
  * // In your Device subclass, call service() from maintainNetworkServices()
  * void maintainNetworkServices() const override {
  *     gatewayClient.service();
- *     OverTheAirUpdateHandler::service();
+ *     OtaUpdateHandler::service();
  * }
  * @endcode
  *
@@ -72,7 +82,7 @@ using OtaErrorCallback = std::function<void(int errorCode)>;
  * @runs_on{network} — `service()` should be called from the network dispatcher task
  * via `maintainNetworkServices()` to process incoming OTA update requests.
  */
-class OverTheAirUpdateHandler {
+class OtaUpdateHandler {
 public:
     /**
      * @brief Initializes the OTA update service.
@@ -85,14 +95,18 @@ public:
      * @note Must be called after WiFi is connected. Call once during device setup.
      * The hostname is used by the Arduino IDE to identify the device when
      * selecting the OTA port for uploading firmware.
+     * @note Calling begin() multiple times resets the status to Idle and clears
+     * any error code, but does not reset callbacks registered via onProgress(),
+     * onError(), onStart(), or onEnd(). Callbacks persist across re-initialization.
      */
     static bool begin(const char* hostname = "modest-iot");
 
     /**
      * @brief Sets the password required for OTA updates.
      * @param password Password string for authenticating OTA update requests.
-     * @note Call before begin() to require authentication for OTA updates.
-     *       Without a password, any device on the network can trigger an update.
+     * @note Can be called before or after begin() to require authentication for
+     *       OTA updates. Without a password, any device on the network can
+     *       trigger an update.
      */
     static void setPassword(const char* password);
 
@@ -116,14 +130,14 @@ public:
      * @param callback Function called when an OTA update begins.
      * @note Use this to pause non-essential tasks or log the start of an update.
      */
-    static void onStart(std::function<void()> callback);
+    static void onStart(OtaStartCallback callback);
 
     /**
      * @brief Registers a callback for when an update ends.
      * @param callback Function called when an OTA update completes (success or failure).
      * @note Use this to log completion status or trigger a restart.
      */
-    static void onEnd(std::function<void()> callback);
+    static void onEnd(OtaEndCallback callback);
 
     /**
      * @brief Processes incoming OTA update requests.
@@ -138,15 +152,22 @@ public:
     static void service();
 
     /**
-     * @brief Returns the current OTA update status.
-     * @return OverTheAirUpdateStatus enum value indicating the current state.
+     * @brief Returns the OTA hostname.
+     * @return The hostname set during begin(), or nullptr if not set.
+     * @note Returns the hostname used for device discovery on the network.
      */
-    [[nodiscard]] static OverTheAirUpdateStatus getStatus();
+    [[nodiscard]] static const char* getHostname();
+
+    /**
+     * @brief Returns the current OTA update status.
+     * @return OtaUpdateStatus enum value indicating the current state.
+     */
+    [[nodiscard]] static OtaUpdateStatus getStatus();
 
     /**
      * @brief Returns the last OTA error code.
      * @return Error code from the last failed OTA update, or 0 if no error.
-     * @note Check this after getStatus() returns OverTheAirUpdateStatus::Error.
+     * @note Check this after getStatus() returns OtaUpdateStatus::Error.
      */
     [[nodiscard]] static int getLastError();
 
@@ -165,7 +186,8 @@ public:
 
 private:
     static bool initialized; ///< Tracks whether begin() was called successfully.
-    static OverTheAirUpdateStatus status; ///< Current OTA update status.
+    static const char* hostname; ///< OTA hostname for device discovery.
+    static OtaUpdateStatus status; ///< Current OTA update status.
     static int lastError; ///< Last OTA error code.
     static uint32_t progressInNumberOfBytes; ///< Bytes written during current update.
     static uint32_t totalNumberOfBytes; ///< Total bytes expected for current update.

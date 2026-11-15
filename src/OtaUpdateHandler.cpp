@@ -1,40 +1,42 @@
 /**
- * @file OverTheAirUpdateHandler.cpp
- * @brief Implements the OverTheAirUpdateHandler class for Over-The-Air firmware updates via WiFi.
+ * @file OtaUpdateHandler.cpp
+ * @brief Implements the OtaUpdateHandler class for Over-The-Air firmware updates via WiFi.
  * @ingroup core_module
  * @copyright (c) 2025-2026 Angel Velasquez
  * @date 2026-11-14
  * @version 1.0
  */
 
-#include "OverTheAirUpdateHandler.h"
+#include "OtaUpdateHandler.h"
 
 #ifdef ARDUINO_ARCH_ESP32
 #include <ArduinoOTA.h>
 #endif
 
 // Static member definitions
-bool OverTheAirUpdateHandler::initialized = false;
-OverTheAirUpdateStatus OverTheAirUpdateHandler::status = OverTheAirUpdateStatus::Idle;
-int OverTheAirUpdateHandler::lastError = 0;
-uint32_t OverTheAirUpdateHandler::progressInNumberOfBytes = 0;
-uint32_t OverTheAirUpdateHandler::totalNumberOfBytes = 0;
-std::function<void(uint32_t, uint32_t)> OverTheAirUpdateHandler::progressCallback;
-std::function<void(int)> OverTheAirUpdateHandler::errorCallback;
+bool OtaUpdateHandler::initialized = false;
+const char* OtaUpdateHandler::hostname = nullptr;
+OtaUpdateStatus OtaUpdateHandler::status = OtaUpdateStatus::Idle;
+int OtaUpdateHandler::lastError = 0;
+uint32_t OtaUpdateHandler::progressInNumberOfBytes = 0;
+uint32_t OtaUpdateHandler::totalNumberOfBytes = 0;
+std::function<void(uint32_t, uint32_t)> OtaUpdateHandler::progressCallback;
+std::function<void(int)> OtaUpdateHandler::errorCallback;
 
 namespace {
     std::function<void()> startCallback;
     std::function<void()> endCallback;
 }
 
-bool OverTheAirUpdateHandler::begin(const char* hostname) {
+bool OtaUpdateHandler::begin(const char* hostnameParam) {
 #ifdef ARDUINO_ARCH_ESP32
-    if (hostname != nullptr) {
-        ArduinoOTA.setHostname(hostname);
+    if (hostnameParam != nullptr) {
+        ArduinoOTA.setHostname(hostnameParam);
+        hostname = hostnameParam;
     }
 
     ArduinoOTA.onStart([&] {
-        status = OverTheAirUpdateStatus::Starting;
+        status = OtaUpdateStatus::Starting;
         progressInNumberOfBytes = 0;
         totalNumberOfBytes = 0;
         if (startCallback) {
@@ -43,8 +45,8 @@ bool OverTheAirUpdateHandler::begin(const char* hostname) {
     });
 
     ArduinoOTA.onEnd([&] {
-        if (status == OverTheAirUpdateStatus::Running) {
-            status = OverTheAirUpdateStatus::Finished;
+        if (status == OtaUpdateStatus::Running) {
+            status = OtaUpdateStatus::Finished;
         }
         if (endCallback) {
             endCallback();
@@ -52,7 +54,7 @@ bool OverTheAirUpdateHandler::begin(const char* hostname) {
     });
 
     ArduinoOTA.onProgress([&](const uint32_t progress, const uint32_t total) {
-        status = OverTheAirUpdateStatus::Running;
+        status = OtaUpdateStatus::Running;
         progressInNumberOfBytes = progress;
         totalNumberOfBytes = total;
         if (progressCallback) {
@@ -61,7 +63,7 @@ bool OverTheAirUpdateHandler::begin(const char* hostname) {
     });
 
     ArduinoOTA.onError([&](const int errorCode) {
-        status = OverTheAirUpdateStatus::Error;
+        status = OtaUpdateStatus::Error;
         lastError = errorCode;
         if (errorCallback) {
             errorCallback(errorCode);
@@ -70,17 +72,19 @@ bool OverTheAirUpdateHandler::begin(const char* hostname) {
 
     ArduinoOTA.begin();
     initialized = true;
-    status = OverTheAirUpdateStatus::Idle;
+    status = OtaUpdateStatus::Idle;
     return true;
 #else
-    (void)hostname;
+    if (hostnameParam != nullptr) {
+        hostname = hostnameParam;
+    }
     initialized = true;
-    status = OverTheAirUpdateStatus::Idle;
+    status = OtaUpdateStatus::Idle;
     return true;
 #endif
 }
 
-void OverTheAirUpdateHandler::setPassword(const char* password) {
+void OtaUpdateHandler::setPassword(const char* password) {
 #ifdef ARDUINO_ARCH_ESP32
     if (password != nullptr) {
         ArduinoOTA.setPassword(password);
@@ -90,23 +94,23 @@ void OverTheAirUpdateHandler::setPassword(const char* password) {
 #endif
 }
 
-void OverTheAirUpdateHandler::onProgress(std::function<void(uint32_t, uint32_t)> callback) {
+void OtaUpdateHandler::onProgress(OtaProgressCallback callback) {
     progressCallback = std::move(callback);
 }
 
-void OverTheAirUpdateHandler::onError(std::function<void(int)> callback) {
+void OtaUpdateHandler::onError(OtaErrorCallback callback) {
     errorCallback = std::move(callback);
 }
 
-void OverTheAirUpdateHandler::onStart(std::function<void()> callback) {
+void OtaUpdateHandler::onStart(OtaStartCallback callback) {
     startCallback = std::move(callback);
 }
 
-void OverTheAirUpdateHandler::onEnd(std::function<void()> callback) {
+void OtaUpdateHandler::onEnd(OtaEndCallback callback) {
     endCallback = std::move(callback);
 }
 
-void OverTheAirUpdateHandler::service() {
+void OtaUpdateHandler::service() {
 #ifdef ARDUINO_ARCH_ESP32
     if (initialized) {
         ArduinoOTA.handle();
@@ -114,21 +118,25 @@ void OverTheAirUpdateHandler::service() {
 #endif
 }
 
-OverTheAirUpdateStatus OverTheAirUpdateHandler::getStatus() {
+const char* OtaUpdateHandler::getHostname() {
+    return hostname;
+}
+
+OtaUpdateStatus OtaUpdateHandler::getStatus() {
     return status;
 }
 
-int OverTheAirUpdateHandler::getLastError() {
+int OtaUpdateHandler::getLastError() {
     return lastError;
 }
 
-float OverTheAirUpdateHandler::getProgressInPercentage() {
+float OtaUpdateHandler::getProgressInPercentage() {
     if (totalNumberOfBytes == 0) {
         return 0.0f;
     }
     return static_cast<float>(progressInNumberOfBytes) / static_cast<float>(totalNumberOfBytes) * 100.0f;
 }
 
-bool OverTheAirUpdateHandler::isInitialized() {
+bool OtaUpdateHandler::isInitialized() {
     return initialized;
 }
