@@ -2,10 +2,10 @@
 
 [![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Author**: Angel Velasquez  
 **Date created**: 2025-03-23  
-**Last updated**: 2026-11-14
+**Last updated**: 2026-11-15
 
 > **Git Flow**: This project uses Git Flow. `main` holds release versions (tagged `v1.0.0`, etc.), `develop` is the integration branch, and feature branches (e.g., `feature/W27-firmware-version`) merge into `develop`.
 
@@ -594,7 +594,7 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Telemetry packet pool (W18). Telemetry buffering (W25), firmware version (W27), power manager (W26), and OTA updates (W28) are complete.
+- **v1.1.0**: Released — Telemetry buffering, firmware version, power manager, OTA updates. Telemetry packet pool (W18) deferred.
 - **v1.2.0**: Event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
