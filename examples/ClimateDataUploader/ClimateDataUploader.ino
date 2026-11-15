@@ -102,6 +102,12 @@ static const size_t BEARER_AUTHORIZATION_HEADER_MAX_LENGTH = 150;
 static const size_t BEARER_TOKEN_PREVIEW_LENGTH = 20;
 //@} // Bearer Token Parsing Configuration
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all ClimateDataUploader serial output. */
+static const char* CLIMATE_DATA_UPLOADER_LOG_PREFIX = "[ClimateDataUploader]";
+//@} // Serial Output Configuration
+
 /**
  * @brief Extracts a Bearer token from a JSON response body and builds
  * the complete authorization header.
@@ -215,10 +221,10 @@ private:
     void replayBufferedPackets() {
         String bufferedPacket;
         while (TelemetryBuffer::retrieveNext(bufferedPacket)) {
-            Serial.printf("[ClimateDataUploader] Replaying buffered packet: %s\n", bufferedPacket.c_str());
+            Serial.printf("%s Replaying buffered packet: %s\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, bufferedPacket.c_str());
             gatewayClient.sendRequest(HttpGatewayClient::HttpMethod::Post, bufferedPacket.c_str());
         }
-        Serial.println("[ClimateDataUploader] Buffered packet replay complete.");
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Buffered packet replay complete.").c_str());
     }
 
     /**
@@ -226,38 +232,38 @@ private:
      * @return True if the token was successfully retrieved and configured.
      */
     bool acquireBearerToken() {
-        Serial.println("[ClimateDataUploader] Requesting Bearer token...");
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Requesting Bearer token...").c_str());
 
         bool tokenReceived = gatewayClient.sendRequest(
             HttpGatewayClient::HttpMethod::Get, nullptr);
 
         if (!tokenReceived) {
-            Serial.println("[ClimateDataUploader] Failed to obtain Bearer token");
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Failed to obtain Bearer token").c_str());
             return false;
         }
 
         int statusCode = gatewayClient.getLastResponseStatusCode();
-        Serial.printf("[ClimateDataUploader] Token endpoint responded: %d\n", statusCode);
+        Serial.printf("%s Token endpoint responded: %d\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, statusCode);
 
         const char* responseBody = gatewayClient.getResponseBody();
         if (responseBody == nullptr) {
-            Serial.println("[ClimateDataUploader] Empty response from token endpoint");
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Empty response from token endpoint").c_str());
             return false;
         }
 
-        Serial.printf("[ClimateDataUploader] Response body: %s\n", responseBody);
+        Serial.printf("%s Response body: %s\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, responseBody);
 
         char authorizationHeader[BEARER_AUTHORIZATION_HEADER_MAX_LENGTH];
         char tokenPreview[BEARER_TOKEN_MAX_LENGTH];
         if (!BearerTokenParser::buildAuthorizationHeader(responseBody, authorizationHeader,
                                                          sizeof(authorizationHeader), tokenPreview)) {
-            Serial.println("[ClimateDataUploader] Could not parse token from response");
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Could not parse token from response").c_str());
             return false;
         }
 
         gatewayClient.setAuthorizationHeader(authorizationHeader);
 
-        Serial.printf("[ClimateDataUploader] Bearer token configured: %s...\n", tokenPreview);
+        Serial.printf("%s Bearer token configured: %s...\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, tokenPreview);
         return true;
     }
 
@@ -269,9 +275,9 @@ protected:
                 // Serialize and buffer the payload for later replay when connectivity is restored
                 String failedPayload = rawQueueItemPayload->toJsonString();
                 if (TelemetryBuffer::store(failedPayload)) {
-                    Serial.println("[ClimateDataUploader] Send failed — payload buffered for offline replay.");
+                    Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Send failed — payload buffered for offline replay.").c_str());
                 } else {
-                    Serial.println("[ClimateDataUploader] Send failed and buffer is full — payload lost.");
+                    Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Send failed and buffer is full — payload lost.").c_str());
                 }
             }
         }
@@ -325,26 +331,30 @@ public:
                 const char* telemetryEndpointUrl,
                 unsigned long connectionTimeoutInMilliseconds)
     {
+        // Set firmware version for fleet management in telemetry
+        Device::setFirmwareVersion("CLD-100 FW 1.1.0");
+
         // Initialize TelemetryBuffer for offline persistence
         TelemetryBuffer::begin();
         TelemetryBuffer::onEviction([]() {
-            Serial.println("[ClimateDataUploader] WARNING: Oldest buffered packet evicted due to capacity.");
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " WARNING: Oldest buffered packet evicted due to capacity.").c_str());
         });
 
         // Replay any packets buffered from a previous session
         if (TelemetryBuffer::hasBufferedPackets()) {
             int bufferedCount = TelemetryBuffer::getBufferedPacketCount();
-            Serial.printf("[ClimateDataUploader] Found %d buffered packets from previous session.\n", bufferedCount);
+            Serial.printf("%s Found %d buffered packets from previous session.\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, bufferedCount);
         }
 
         // Connect to Wi-Fi with timeout
-        Serial.println("[ClimateDataUploader] Connecting to Wi-Fi...");
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Connecting to Wi-Fi...").c_str());
         if (!transport.waitForConnection(connectionTimeoutInMilliseconds)) {
-            Serial.println("[ClimateDataUploader] Wi-Fi connection timed out");
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Wi-Fi connection timed out").c_str());
             return false;
         }
 
-        Serial.printf("[ClimateDataUploader] Connected! IP: %s, RSSI: %ld dBm\n",
+        Serial.printf("%s Connected! IP: %s, RSSI: %ld dBm\n",
+                      CLIMATE_DATA_UPLOADER_LOG_PREFIX,
                       transport.getLocalIpAddress().toString().c_str(),
                       transport.getSignalStrengthInDbm());
 
@@ -359,7 +369,7 @@ public:
 
         // Acquire Bearer token
         if (!acquireBearerToken()) {
-            Serial.println("[ClimateDataUploader] Authentication failed, aborting");
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Authentication failed, aborting").c_str());
             return false;
         }
 
@@ -367,7 +377,7 @@ public:
         gatewayClient.setServiceEndpointUrl(telemetryEndpointUrl);
         gatewayClient.setHttpMethod(HttpGatewayClient::HttpMethod::Post);
 
-        Serial.println("[ClimateDataUploader] HTTP telemetry online with Bearer token authentication.");
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " HTTP telemetry online with Bearer token authentication.").c_str());
         return true;
     }
 };
@@ -382,9 +392,6 @@ static ClimateDataUploader* climateUploaderApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-
-    // Set firmware version for fleet management in telemetry
-    Device::setFirmwareVersion("CLD-100 FW 1.1.0");
 
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);
 
@@ -401,7 +408,7 @@ void setup() {
     if (!climateUploaderApplication->start(*transportDriver, AUTHENTICATION_ENDPOINT_URL,
                                          TELEMETRY_ENDPOINT_URL,
                                          CONNECTION_TIMEOUT_IN_MILLISECONDS)) {
-        Serial.println("[ClimateDataUploader] Device startup failed.");
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Device startup failed.").c_str());
         return;
     }
 }
