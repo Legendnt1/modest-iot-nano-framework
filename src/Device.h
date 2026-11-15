@@ -499,6 +499,42 @@ public:
      * Intercepts framework-wide actions; overrides CommandHandler.
      */
     void handle(Command command) override;
+
+    /**
+     * @brief Default telemetry schema version.
+     *
+     * Returns the default schema version string used in telemetry envelope metadata.
+     * Applications can override this via `setTelemetrySchemaVersion()` to track
+     * telemetry format changes across firmware versions.
+     */
+    static const char* getTelemetrySchemaVersion();
+
+    /**
+     * @brief Sets the telemetry schema version string.
+     * @param version Schema version identifier (e.g., "1.0").
+     *
+     * When set, the schema version is included in every telemetry packet's
+     * envelope metadata as the `schemaVersion` field. Pass nullptr to omit.
+     */
+    static void setTelemetrySchemaVersion(const char* version);
+
+    /**
+     * @brief Default firmware version string.
+     *
+     * Returns the firmware version string used in telemetry envelope metadata.
+     * Applications should override this via `setFirmwareVersion()` to report
+     * their own version for fleet management and diagnostics.
+     */
+    static const char* getFirmwareVersion();
+
+    /**
+     * @brief Sets the firmware version string.
+     * @param version Firmware version identifier (e.g., "1.0.0").
+     *
+     * When set, the firmware version is included in every telemetry packet's
+     * envelope metadata as the `firmwareVersion` field. Pass nullptr to omit.
+     */
+    static void setFirmwareVersion(const char* version);
 };
 
 #endif // DEVICE_H

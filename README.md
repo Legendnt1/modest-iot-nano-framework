@@ -7,6 +7,8 @@
 **Date created**: 2025-03-23  
 **Last updated**: 2026-11-14
 
+> **Git Flow**: This project uses Git Flow. `main` holds release versions (tagged `v1.0.0`, etc.), `develop` is the integration branch, and feature branches (e.g., `feature/W27-firmware-version`) merge into `develop`.
+
 ## Overview
 
 Modest IoT Nano Framework (C++ Edition) is a lightweight, object-oriented, event-driven, and CQRS-inspired Arduino library for resource-constrained IoT projects on ESP32-based devices. It provides reusable abstractions for events, commands, sensors, actuators, connectivity drivers, gateway clients, and complete devices — all orchestrated by an asynchronous FreeRTOS engine with per-slot sampling intervals, zero-cost logging, and runtime diagnostics.
@@ -220,6 +222,22 @@ dhtSensor.setFaultThreshold(3); // Emit fault event after 3 consecutive failures
 ```
 
 When a sensor faults, it emits event ID 22 (`SENSOR_FAULT_EVENT_IDENTIFIER`). When it recovers, it emits event ID 23 (`SENSOR_RECOVERED_EVENT_IDENTIFIER`). The mediator can react by turning on an alert LED, publishing health telemetry, or switching to a safe default state.
+
+### Firmware Version in Telemetry
+
+Include your firmware version in every telemetry packet for fleet management and diagnostics:
+
+```cpp
+Device::setFirmwareVersion("1.0.0");
+```
+
+The `firmwareVersion` field appears in the JSON envelope of every telemetry record. Optionally set a schema version to track telemetry format changes:
+
+```cpp
+Device::setTelemetrySchemaVersion("1.0");
+```
+
+When neither is set (the default), both fields are omitted from the JSON output with zero overhead.
 
 ## Connectivity
 
@@ -498,7 +516,7 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Telemetry packet pool (W18), telemetry buffering with LittleFS persistence, power manager with battery monitoring, and firmware version in telemetry.
+- **v1.1.0**: Telemetry packet pool (W18), telemetry buffering with LittleFS persistence, and power manager with battery monitoring.
 - **v1.2.0**: Over-the-air (OTA) updates and event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.

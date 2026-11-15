@@ -25,6 +25,10 @@
 #define traceISR_EXIT_TO_SCHEDULER()
 #endif
 
+// Firmware version tracking for telemetry envelope metadata
+static const char* telemetrySchemaVersion = nullptr; ///< Optional schema version for telemetry format tracking.
+static const char* firmwareVersion = nullptr; ///< Optional firmware version for fleet management.
+
 Device::Device(const unsigned long samplingIntervalInMilliseconds, const uint8_t timerGroupIndex)
     : scheduler(samplingIntervalInMilliseconds),
       engineStarted(false),
@@ -157,6 +161,7 @@ bool Device::enqueueTelemetryPayload(TelemetryPackage **telemetryPackagePointerA
 #else
     packet->setEnvelopeMetadata(static_cast<uint32_t>(millis()), nextSequenceNumber++);
 #endif
+    packet->setVersionMetadata(telemetrySchemaVersion, firmwareVersion);
 
     if (xQueueSend(telemetryQueueHandle, telemetryPackagePointerAddress, 0) == pdPASS) {
         packetsEnqueuedCount++;
@@ -198,6 +203,7 @@ bool Device::enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetry
 #else
     telemetryPackageStandardUniquePointer->setEnvelopeMetadata(static_cast<uint32_t>(millis()), nextSequenceNumber++);
 #endif
+    telemetryPackageStandardUniquePointer->setVersionMetadata(telemetrySchemaVersion, firmwareVersion);
 
     TelemetryPackage *rawPackagePointer = telemetryPackageStandardUniquePointer.release();
     if (xQueueSend(telemetryQueueHandle, &rawPackagePointer, 0) == pdPASS) {
@@ -691,6 +697,31 @@ void Device::setPowerMode(const PowerMode mode) {
 Device::PowerMode Device::getPowerMode() const {
     return powerMode;
 }
+
+/**
+ * @name Firmware Version in Telemetry
+ * @{
+ *
+ * @brief Optional schema and firmware version fields in telemetry envelope metadata.
+ * Applications call setFirmwareVersion() to identify devices in fleet telemetry.
+ */
+
+const char* Device::getTelemetrySchemaVersion() {
+    return telemetrySchemaVersion;
+}
+
+void Device::setTelemetrySchemaVersion(const char* version) {
+    telemetrySchemaVersion = version;
+}
+
+const char* Device::getFirmwareVersion() {
+    return firmwareVersion;
+}
+
+void Device::setFirmwareVersion(const char* version) {
+    firmwareVersion = version;
+}
+/** @} */
 
 void Device::stopAsynchronousEngine() {
     // Guard against double-stop

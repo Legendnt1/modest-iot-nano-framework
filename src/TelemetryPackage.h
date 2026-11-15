@@ -21,6 +21,8 @@ class TelemetryPackage {
 protected:
     uint32_t captureTimestamp = 0; ///< Capture time in milliseconds from device boot.
     uint32_t sequenceNumber = 0; ///< Monotonically increasing sequence assigned before enqueue.
+    const char* schemaVersionValue = nullptr; ///< Optional schema version string for telemetry format tracking.
+    const char* firmwareVersionValue = nullptr; ///< Optional firmware version string for fleet management.
 
 public:
     /**
@@ -35,12 +37,31 @@ public:
     }
 
     /**
+     * @brief Sets the optional schema and firmware version strings.
+     * @param schemaVersion Optional schema version identifier (e.g., "1.0").
+     * @param firmwareVersion Optional firmware version identifier (e.g., "1.0.0").
+     * @note Pass nullptr to omit a field from the JSON output. Called by Device
+     *   before enqueueing when firmware version tracking is enabled.
+     */
+    void setVersionMetadata(const char* schemaVersion, const char* firmwareVersion) {
+        schemaVersionValue = schemaVersion;
+        firmwareVersionValue = firmwareVersion;
+    }
+
+    /**
      * @brief Adds envelope metadata fields to the JSON document.
      * @param doc Document to populate with timestamp and sequence.
+     * @note Optionally includes schemaVersion and firmwareVersion when set.
      */
     void addEnvelopeMetadata(JsonDocument& doc) const {
         doc["timestamp"] = static_cast<int>(captureTimestamp);
         doc["sequence"] = static_cast<int>(sequenceNumber);
+        if (schemaVersionValue != nullptr) {
+            doc["schemaVersion"] = schemaVersionValue;
+        }
+        if (firmwareVersionValue != nullptr) {
+            doc["firmwareVersion"] = firmwareVersionValue;
+        }
     }
 
     /** @brief Virtual destructor for safe polymorphic deletion. */
