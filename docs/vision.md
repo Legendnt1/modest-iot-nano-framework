@@ -125,7 +125,7 @@ Production-ready features across all three transport options:
 | Gap | Impact | Recommendation | Effort |
 |-----|--------|----------------|--------|
 | **Persistent configuration store** | **Complete** ✓ — `ConfigurationStore` using ESP32 NVS (`Preferences`) with namespace-based isolation, type-safe getters/setters (string, int, unsigned long, float, bool), default fallbacks, read-only mode, and schema validation (containsKey, removeKey, clearNamespace). | — | Medium |
-| **No time synchronization** | **Complete** ✓ — `TimeSynchronizationDriver` with NTP support over WiFi and RTC fallback for deep-sleep devices. Telemetry timestamps use Unix epoch seconds via `getCurrentTimestamp()`. WeatherStation example demonstrates NTP initialization and RTC save/restore. | — | — |
+| **No time synchronization** | **Complete** ✓ — `TimeSynchronizationDriver` with NTP support over Wi-Fi and RTC fallback for deep-sleep devices. Telemetry timestamps use Unix epoch seconds via `getCurrentTimestamp()`. WeatherStation example demonstrates NTP initialization and RTC save/restore. | — | — |
 | **TLS/SSL examples & documentation** | **Complete** ✓ — `MqttTlsDevice` example using `WiFiClientSecure` with `MqttGatewayClient` on port 8883. Secure Communication section in README documents both MQTT and HTTP TLS with certificate options (`setInsecure()`, `setCACert()`, `setCertificate()`). | — | Low |
 | **Command payload support** | **Complete** ✓ — `Command(int, int32_t)` constructor with payload. `DRIVE_TO_ANGLE_COMMAND` (ServoMotor), `ADJUST_BRIGHTNESS_COMMAND` (RgbLed), `PLAY_FREQUENCY_COMMAND` (Buzzer). Static helpers: `validateOrAdjustPhysicalAngle()`, `adjustColorSetIntensity()`. | — | Low |
 
@@ -133,7 +133,7 @@ Production-ready features across all three transport options:
 
 | Gap | Impact | Recommendation | Status |
 |-----|--------|----------------|--------|
-| **No OTA update mechanism** | Deployed devices cannot receive bug fixes or feature updates without manual intervention. | `OtaUpdateHandler` component with WiFi transport, hostname, password, progress/error callbacks. | **Complete** ✓ (W28) |
+| **No OTA update mechanism** | Deployed devices cannot receive bug fixes or feature updates without manual intervention. | `OtaUpdateHandler` component with Wi-Fi transport, hostname, password, progress/error callbacks. | **Complete** ✓ (W28) |
 | **No telemetry buffering** | Drop-oldest policy discards data when queue is full. No persistent buffer for offline scenarios. | `TelemetryBuffer` with LittleFS persistence, monotonic indices, FIFO eviction, eviction callback. | **Complete** ✓ (W25) |
 | **Limited power management** | DeepSleep mode exists but no light sleep configuration beyond tickless, no battery monitoring. | `PowerManager` with battery voltage sensing, level calculation, low-battery threshold alerts. | **Complete** ✓ (W26) |
 | **No firmware version in telemetry** | No standard way to report firmware version in telemetry envelope. | Optional `schemaVersion` and `firmwareVersion` fields in envelope metadata via `Device` API. | **Complete** ✓ (W27) |
