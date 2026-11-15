@@ -26,6 +26,7 @@
 #include "ConfigurationStore.h"
 #include "TimeSynchronizationDriver.h"
 #include "PowerManager.h"
+#include "TelemetryBuffer.h"
 //@} // Core Asynchronous Engine & Signaling Primitives
 
 /** @name Layer-Isolated Network Comprehension */
