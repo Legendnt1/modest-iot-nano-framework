@@ -35,9 +35,9 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 
 ### What's Delivered
 
-- **48 source headers** with full Doxygen documentation and `@runs_on` threading tags.
+- **51 source headers** with full Doxygen documentation and `@runs_on` threading tags.
 - **22 example sketches** covering diverse use cases (MQTT over TLS device, BLE vitals transmitter, remote LED controller, indoor air quality display, pipe temperature monitor, equipment health monitor, smart band, air quality, RFID access, smart greenhouse, weather station, crop monitoring, home security, HTTP telemetry, etc.).
-- **33 host unit test suites** with shared mocks, Address/Undefined sanitizers, and 100% pass rate.
+- **36 host unit test suites** with shared mocks, Address/Undefined sanitizers, and 100% pass rate.
 - **3 CI workflows**: host tests, compile examples, lint.
 - **Per-slot `SamplingScheduler`** with phase-aligned re-arming and minimum period enforcement.
 - **`EngineConfig`** for tunable FreeRTOS task stacks, priorities, and core pinning.
@@ -914,7 +914,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 |-----------------------------|-------------------------|----------------------------------|----------------------------|
 | **Consistent patterns**     | Mediator, CQRS, events  | Same patterns at edge scale      | One mental model for both  |
 | **AI-assisted development** | Clean, documented API   | Python/ML ecosystem              | AI generates code for both |
-| **Test infrastructure**     | 33 host test suites, CI | Python pytest, integration tests | Full-stack testing         |
+| **Test infrastructure**     | 36 host test suites, CI | Python pytest, integration tests | Full-stack testing         |
 | **Documentation**           | Doxygen, ADRs, README   | Sphinx, OpenAPI specs            | Unified documentation      |
 
 ### 4.2 For IoT Products
@@ -1032,7 +1032,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | Metric                  | Target                                 |
 |-------------------------|----------------------------------------|
 | **Compilation success** | 100% across ESP32 variants             |
-| **Test coverage**       | 100% pass rate, 33 test suites         |
+| **Test coverage**       | 100% pass rate, 36 test suites         |
 | **Flash footprint**     | <30 KB overhead                        |
 | **RAM footprint**       | <2 KB overhead                         |
 | **Example count**       | 22 diverse examples                    |
