@@ -79,7 +79,7 @@ Prioritization method: each work item is scored 0 to 5 on three benefits, and si
 | W22 | TLS/SSL examples & documentation                                                        | Pre-release | 5 | 3 | 4 | S    | 10    | **Complete** — `MqttTlsDevice` example with `WiFiClientSecure`, Secure Communication section in README |
 | W23 | Command payload support                                                                 | Pre-release | 3 | 0 | 4 | S    | 7     | **Complete** — `Command(int, int32_t)` constructor, `DRIVE_TO_ANGLE_COMMAND`, `ADJUST_BRIGHTNESS_COMMAND`, `adjustColorSetIntensity()`, `PLAY_FREQUENCY_COMMAND` |
 | W24 | WiFiConnectivityDriver secure socket builder                                             | Pre-release | 2 | 1 | 3 | XS   | 6     | **Complete** — `createSecureSocket()` builder method with optional CA certificate pinning           |
-| W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | Deferred — `TelemetryBuffer` for offline replay when network unavailable                            |
+| W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | **Complete** — `TelemetryBuffer` with LittleFS persistence, FIFO eviction, replay, 20 host tests   |
 | W26 | Power manager & battery monitoring                                                      | v1.1.0      | 2 | 4 | 2 | M    | 5     | **Complete** — `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests |
 | W27 | Firmware version in telemetry envelope                                                  | v1.1.0      | 2 | 0 | 3 | XS   | 10    | **Complete** — `setFirmwareVersion()`, `setTelemetrySchemaVersion()`, optional envelope fields, 5 host tests |
 | W28 | OTA update support                                                                      | v1.2.0      | 4 | 2 | 3 | L    | 5     | Deferred — `OtaUpdater` component with WiFi transport                                              |
@@ -107,7 +107,6 @@ Prioritization method: each work item is scored 0 to 5 on three benefits, and si
 The following items are explicitly deferred to post-v1.0.0 releases. They are in-scope features that depend on v1.0.0 stability and community feedback:
 
 - **OTA updates** (W28, v1.2.0): Requires stable v1.0.0 baseline and Edge Framework Phase 3 orchestration.
-- **Telemetry buffering with persistence** (W25, v1.1.0): Requires heap measurement data from field deployments to size the pool correctly.
 - **Event aggregation & rules engine** (W29, v1.2.0): Application-layer feature; can be implemented by users using the event handler pattern.
 - **Multi-device coordination** (W30, v1.3.0): Niche use case; ESP-NOW or MQTT-based approach TBD based on community demand.
 - **On-device ML inference** (Tier 5, v1.3.0+): `AiMicroModelController` is opt-in and requires ML runtime dependencies. Deferred until core stability is proven.
@@ -936,6 +935,43 @@ PowerManager::setBatteryVoltageRange(3000, 4200); // Li-ion defaults
 
 ---
 
+### W25: Telemetry buffering with LittleFS persistence — **Complete** ✓
+
+**Problem**: When the network is unavailable, telemetry packets are dropped by the queue's drop-oldest policy. For battery-powered or remote devices, losing data during network outages means gaps in the time series that cannot be recovered.
+
+**Solution**: `TelemetryBuffer` static singleton persists failed telemetry sends as JSON files in LittleFS. When connectivity is restored, buffered packets are replayed in FIFO order.
+
+**API**:
+
+```cpp
+// Initialize the buffer in setup()
+TelemetryBuffer::begin();
+
+// In processQueuedTelemetryData(), if send fails:
+if (!gatewayClient.sendTelemetryRecord(*packet)) {
+    TelemetryBuffer::store(packet->toJsonString());
+}
+
+// When connectivity is restored, replay buffered packets:
+if (gatewayClient.isConnected() && TelemetryBuffer::hasBufferedPackets()) {
+    String buffered;
+    while (TelemetryBuffer::retrieveNext(buffered)) {
+        // Parse and resend the buffered JSON
+    }
+}
+```
+
+**Design decisions**:
+- Static singleton pattern — buffering is a global service shared across the device lifecycle.
+- File-per-packet strategy — each packet is a separate JSON file with zero-padded sequential names (e.g., `/telemetry_buffer/00001.json`) for simple FIFO ordering.
+- Configurable max buffer size — defaults to 50 packets (~5-15 KB depending on payload size); oldest packets are evicted when full.
+- Survives reboots — LittleFS persistence means buffered packets survive unexpected reboots.
+- Host testing support — simulated store/retrieve behavior when not on ESP32.
+
+**Source**: `src/TelemetryBuffer.h`, `src/TelemetryBuffer.cpp`, `tests/TelemetryBuffer/test.cpp` (20 tests)
+
+---
+
 ## Comparison with traditional development
 
 Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tiers 0–5 complete), and Modest IoT after all pre-release prerequisites (W20–W24) and deferred features (W25–W30) are implemented.
@@ -956,7 +992,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tie
 | Cloud-to-device | Hand-rolled callback                         | `Device::enqueueCommand` with `int32_t` payload for parameterized commands                   | Same, with event aggregation for composite patterns                   |
 | Offline data    | Lost when network unavailable                | Drop-oldest queue policy; no persistence                                      | `TelemetryBuffer` with LittleFS persistence for offline replay        |
 | Updates         | Manual reflashing required                   | Manual reflashing required                                                    | OTA updates via `OtaUpdater` component                                |
-| Testing         | Rarely possible off-device                   | 33 host test suites with CI, sanitizers enabled                               | Same, plus integration tests for new components                      |
+| Testing         | Rarely possible off-device                   | 35 host test suites with CI, sanitizers enabled                               | Same, plus integration tests for new components                      |
 
 ### Performance
 
