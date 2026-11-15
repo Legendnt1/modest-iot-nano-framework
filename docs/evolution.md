@@ -163,7 +163,7 @@ Reserved blocks: sensor-health 22-23, connectivity link events 900-909, power ev
 | Core | 16 | 10 | 6 (base classes, umbrella) | 0 |
 | Sensors | 18 | 12 | 1 (BmeEnvironmentalSensor) | **5** |
 | Actuators | 7 | 6 | 0 | **1** |
-| Connectivity | 3 | 1 | 2 (base class, WiFi via gateways) | 0 |
+| Connectivity | 3 | 1 | 2 (base class, Wi-Fi via gateways) | 0 |
 | Gateway Clients | 4 | 3 | 1 (base class) | 0 |
 | Drivers | 2 | 0 | 2 (via display tests) | 0 |
 | **Total** | **51** | **31** | **12** | **6** |
@@ -792,7 +792,7 @@ public:
 
 ### W21: Time synchronization (NTP + RTC fallback) — **Complete**
 
-`TimeSynchronizationDriver` with NTP support over WiFi and RTC fallback for deep-sleep devices. Replaces `millis()` timestamps with Unix epoch seconds. 8 host tests.
+`TimeSynchronizationDriver` with NTP support over Wi-Fi and RTC fallback for deep-sleep devices. Replaces `millis()` timestamps with Unix epoch seconds. 8 host tests.
 
 **Source**: `src/TimeSynchronizationDriver.h`, `src/TimeSynchronizationDriver.cpp`, `tests/TimeSynchronizationDriver/test.cpp`
 
