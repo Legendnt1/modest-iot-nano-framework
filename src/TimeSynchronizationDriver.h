@@ -16,7 +16,7 @@
  * @brief Manages time synchronization for telemetry timestamps.
  *
  * Replaces `millis()`-based timestamps with absolute Unix epoch seconds via NTP
- * synchronization over WiFi. Provides RTC memory fallback for deep-sleep devices
+ * synchronization over Wi-Fi. Provides RTC memory fallback for deep-sleep devices
  * to maintain approximate time across reboots.
  *
  * All methods are static — the component is a singleton infrastructure service.
