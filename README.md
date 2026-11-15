@@ -1,13 +1,17 @@
 # Modest IoT Nano Framework (C++ Edition)
 
+[![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
+
 **Version**: 1.0.0  
 **Author**: Angel Velasquez  
 **Date created**: 2025-03-23  
-**Last updated**: 2026-11-12
+**Last updated**: 2026-11-14
 
 ## Overview
 
 Modest IoT Nano Framework (C++ Edition) is a lightweight, object-oriented, event-driven, and CQRS-inspired Arduino library for resource-constrained IoT projects on ESP32-based devices. It provides reusable abstractions for events, commands, sensors, actuators, connectivity drivers, gateway clients, and complete devices — all orchestrated by an asynchronous FreeRTOS engine with per-slot sampling intervals, zero-cost logging, and runtime diagnostics.
+
+**Approved by Arduino** — Available in the [Arduino Library Manager](https://github.com/modest-iot/modest-iot-nano-framework) for easy installation directly from the Arduino IDE.
 
 The framework uses a **Mediator pattern** where a `Device` subclass owns and coordinates its sensors and actuators. Sensors emit events that propagate synchronously through the mediator, which issues commands to actuators. Telemetry flows through a queue-based pipeline from the sampler task to the network task, keeping sensor polling and network transmission isolated.
 
@@ -395,6 +399,16 @@ Then open `docs/build/html/index.html` in your browser.
 - **Hardware**: ESP32 development board (original ESP32, ESP32-S3, ESP32-C3, ESP32-C6, or ESP32-H2).
 
 ### Installation
+
+**Option 1: Arduino Library Manager (Recommended)**
+
+1. Open the Arduino IDE.
+2. Go to **Tools > Manage Libraries...** (or press `Ctrl+Shift+I` / `Cmd+Shift+I`).
+3. Search for **Modest IoT Nano Framework**.
+4. Click **Install** to install the latest version.
+5. The required dependencies (`ArduinoJson` and `MQTT`) will be installed automatically.
+
+**Option 2: Manual Installation**
 
 1. **Download**: Clone or download this repository from [modest-iot/modest-iot-nano-framework](https://github.com/modest-iot/modest-iot-nano-framework).
 2. **Install as Library**:
