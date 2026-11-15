@@ -47,8 +47,8 @@ int TelemetryBuffer::countPackets() {
 }
 
 bool TelemetryBuffer::removeOldestPacket() {
-    const String path = getFilePath(0);
 #ifdef ARDUINO_ARCH_ESP32
+    const String path = getFilePath(0);
     if (LittleFS.remove(path)) {
         // Shift all remaining files down by one index
         for (int i = 1; i < packetCount; i++) {
@@ -59,8 +59,15 @@ bool TelemetryBuffer::removeOldestPacket() {
         packetCount--;
         return true;
     }
-#endif
     return false;
+#else
+    // Host testing: simulate removal
+    if (packetCount > 0) {
+        packetCount--;
+        return true;
+    }
+    return false;
+#endif
 }
 
 bool TelemetryBuffer::begin(const int maxBufferedPackets) {
