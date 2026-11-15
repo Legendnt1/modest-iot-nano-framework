@@ -36,7 +36,7 @@ The Modest IoT Nano Framework follows a set of core principles that guide all de
 - **Mediator Pattern**: The `Device` class is the central mediator that orchestrates sensors, actuators, and gateway clients. Components never communicate directly — all event and command routing flows through the mediator.
 - **CQRS (Command Query Responsibility Segregation)**: Sensors emit events (queries); actuators handle commands. The separation is enforced via `Event`/`EventHandler` and `Command`/`CommandHandler` interfaces.
 - **Template Method Pattern**: `Sensor::processEvent()` and `Actuator::executeCommand()` are template method hooks that subclasses override to transform or suppress events/commands before propagation.
-- **Strategy Pattern**: `ConnectivityDriver` abstracts physical transport (WiFi, BLE); `GatewayClient` abstracts application protocol (MQTT, HTTP, BLE NUS). Clean separation between link-layer and protocol-layer concerns.
+- **Strategy Pattern**: `ConnectivityDriver` abstracts physical transport (Wi-Fi, BLE); `GatewayClient` abstracts application protocol (MQTT, HTTP, BLE NUS). Clean separation between link-layer and protocol-layer concerns.
 
 ### Design Principles
 
