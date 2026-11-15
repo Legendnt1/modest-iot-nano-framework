@@ -39,7 +39,7 @@ All 8 improvement briefs and the roadmap are consolidated in this single documen
 | **W25** | Telemetry buffering with persistence | v1.1.0 | High | `TelemetryBuffer` with LittleFS persistence for offline replay when network is unavailable. |
 | **W26** | Power manager & battery monitoring | v1.1.0 | Medium | `PowerManager` with battery voltage sensing, configurable sleep modes beyond tickless/deep-sleep. |
 | **W27** | Firmware version in telemetry    | v1.1.0 | Low        | Add optional `schemaVersion` and `firmwareVersion` fields to telemetry envelope metadata. |
-| **W28** | OTA update support               | v1.1.0   | High       | `OverTheAirUpdateHandler` component with WiFi transport. ✅ **Complete** |
+| **W28** | OTA update support               | v1.1.0   | High       | `OtaUpdateHandler` component with WiFi transport. ✅ **Complete** |
 | **W29** | Event aggregation & rules        | v1.2.0   | High       | `EventAggregator` or `RuleEngine` for composite event patterns (e.g., "motion AND door opened"). |
 | **W30** | Multi-device coordination        | v1.3.0   | High       | ESP-NOW or MQTT-based device-to-device messaging for relay nodes and distributed sensing. |
 
@@ -82,7 +82,7 @@ Prioritization method: each work item is scored 0 to 5 on three benefits, and si
 | W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | **Complete** — `TelemetryBuffer` with LittleFS persistence, FIFO eviction, replay, 20 host tests   |
 | W26 | Power manager & battery monitoring                                                      | v1.1.0      | 2 | 4 | 2 | M    | 5     | **Complete** — `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests |
 | W27 | Firmware version in telemetry envelope                                                  | v1.1.0      | 2 | 0 | 3 | XS   | 10    | **Complete** — `setFirmwareVersion()`, `setTelemetrySchemaVersion()`, optional envelope fields, 5 host tests |
-| W28 | OTA update support                                                                      | v1.1.0      | 4 | 2 | 3 | L    | 5     | **Complete** — `OverTheAirUpdateHandler` with hostname, password, progress/error callbacks, 18 host tests       |
+| W28 | OTA update support                                                                      | v1.1.0      | 4 | 2 | 3 | L    | 5     | **Complete** — `OtaUpdateHandler` with hostname, password, progress/error callbacks, 21 host tests       |
 | W29 | Event aggregation & rules engine                                                        | v1.2.0      | 3 | 1 | 4 | L    | 4     | Deferred — `EventAggregator` for composite event patterns                                          |
 | W30 | Multi-device coordination (ESP-NOW / MQTT)                                              | v1.3.0      | 2 | 2 | 3 | L    | 3     | Deferred — device-to-device messaging for relay nodes and distributed sensing                       |
 
@@ -990,7 +990,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tie
 | Networking      | Blocking connect/publish in `loop()`         | Separate network task, reconnect policy, keep-alive, TLS examples, `createSecureSocket()`     | Same, with TLS/SSL as documented best practice                        |
 | Cloud-to-device | Hand-rolled callback                         | `Device::enqueueCommand` with `int32_t` payload for parameterized commands                   | Same, with event aggregation for composite patterns                   |
 | Offline data    | Lost when network unavailable                | Drop-oldest queue policy; no persistence                                      | `TelemetryBuffer` with LittleFS persistence for offline replay        |
-| Updates         | Manual reflashing required                   | Manual reflashing required                                                    | OTA updates via `OverTheAirUpdateHandler` component                   |
+| Updates         | Manual reflashing required                   | Manual reflashing required                                                    | OTA updates via `OtaUpdateHandler` component                          |
 | Testing         | Rarely possible off-device                   | 35 host test suites with CI, sanitizers enabled                               | Same, plus integration tests for new components                      |
 
 ### Performance
@@ -1014,7 +1014,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tie
 |--------------------------|----------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------|
 | Task stacks              | `loop()` task only   | 4096 B sampler + 8192 B network, configurable via `EngineConfig`                            | Same defaults; PowerManager adds minimal stack for sleep handling |
 | Queue and packets        | None                 | Queue of pointers + one heap packet per reading; bounded by queue policy                    | Same; TelemetryBuffer adds LittleFS storage for offline replay |
-| Flash                    | Smallest             | Framework, Wi-Fi, BLE driver; only 2 dependencies (ArduinoJson, MQTT)                      | Moderate increase: OverTheAirUpdateHandler, TelemetryBuffer    |
+| Flash                    | Smallest             | Framework, Wi-Fi, BLE driver; only 2 dependencies (ArduinoJson, MQTT)                      | Moderate increase: OtaUpdateHandler, TelemetryBuffer           |
 | Static RAM               | Small                | Slot table, per-object state; trigger table (4 slots); ConfigurationStore NVS cache        | Same; TelemetryBuffer adds LittleFS buffer                     |
 | Heap fragmentation       | Low                  | Lower with explicit ownership; `unique_ptr` transfer                                       | Same; pool in Tier 5 if measured; LittleFS reduces heap pressure |
 | Third-party dependencies | As needed            | Only those used (ArduinoJson, MQTT) — ESP32Servo, LiquidCrystal_I2C, PubSubClient, DHT, Adafruit, and HX711 removed | Same; no new external dependencies for planned features      |
