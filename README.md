@@ -239,6 +239,26 @@ Device::setTelemetrySchemaVersion("1.0");
 
 When neither is set (the default), both fields are omitted from the JSON output with zero overhead.
 
+### Battery Monitoring
+
+Monitor battery voltage and level for battery-powered devices:
+
+```cpp
+// Configure battery monitoring on ADC pin 34 with a 2:1 voltage divider
+PowerManager::begin(34, 2.0f);
+
+// Read battery voltage and level
+uint32_t voltage = PowerManager::getBatteryVoltageInMillivolts(); // in millivolts
+float level = PowerManager::getBatteryLevelInPercentage();        // 0.0 to 100.0
+
+// Check low battery status
+if (PowerManager::isLowBattery()) {
+    // Take action: reduce sampling, enter deep sleep, etc.
+}
+```
+
+Supports configurable voltage divider ratios, custom battery voltage ranges for different chemistries, and adjustable low-battery thresholds. Default range is 3.0V–4.2V for Li-ion batteries.
+
 ## Connectivity
 
 ### Wi-Fi
@@ -516,7 +536,7 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Telemetry packet pool (W18), telemetry buffering with LittleFS persistence, and power manager with battery monitoring.
+- **v1.1.0**: Telemetry packet pool (W18) and telemetry buffering with LittleFS persistence.
 - **v1.2.0**: Over-the-air (OTA) updates and event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.

@@ -80,7 +80,7 @@ Prioritization method: each work item is scored 0 to 5 on three benefits, and si
 | W23 | Command payload support                                                                 | Pre-release | 3 | 0 | 4 | S    | 7     | **Complete** — `Command(int, int32_t)` constructor, `DRIVE_TO_ANGLE_COMMAND`, `ADJUST_BRIGHTNESS_COMMAND`, `adjustColorSetIntensity()`, `PLAY_FREQUENCY_COMMAND` |
 | W24 | WiFiConnectivityDriver secure socket builder                                             | Pre-release | 2 | 1 | 3 | XS   | 6     | **Complete** — `createSecureSocket()` builder method with optional CA certificate pinning           |
 | W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | Deferred — `TelemetryBuffer` for offline replay when network unavailable                            |
-| W26 | Power manager & battery monitoring                                                      | v1.1.0      | 2 | 4 | 2 | M    | 5     | Deferred — `PowerManager` with battery voltage sensing and configurable sleep modes                 |
+| W26 | Power manager & battery monitoring                                                      | v1.1.0      | 2 | 4 | 2 | M    | 5     | **Complete** — `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests |
 | W27 | Firmware version in telemetry envelope                                                  | v1.1.0      | 2 | 0 | 3 | XS   | 10    | **Complete** — `setFirmwareVersion()`, `setTelemetrySchemaVersion()`, optional envelope fields, 5 host tests |
 | W28 | OTA update support                                                                      | v1.2.0      | 4 | 2 | 3 | L    | 5     | Deferred — `OtaUpdater` component with WiFi transport                                              |
 | W29 | Event aggregation & rules engine                                                        | v1.2.0      | 3 | 1 | 4 | L    | 4     | Deferred — `EventAggregator` for composite event patterns                                          |
@@ -898,6 +898,41 @@ public:
 **DHT Native Implementation**: Replaced `DHT sensor library` with native single-wire protocol in `DhtSensor`. Implemented `sendStartSignal()`, `readBit()`, `readData()`, and `validateChecksum()` methods. All timing magic numbers replaced with named constants (e.g., `DHT22_START_SIGNAL_LOW_TIME_IN_MICROSECONDS`). DHT11 and DHT22 model-specific start signal durations supported. CRC validation (8-bit checksum) via `validateChecksum()`. 11 host tests in `tests/DhtSensor/test.cpp`.
 
 **Source**: `src/ServoMotor.h`, `src/ServoMotor.cpp`, `src/Hd44780Driver.h`, `src/Hd44780Driver.cpp`, `src/CharacterLcdDisplay.h`, `src/CharacterLcdDisplay.cpp`, `src/DhtSensor.h`, `src/DhtSensor.cpp`
+
+---
+
+## Post-Release Improvements (v1.1.0+)
+
+### W26: Power manager & battery monitoring — **Complete** ✓
+
+**Problem**: Battery-powered devices need to monitor battery voltage to make power-aware decisions (reduce sampling, enter deep sleep, alert user). The ESP32 ADC can read battery voltage through a voltage divider circuit, but applications had to implement the conversion logic themselves.
+
+**Solution**: `PowerManager` static singleton provides battery voltage sensing via ADC with configurable voltage divider ratio, battery level percentage calculation, and low-battery threshold alerts.
+
+**API**:
+
+```cpp
+// Initialize with ADC pin and voltage divider ratio
+PowerManager::begin(34, 2.0f);
+
+// Read battery state
+uint32_t voltage = PowerManager::getBatteryVoltageInMillivolts(); // millivolts
+float level = PowerManager::getBatteryLevelInPercentage();        // 0.0 to 100.0
+bool low = PowerManager::isLowBattery();                          // below threshold
+
+// Configure thresholds
+PowerManager::setLowBatteryThresholdInMillivolts(3300);
+PowerManager::setBatteryVoltageRange(3000, 4200); // Li-ion defaults
+```
+
+**Design decisions**:
+- Static singleton pattern (like `TimeSynchronizationDriver`) — battery monitoring is a global service.
+- Configurable voltage divider ratio — most circuits use a 2:1 divider to scale battery voltage to ADC range.
+- Configurable ADC reference voltage — defaults to ESP32 internal 1.1V reference, but some boards use 3.3V.
+- Linear battery level calculation — simple and sufficient for most use cases; default range matches Li-ion chemistry.
+- Falls back to safe defaults when not initialized — `getBatteryVoltageInMillivolts()` returns 0, `isLowBattery()` returns false.
+
+**Source**: `src/PowerManager.h`, `src/PowerManager.cpp`, `tests/PowerManager/test.cpp` (18 tests)
 
 ---
 
