@@ -50,7 +50,7 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `TelemetryPackage` | Base class for telemetry payloads with envelope metadata (timestamp, sequence). |
 | `TelemetryBuffer` | Persistent telemetry buffer using LittleFS for offline storage and FIFO replay when connectivity is restored. |
 | `PowerManager` | Battery voltage sensing via ADC with configurable voltage divider, level calculation, and low-battery alerts. |
-| `OverTheAirUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
+| `OtaUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
 
 ### Sensors
 
@@ -290,11 +290,11 @@ Enable Over-The-Air firmware updates for deployed devices:
 
 ```cpp
 // Configure OTA updates in setup()
-OverTheAirUpdateHandler::begin("my-device-name");
-OverTheAirUpdateHandler::setPassword("secret123");
+OtaUpdateHandler::begin("my-device-name");
+OtaUpdateHandler::setPassword("secret123");
 
 // Optional: track progress
-OverTheAirUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
+OtaUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
     float percent = (float)progressInNumberOfBytesWritten / (float)totalNumberOfBytes * 100.0f;
     Serial.printf("OTA Progress: %.1f%%\r", percent);
 });
@@ -302,7 +302,7 @@ OverTheAirUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, 
 // In your Device subclass, call service() from maintainNetworkServices()
 void maintainNetworkServices() const override {
     gatewayClient.service();
-    OverTheAirUpdateHandler::service();
+    OtaUpdateHandler::service();
 }
 ```
 
