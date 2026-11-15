@@ -11,7 +11,7 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **Firmware version in telemetry** (W27): Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope metadata. Set via `Device::setFirmwareVersion()` and `Device::setTelemetrySchemaVersion()`. Fields are omitted from JSON output when not set (zero overhead).
 - **Power manager & battery monitoring** (W26): `PowerManager` singleton for battery voltage sensing via ADC with configurable voltage divider ratio, battery level percentage calculation, and low-battery threshold alerts.
 - **Telemetry buffering with LittleFS** (W25): `TelemetryBuffer` for offline persistence when network is unavailable. Failed sends are stored as JSON files in LittleFS with FIFO eviction and replay. Uses monotonic index strategy — no O(n) file shifting, reducing Flash wear and improving performance. Added `onEviction()` callback for monitoring evictions, `getMaxPacketsCount()` getter, and unit-in-name convention for parameters.
-- **OTA update support** (W28): `OtaUpdateHandler` for Over-The-Air firmware updates via WiFi. Wraps ArduinoOTA with hostname configuration, password protection, and progress/error callbacks. Added `OtaStartCallback`/`OtaEndCallback` type aliases, `getHostname()` getter, and clarified `setPassword()` timing.
+- **OTA update support** (W28): `OtaUpdateHandler` for Over-The-Air firmware updates via Wi-Fi. Wraps ArduinoOTA with hostname configuration, password protection, and progress/error callbacks. Added `OtaStartCallback`/`OtaEndCallback` type aliases, `getHostname()` getter, and clarified `setPassword()` timing.
 
 ### Testing
 
