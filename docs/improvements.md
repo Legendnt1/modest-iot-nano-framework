@@ -904,7 +904,7 @@ public:
 
 ## Post-Release Improvements (v1.1.0+)
 
-All v1.1.0 items (W25–W28) are **Complete** and merged into `develop`. See the [Nano Framework Completion Roadmap](docs/vision.md) for release planning.
+All v1.1.0 items (W25–W28) are **Complete** and released as v1.1.0. See the [Nano Framework Completion Roadmap](docs/vision.md) for release planning.
 
 ### W26: Power manager & battery monitoring — **Complete** ✓
 
@@ -1047,7 +1047,7 @@ OtaUpdateHandler::service();
 
 ## Comparison with traditional development
 
-Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tiers 0–5 complete, v1.0.0), and Modest IoT with v1.1.0 features (W25–W28 complete, on `develop` branch).
+Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.0.0 (Tiers 0–5 complete), and Modest IoT v1.1.0 (W25–W28 released).
 
 ### Developer experience
 
