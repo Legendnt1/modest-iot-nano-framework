@@ -26,7 +26,7 @@ For sketch-level use, include:
 #include <ModestIoT.h>
 ```
 
-This umbrella header imports all 48 source headers: core engine contracts, connectivity
+This umbrella header imports all 51 source headers: core engine contracts, connectivity
 adapters, gateway clients, and 18 built-in sensors plus 7 actuators.
 
 ## Module Navigation
@@ -45,7 +45,7 @@ adapters, gateway clients, and 18 built-in sensors plus 7 actuators.
 - **Cross-task commands**: `Device::enqueueCommand()` enables cloud-to-device control via MQTT subscribe.
 - **Fault detection**: Configurable consecutive-failure threshold per sensor instance.
 - **Diagnostics**: `Device::diagnostics()` reports stack, heap, queue, and timing metrics.
-- **Host testing**: Platform-independent core compiles natively for unit testing (33 test suites).
+- **Host testing**: Platform-independent core compiles natively for unit testing (36 test suites).
 
 ## Documentation Conventions
 
