@@ -50,7 +50,7 @@ using OtaStartCallback = std::function<void()>;
 using OtaEndCallback = std::function<void()>;
 
 /**
- * @brief Manages Over-The-Air (OTA) firmware updates via WiFi.
+ * @brief Manages Over-The-Air (OTA) firmware updates via Wi-Fi.
  *
  * Wraps the ESP32 ArduinoOTA library to provide a simple, static API for
  * receiving firmware updates over the network. Supports hostname configuration,
@@ -92,7 +92,7 @@ public:
      * Configures the device hostname and starts the OTA update listener.
      * The device will be discoverable on the network for OTA updates.
      *
-     * @note Must be called after WiFi is connected. Call once during device setup.
+     * @note Must be called after Wi-Fi is connected. Call once during device setup.
      * The hostname is used by the Arduino IDE to identify the device when
      * selecting the OTA port for uploading firmware.
      * @note Calling begin() multiple times resets the status to Idle and clears
