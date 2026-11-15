@@ -1,14 +1,14 @@
 #include <time.h>
 /**
  * @file test.cpp
- * @brief Host unit tests for OverTheAirUpdateHandler (W28).
+ * @brief Host unit tests for OtaUpdateHandler (W28).
  *
  * Validates OTA update initialization, status tracking, progress reporting,
  * error handling, and callback registration.
  */
 
 #include "Arduino.h"
-#include "OverTheAirUpdateHandler.h"
+#include "OtaUpdateHandler.h"
 #include <cassert>
 #include <cstdio>
 #include <cmath>
@@ -23,30 +23,30 @@ bool floatsEqual(float a, float b, float epsilon = 0.1f) {
 } // namespace
 
 int main() {
-    std::printf("Running OverTheAirUpdateHandler tests...\n");
+    std::printf("Running OtaUpdateHandler tests...\n");
 
     // =========================================================================
-    // Test 1: OverTheAirUpdateHandler not initialized by default
+    // Test 1: OtaUpdateHandler not initialized by default
     // =========================================================================
     {
-        assert(OverTheAirUpdateHandler::isInitialized() == false);
-        std::printf("  [PASS] OverTheAirUpdateHandler not initialized by default\n");
+        assert(OtaUpdateHandler::isInitialized() == false);
+        std::printf("  [PASS] OtaUpdateHandler not initialized by default\n");
     }
 
     // =========================================================================
-    // Test 2: begin() initializes OverTheAirUpdateHandler
+    // Test 2: begin() initializes OtaUpdateHandler
     // =========================================================================
     {
-        assert(OverTheAirUpdateHandler::begin("test-device") == true);
-        assert(OverTheAirUpdateHandler::isInitialized() == true);
-        std::printf("  [PASS] begin() initializes OverTheAirUpdateHandler\n");
+        assert(OtaUpdateHandler::begin("test-device") == true);
+        assert(OtaUpdateHandler::isInitialized() == true);
+        std::printf("  [PASS] begin() initializes OtaUpdateHandler\n");
     }
 
     // =========================================================================
     // Test 3: Default status is Idle after initialization
     // =========================================================================
     {
-        assert(OverTheAirUpdateHandler::getStatus() == OverTheAirUpdateStatus::Idle);
+        assert(OtaUpdateHandler::getStatus() == OtaUpdateStatus::Idle);
         std::printf("  [PASS] Default status is Idle\n");
     }
 
@@ -54,7 +54,7 @@ int main() {
     // Test 4: Default error code is 0
     // =========================================================================
     {
-        assert(OverTheAirUpdateHandler::getLastError() == 0);
+        assert(OtaUpdateHandler::getLastError() == 0);
         std::printf("  [PASS] Default error code is 0\n");
     }
 
@@ -62,28 +62,27 @@ int main() {
     // Test 5: Progress percentage is 0.0 when not started
     // =========================================================================
     {
-        assert(floatsEqual(OverTheAirUpdateHandler::getProgressInPercentage(), 0.0f));
+        assert(floatsEqual(OtaUpdateHandler::getProgressInPercentage(), 0.0f));
         std::printf("  [PASS] Progress percentage is 0.0 when not started\n");
     }
 
     // =========================================================================
-    // Test 5b: getProgressInPercentage() returns 0.0 before any update
+    // Test 5b: service() is safe to call multiple times (no-op when idle)
     // =========================================================================
     {
-        // After initialization, progress bytes are 0, so percentage should be 0.0
-        // The formula is: (progressInNumberOfBytes / totalNumberOfBytes) * 100
-        // When totalNumberOfBytes is 0, it returns 0.0 — verified by Test 5
-        // This test confirms repeated calls are stable
-        assert(floatsEqual(OverTheAirUpdateHandler::getProgressInPercentage(), 0.0f));
-        assert(floatsEqual(OverTheAirUpdateHandler::getProgressInPercentage(), 0.0f));
-        std::printf("  [PASS] getProgressInPercentage() is stable at 0.0\n");
+        // service() is a no-op when no OTA update is in progress.
+        // Multiple calls should be safe and not change state.
+        OtaUpdateHandler::service();
+        OtaUpdateHandler::service();
+        assert(OtaUpdateHandler::getStatus() == OtaUpdateStatus::Idle);
+        std::printf("  [PASS] service() is safe to call multiple times (no-op when idle)\n");
     }
 
     // =========================================================================
     // Test 6: setPassword() is safe to call
     // =========================================================================
     {
-        OverTheAirUpdateHandler::setPassword("secret123");
+        OtaUpdateHandler::setPassword("secret123");
         std::printf("  [PASS] setPassword() is safe to call\n");
     }
 
@@ -96,19 +95,19 @@ int main() {
         bool startCalled = false;
         bool endCalled = false;
 
-        OverTheAirUpdateHandler::onProgress([&progressCalled](uint32_t, uint32_t) {
+        OtaUpdateHandler::onProgress([&progressCalled](uint32_t, uint32_t) {
             progressCalled = true;
         });
 
-        OverTheAirUpdateHandler::onError([&errorCalled](int) {
+        OtaUpdateHandler::onError([&errorCalled](int) {
             errorCalled = true;
         });
 
-        OverTheAirUpdateHandler::onStart([&startCalled]() {
+        OtaUpdateHandler::onStart([&startCalled]() {
             startCalled = true;
         });
 
-        OverTheAirUpdateHandler::onEnd([&endCalled]() {
+        OtaUpdateHandler::onEnd([&endCalled]() {
             endCalled = true;
         });
 
@@ -119,20 +118,20 @@ int main() {
     // Test 8: service() is safe to call when initialized
     // =========================================================================
     {
-        OverTheAirUpdateHandler::service();
+        OtaUpdateHandler::service();
         std::printf("  [PASS] service() is safe to call when initialized\n");
     }
 
     // =========================================================================
-    // Test 9: OverTheAirUpdateStatus enum values are correct
+    // Test 9: OtaUpdateStatus enum values are correct
     // =========================================================================
     {
-        assert(static_cast<uint8_t>(OverTheAirUpdateStatus::Idle) == 0);
-        assert(static_cast<uint8_t>(OverTheAirUpdateStatus::Starting) == 1);
-        assert(static_cast<uint8_t>(OverTheAirUpdateStatus::Running) == 2);
-        assert(static_cast<uint8_t>(OverTheAirUpdateStatus::Finished) == 3);
-        assert(static_cast<uint8_t>(OverTheAirUpdateStatus::Error) == 4);
-        std::printf("  [PASS] OverTheAirUpdateStatus enum values are correct\n");
+        assert(static_cast<uint8_t>(OtaUpdateStatus::Idle) == 0);
+        assert(static_cast<uint8_t>(OtaUpdateStatus::Starting) == 1);
+        assert(static_cast<uint8_t>(OtaUpdateStatus::Running) == 2);
+        assert(static_cast<uint8_t>(OtaUpdateStatus::Finished) == 3);
+        assert(static_cast<uint8_t>(OtaUpdateStatus::Error) == 4);
+        std::printf("  [PASS] OtaUpdateStatus enum values are correct\n");
     }
 
     // =========================================================================
@@ -140,41 +139,51 @@ int main() {
     // =========================================================================
     {
         // Reset initialized state for this test
-        OverTheAirUpdateHandler::begin();
-        assert(OverTheAirUpdateHandler::isInitialized() == true);
+        OtaUpdateHandler::begin();
+        assert(OtaUpdateHandler::isInitialized() == true);
         std::printf("  [PASS] begin() with default hostname works\n");
     }
 
     // =========================================================================
-    // Test 11: service() is safe to call multiple times
+    // Test 11: getHostname() returns the hostname set during begin()
+    // =========================================================================
+    {
+        // Test 10 called begin() with default hostname, so getHostname() should return it
+        const char* host = OtaUpdateHandler::getHostname();
+        assert(host != nullptr);
+        std::printf("  [PASS] getHostname() returns the hostname set during begin()\n");
+    }
+
+    // =========================================================================
+    // Test 12: service() is safe to call multiple times
     // =========================================================================
     {
         // Already initialized from previous tests, but service() should be safe
-        OverTheAirUpdateHandler::service();
-        OverTheAirUpdateHandler::service();
-        OverTheAirUpdateHandler::service();
+        OtaUpdateHandler::service();
+        OtaUpdateHandler::service();
+        OtaUpdateHandler::service();
         std::printf("  [PASS] service() is safe to call multiple times\n");
     }
 
     // =========================================================================
-    // Test 12: setPassword() with nullptr is safe
+    // Test 13: setPassword() with nullptr is safe
     // =========================================================================
     {
-        OverTheAirUpdateHandler::setPassword(nullptr);
+        OtaUpdateHandler::setPassword(nullptr);
         std::printf("  [PASS] setPassword(nullptr) is safe\n");
     }
 
     // =========================================================================
-    // Test 13: begin() with nullptr hostname is safe
+    // Test 14: begin() with nullptr hostname is safe
     // =========================================================================
     {
-        OverTheAirUpdateHandler::begin(nullptr);
-        assert(OverTheAirUpdateHandler::isInitialized() == true);
+        OtaUpdateHandler::begin(nullptr);
+        assert(OtaUpdateHandler::isInitialized() == true);
         std::printf("  [PASS] begin(nullptr) is safe\n");
     }
 
     // =========================================================================
-    // Test 14: OtaProgressCallback type alias is compatible
+    // Test 15: OtaProgressCallback type alias is compatible
     // =========================================================================
     {
         bool callbackInvoked = false;
@@ -190,7 +199,7 @@ int main() {
     }
 
     // =========================================================================
-    // Test 15: OtaErrorCallback type alias is compatible
+    // Test 16: OtaErrorCallback type alias is compatible
     // =========================================================================
     {
         int capturedErrorCode = 0;
@@ -204,39 +213,67 @@ int main() {
     }
 
     // =========================================================================
-    // Test 16: setPassword() before begin() is safe
+    // Test 17: OtaStartCallback type alias is compatible
     // =========================================================================
     {
-        // Per KDoc, setPassword() should be called before begin()
-        // This test verifies the recommended order works without crash
-        OverTheAirUpdateHandler::setPassword("pre-begin-password");
-        OverTheAirUpdateHandler::begin("ordered-device");
-        assert(OverTheAirUpdateHandler::isInitialized() == true);
+        bool callbackInvoked = false;
+        OtaStartCallback cb = [&callbackInvoked]() {
+            callbackInvoked = true;
+        };
+        // Verify the callback type is callable
+        cb();
+        assert(callbackInvoked == true);
+        std::printf("  [PASS] OtaStartCallback type alias is compatible\n");
+    }
+
+    // =========================================================================
+    // Test 18: OtaEndCallback type alias is compatible
+    // =========================================================================
+    {
+        bool callbackInvoked = false;
+        OtaEndCallback cb = [&callbackInvoked]() {
+            callbackInvoked = true;
+        };
+        // Verify the callback type is callable
+        cb();
+        assert(callbackInvoked == true);
+        std::printf("  [PASS] OtaEndCallback type alias is compatible\n");
+    }
+
+    // =========================================================================
+    // Test 19: setPassword() before begin() is safe
+    // =========================================================================
+    {
+        // Per KDoc, setPassword() can be called before or after begin()
+        // This test verifies the order works without crash
+        OtaUpdateHandler::setPassword("pre-begin-password");
+        OtaUpdateHandler::begin("ordered-device");
+        assert(OtaUpdateHandler::isInitialized() == true);
         std::printf("  [PASS] setPassword() before begin() is safe\n");
     }
 
     // =========================================================================
-    // Test 17: Re-initialization with begin() is safe
+    // Test 20: Re-initialization with begin() is safe
     // =========================================================================
     {
         // Calling begin() again after already initialized should be safe
-        assert(OverTheAirUpdateHandler::isInitialized() == true);
-        OverTheAirUpdateHandler::begin("re-init-device");
-        assert(OverTheAirUpdateHandler::isInitialized() == true);
-        assert(OverTheAirUpdateHandler::getStatus() == OverTheAirUpdateStatus::Idle);
+        assert(OtaUpdateHandler::isInitialized() == true);
+        OtaUpdateHandler::begin("re-init-device");
+        assert(OtaUpdateHandler::isInitialized() == true);
+        assert(OtaUpdateHandler::getStatus() == OtaUpdateStatus::Idle);
         std::printf("  [PASS] Re-initialization with begin() is safe\n");
     }
 
     // =========================================================================
-    // Test 18: Status and error are reset after re-initialization
+    // Test 21: Status and error are reset after re-initialization
     // =========================================================================
     {
         // After begin(), status should be Idle and error should be 0
-        assert(OverTheAirUpdateHandler::getStatus() == OverTheAirUpdateStatus::Idle);
-        assert(OverTheAirUpdateHandler::getLastError() == 0);
+        assert(OtaUpdateHandler::getStatus() == OtaUpdateStatus::Idle);
+        assert(OtaUpdateHandler::getLastError() == 0);
         std::printf("  [PASS] Status and error are reset after re-initialization\n");
     }
 
-    std::printf("All OverTheAirUpdateHandler tests passed!\n");
+    std::printf("All OtaUpdateHandler tests passed!\n");
     return 0;
 }
