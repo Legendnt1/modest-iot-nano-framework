@@ -416,7 +416,7 @@ The framework ships with 22 example sketches demonstrating various use cases:
 
 ## Testing
 
-The framework includes 35 host unit test suites that run natively without hardware:
+The framework includes 36 host unit test suites that run natively without hardware:
 
 | Suite | What It Tests |
 |---|---|
@@ -452,6 +452,10 @@ The framework includes 35 host unit test suites that run natively without hardwa
 | `tests/TimeSynchronizationDriver/` | NTP initialization, timestamp fallback, sync status, RTC save/restore |
 | `tests/GasSensor/` | Analog gas detection, calibration modes, Rs/R0 ratio, PPM estimation, gas types |
 | `tests/Button/` | Debounce logic, press detection, timing, event emission |
+| `tests/DhtSensor/` | DHT single-wire protocol, temperature/humidity, CRC validation |
+| `tests/PowerManager/` | Battery voltage sensing, level calculation, low-battery threshold, custom ranges |
+| `tests/TelemetryBuffer/` | LittleFS persistence, FIFO store/retrieve, eviction callback, monotonic indices |
+| `tests/OtaUpdateHandler/` | OTA status tracking, all callback type aliases, hostname, re-initialization safety |
 
 Run all tests locally:
 
