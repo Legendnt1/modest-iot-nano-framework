@@ -48,6 +48,9 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `DiagnosticsSnapshot` | 12-field runtime health snapshot (stack, heap, queue, timing). |
 | `SamplingScheduler` | Per-slot countdown scheduler with phase-aligned re-arming and minimum period enforcement. |
 | `TelemetryPackage` | Base class for telemetry payloads with envelope metadata (timestamp, sequence). |
+| `TelemetryBuffer` | Persistent telemetry buffer using LittleFS for offline storage and FIFO replay when connectivity is restored. |
+| `PowerManager` | Battery voltage sensing via ADC with configurable voltage divider, level calculation, and low-battery alerts. |
+| `OverTheAirUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
 
 ### Sensors
 
@@ -280,6 +283,30 @@ while (TelemetryBuffer::retrieveNext(buffered)) {
 ```
 
 Uses LittleFS for persistence with configurable max buffer size (default 50 packets). Buffered packets survive unexpected reboots and are replayed in FIFO order.
+
+### OTA Firmware Updates
+
+Enable Over-The-Air firmware updates for deployed devices:
+
+```cpp
+// Configure OTA updates in setup()
+OverTheAirUpdateHandler::begin("my-device-name");
+OverTheAirUpdateHandler::setPassword("secret123");
+
+// Optional: track progress
+OverTheAirUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
+    float percent = (float)progressInNumberOfBytesWritten / (float)totalNumberOfBytes * 100.0f;
+    Serial.printf("OTA Progress: %.1f%%\r", percent);
+});
+
+// In your Device subclass, call service() from maintainNetworkServices()
+void maintainNetworkServices() const override {
+    gatewayClient.service();
+    OverTheAirUpdateHandler::service();
+}
+```
+
+Supports hostname configuration for device discovery, password protection, and progress/error callbacks. Upload firmware directly from the Arduino IDE by selecting the OTA port listed under Tools → Port. The `service()` method is called automatically by the network dispatcher task via `maintainNetworkServices()` — no `loop()` required.
 
 ## Connectivity
 
@@ -558,8 +585,8 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Telemetry packet pool (W18). Telemetry buffering (W25), firmware version (W27), and power manager (W26) are complete.
-- **v1.2.0**: Over-the-air (OTA) updates and event aggregation for composite sensor rules.
+- **v1.1.0**: Telemetry packet pool (W18). Telemetry buffering (W25), firmware version (W27), power manager (W26), and OTA updates (W28) are complete.
+- **v1.2.0**: Event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
 
