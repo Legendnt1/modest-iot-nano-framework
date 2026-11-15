@@ -37,7 +37,7 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 ### What's Delivered
 
 - **51 source headers** with full Doxygen documentation and `@runs_on` threading tags.
-- **22 example sketches** covering diverse use cases (MQTT over TLS device, BLE vitals transmitter, remote LED controller, indoor air quality display, pipe temperature monitor, equipment health monitor, smart band, air quality, RFID access, smart greenhouse, weather station, crop monitoring, home security, HTTP telemetry, etc.).
+- **23 example sketches** covering diverse use cases (MQTT over TLS device, BLE vitals transmitter, remote LED controller, indoor air quality display, pipe temperature monitor, equipment health monitor, smart band, air quality, RFID access, smart greenhouse, weather station, crop monitoring, home security, HTTP telemetry, OTA update device, etc.).
 - **36 host unit test suites** with shared mocks, Address/Undefined sanitizers, and 100% pass rate.
 - **3 CI workflows**: host tests, compile examples, lint.
 - **Arduino Library Manager approved** — available via Arduino IDE Library Manager.
@@ -129,7 +129,7 @@ Production-ready features across all three transport options:
 | **TLS/SSL examples & documentation** | **Complete** ✓ — `MqttTlsDevice` example using `WiFiClientSecure` with `MqttGatewayClient` on port 8883. Secure Communication section in README documents both MQTT and HTTP TLS with certificate options (`setInsecure()`, `setCACert()`, `setCertificate()`). | — | Low |
 | **Command payload support** | **Complete** ✓ — `Command(int, int32_t)` constructor with payload. `DRIVE_TO_ANGLE_COMMAND` (ServoMotor), `ADJUST_BRIGHTNESS_COMMAND` (RgbLed), `PLAY_FREQUENCY_COMMAND` (Buzzer). Static helpers: `validateOrAdjustPhysicalAngle()`, `adjustColorSetIntensity()`. | — | Low |
 
-**v1.1.0 Features — Complete on `develop`** ✓:
+**v1.1.0 Features — Released** ✓:
 
 | Gap | Impact | Recommendation | Status |
 |-----|--------|----------------|--------|
@@ -1053,7 +1053,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | **Test coverage**       | 100% pass rate, 36 test suites         |
 | **Flash footprint**     | <30 KB overhead                        |
 | **RAM footprint**       | <2 KB overhead                         |
-| **Example count**       | 22 diverse examples                    |
+| **Example count**       | 23 diverse examples                    |
 | **CI workflows**        | 3 (host tests, compile examples, lint) |
 
 ### Edge Framework
