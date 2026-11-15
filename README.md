@@ -259,6 +259,28 @@ if (PowerManager::isLowBattery()) {
 
 Supports configurable voltage divider ratios, custom battery voltage ranges for different chemistries, and adjustable low-battery thresholds. Default range is 3.0V–4.2V for Li-ion batteries.
 
+### Telemetry Buffering
+
+Persist telemetry packets when the network is unavailable and replay them when connectivity is restored:
+
+```cpp
+// Initialize the buffer in setup()
+TelemetryBuffer::begin();
+
+// In processQueuedTelemetryData(), if send fails:
+if (!gatewayClient.sendTelemetryRecord(*packet)) {
+    TelemetryBuffer::store(packet->toJsonString());
+}
+
+// When connectivity is restored, replay buffered packets:
+String buffered;
+while (TelemetryBuffer::retrieveNext(buffered)) {
+    // Parse and resend the buffered JSON
+}
+```
+
+Uses LittleFS for persistence with configurable max buffer size (default 50 packets). Buffered packets survive unexpected reboots and are replayed in FIFO order.
+
 ## Connectivity
 
 ### Wi-Fi
@@ -362,7 +384,7 @@ The framework ships with 22 example sketches demonstrating various use cases:
 
 ## Testing
 
-The framework includes 33 host unit test suites that run natively without hardware:
+The framework includes 35 host unit test suites that run natively without hardware:
 
 | Suite | What It Tests |
 |---|---|
@@ -536,7 +558,7 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Telemetry packet pool (W18) and telemetry buffering with LittleFS persistence.
+- **v1.1.0**: Telemetry packet pool (W18). Telemetry buffering (W25), firmware version (W27), and power manager (W26) are complete.
 - **v1.2.0**: Over-the-air (OTA) updates and event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
