@@ -79,7 +79,7 @@ Prioritization method: each work item is scored 0 to 5 on three benefits, and si
 | W22 | TLS/SSL examples & documentation                                                        | Pre-release | 5 | 3 | 4 | S    | 10    | **Complete** — `MqttTlsDevice` example with `WiFiClientSecure`, Secure Communication section in README |
 | W23 | Command payload support                                                                 | Pre-release | 3 | 0 | 4 | S    | 7     | **Complete** — `Command(int, int32_t)` constructor, `DRIVE_TO_ANGLE_COMMAND`, `ADJUST_BRIGHTNESS_COMMAND`, `adjustColorSetIntensity()`, `PLAY_FREQUENCY_COMMAND` |
 | W24 | WiFiConnectivityDriver secure socket builder                                             | Pre-release | 2 | 1 | 3 | XS   | 6     | **Complete** — `createSecureSocket()` builder method with optional CA certificate pinning           |
-| W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | **Complete** — `TelemetryBuffer` with LittleFS persistence, FIFO eviction, replay, 20 host tests   |
+| W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | **Complete** — `TelemetryBuffer` with LittleFS persistence, FIFO eviction, eviction callback, `getMaxPacketsCount()`, 22 host tests |
 | W26 | Power manager & battery monitoring                                                      | v1.1.0      | 2 | 4 | 2 | M    | 5     | **Complete** — `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests |
 | W27 | Firmware version in telemetry envelope                                                  | v1.1.0      | 2 | 0 | 3 | XS   | 10    | **Complete** — `setFirmwareVersion()`, `setTelemetrySchemaVersion()`, optional envelope fields, 5 host tests |
 | W28 | OTA update support                                                                      | v1.1.0      | 4 | 2 | 3 | L    | 5     | **Complete** — `OtaUpdateHandler` with hostname, password, progress/error callbacks, 21 host tests       |
@@ -962,12 +962,15 @@ if (gatewayClient.isConnected() && TelemetryBuffer::hasBufferedPackets()) {
 
 **Design decisions**:
 - Static singleton pattern — buffering is a global service shared across the device lifecycle.
-- File-per-packet strategy — each packet is a separate JSON file with zero-padded sequential names (e.g., `/telemetry_buffer/00001.json`) for simple FIFO ordering.
+- Monotonic index strategy — each packet is a separate JSON file with incrementing indices (e.g., `/telemetry_buffer/00001.json`, `/telemetry_buffer/00002.json`, etc.) for FIFO ordering. New packets are appended and the oldest is deleted on retrieval — no O(n) file shifting, reducing Flash wear and improving performance.
 - Configurable max buffer size — defaults to 50 packets (~5-15 KB depending on payload size); oldest packets are evicted when full.
-- Survives reboots — LittleFS persistence means buffered packets survive unexpected reboots.
+- Eviction callback — `onEviction()` allows monitoring when packets are evicted due to buffer capacity.
+- `getMaxPacketsCount()` getter — query the configured max packets for parity with other components' getter patterns.
+- Unit-in-name convention — parameter names use `Count` suffix (e.g., `maxBufferedPacketsCount`) for clarity.
+- Survives reboots — LittleFS persistence means buffered packets survive unexpected reboots; `countPackets()` recovers the next write index from existing files.
 - Host testing support — simulated store/retrieve behavior when not on ESP32.
 
-**Source**: `src/TelemetryBuffer.h`, `src/TelemetryBuffer.cpp`, `tests/TelemetryBuffer/test.cpp` (20 tests)
+**Source**: `src/TelemetryBuffer.h`, `src/TelemetryBuffer.cpp`, `tests/TelemetryBuffer/test.cpp` (22 tests)
 
 ---
 
