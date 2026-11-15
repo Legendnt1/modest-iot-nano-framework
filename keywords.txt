@@ -204,6 +204,13 @@ toDocument	KEYWORD2
 toJsonString	KEYWORD2
 setEnvelopeMetadata	KEYWORD2
 addEnvelopeMetadata	KEYWORD2
+setVersionMetadata	KEYWORD2
+
+# Device firmware version
+setFirmwareVersion	KEYWORD2
+getFirmwareVersion	KEYWORD2
+setTelemetrySchemaVersion	KEYWORD2
+getTelemetrySchemaVersion	KEYWORD2
 
 # Sensor data getters
 getTemperatureInCelsius	KEYWORD2
