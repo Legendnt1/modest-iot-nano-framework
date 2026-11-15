@@ -14,6 +14,7 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 - **Firmware version in telemetry** (W27): Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope metadata. Set via `Device::setFirmwareVersion()` and `Device::setTelemetrySchemaVersion()`. Fields are omitted from JSON output when not set (zero overhead). 5 new host tests.
 - **Power manager & battery monitoring** (W26): `PowerManager` singleton for battery voltage sensing via ADC with configurable voltage divider ratio, battery level percentage calculation, and low-battery threshold alerts. 18 new host tests.
+- **Telemetry buffering with LittleFS** (W25): `TelemetryBuffer` for offline persistence when network is unavailable. Failed sends are stored as JSON files in LittleFS with FIFO eviction and replay. Configurable max buffer size (default 50 packets). 20 new host tests.
 
 ## [1.0.0] - 2026-11-10
 
@@ -158,10 +159,11 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **EquipmentHealthMonitor**: Industrial equipment health dashboard with `ModestLog` and `diagnostics()`
 
 ### Testing
-- 33 host test suites covering all sensors, actuators, scheduler, MQTT, BLE, HTTP, and telemetry
+- 35 host test suites covering all sensors, actuators, scheduler, MQTT, BLE, HTTP, and telemetry
 - **TimeSynchronizationDriver test**: 8 tests covering NTP initialization, timestamp fallback, sync status, RTC save/restore, and full sync cycle simulation
 - **GasSensor test**: 32 tests covering constructor, static methods, calibration, all operating modes, PPM estimation, and event handling
 - **Button test**: 14 tests covering debounce logic, press detection, timing, and event emission
+- **TelemetryBuffer test**: 20 tests covering initialization, store, retrieve (FIFO), capacity eviction, clear, and constants
 - **WeatherStation example**: Updated with NTP initialization and RTC time restore for deep-sleep time persistence
 - **HttpGatewayClient test**: HTTP methods (GET/POST/PUT/DELETE), auth headers, response body handling, statistics tracking
 - **Fake HTTPClient.h**: Mock HTTP client for host testing with configurable responses
