@@ -235,11 +235,13 @@ clear	KEYWORD2
 DEFAULT_MAX_BUFFERED_PACKETS	LITERAL1
 TELEMETRY_BUFFER_DIRECTORY	LITERAL1
 
-# OverTheAirUpdateHandler
-OverTheAirUpdateHandler	KEYWORD1
-OverTheAirUpdateStatus	KEYWORD1
+# OtaUpdateHandler
+OtaUpdateHandler	KEYWORD1
+OtaUpdateStatus	KEYWORD1
 OtaProgressCallback	KEYWORD1
 OtaErrorCallback	KEYWORD1
+OtaStartCallback	KEYWORD1
+OtaEndCallback	KEYWORD1
 begin	KEYWORD2
 setPassword	KEYWORD2
 onProgress	KEYWORD2
@@ -247,15 +249,16 @@ onError	KEYWORD2
 onStart	KEYWORD2
 onEnd	KEYWORD2
 service	KEYWORD2
+getHostname	KEYWORD2
 getStatus	KEYWORD2
 getLastError	KEYWORD2
 getProgressInPercentage	KEYWORD2
 isInitialized	KEYWORD2
-OverTheAirUpdateStatus_Idle	LITERAL1
-OverTheAirUpdateStatus_Starting	LITERAL1
-OverTheAirUpdateStatus_Running	LITERAL1
-OverTheAirUpdateStatus_Finished	LITERAL1
-OverTheAirUpdateStatus_Error	LITERAL1
+OtaUpdateStatus_Idle	LITERAL1
+OtaUpdateStatus_Starting	LITERAL1
+OtaUpdateStatus_Running	LITERAL1
+OtaUpdateStatus_Finished	LITERAL1
+OtaUpdateStatus_Error	LITERAL1
 
 # Sensor data getters
 getTemperatureInCelsius	KEYWORD2
