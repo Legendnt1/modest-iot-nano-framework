@@ -28,6 +28,7 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - Updated `keywords.txt` with all new component keywords (PowerManager, TelemetryBuffer, OtaUpdateHandler, and related methods and types)
 - Updated `docs/improvements.md` with W25–W28 marked Complete and detailed design sections
 - Updated `docs/vision.md` with v1.1.0 features listed as complete on `develop`
+- **Examples updated**: `WeatherStation` extended with `PowerManager` for battery monitoring and `Device::setFirmwareVersion()`. `ClimateDataUploader` extended with `TelemetryBuffer` for offline persistence and replay. New `OtaUpdateDevice` example demonstrates OTA firmware updates with hostname, password, and all callback types.
 - Git Flow workflow adopted: `main` holds releases, `develop` is the integration branch, feature branches merge into `develop`
 
 ## [1.0.0] - 2026-11-10
