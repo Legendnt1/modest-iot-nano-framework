@@ -1,6 +1,6 @@
 # Modest IoT Dual-Framework Vision
 
-**Version**: 1.1.0 (develop)  
+**Version**: 1.1.0 (released)
 **Author**: Angel Velasquez  
 **Date**: 2026-11-15
 
@@ -21,7 +21,7 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 
 ### Current Status
 
-**v1.0.0 Released; v1.1.0 Features on Develop** (as of 2026-11-15):
+**v1.0.0 Released; v1.1.0 Released** (as of 2026-11-15):
 
 | Tier                                    | Items   | Status          |
 |-----------------------------------------|---------|-----------------|
@@ -177,13 +177,13 @@ Production-ready features across all three transport options:
 2. Submit to Arduino Library Manager — **Complete** ✓ (approved and published).
 3. Create AI-assisted development guide — **Complete** ✓.
 
-**Phase 4: v1.1.0 Features** — **Complete** ✓ (on `develop` branch)
+**Phase 4: v1.1.0 Features** — **Complete** ✓ (Released)
 
 1. **W25: Telemetry buffering** — **Complete** ✓: `TelemetryBuffer` with LittleFS persistence, monotonic indices, FIFO eviction, eviction callback, `getMaxPacketsCount()`, 22 host tests.
 2. **W26: Power manager** — **Complete** ✓: `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests.
 3. **W27: Firmware version** — **Complete** ✓: Optional `schemaVersion` and `firmwareVersion` in telemetry envelope, 5 new tests.
 4. **W28: OTA update support** — **Complete** ✓: `OtaUpdateHandler` with hostname, password, progress/error/start/end callbacks, 21 host tests.
-5. **Release to `main`** — Pending: merge `develop` into `main` and tag `v1.1.0` when ready.
+5. **Release to `main`** — In progress: `release/v1.1.0` branch ready for merge into `main` and `develop`.
 
 ### Component Expansion Strategy
 
@@ -229,7 +229,7 @@ New examples bundle multiple components to demonstrate complete use cases:
 **Library Release Impact**:
 
 - **v1.0.0**: 18 sensors (including BmeEnvironmentalSensor abstract base) + 7 actuators + Tier 1, Tier 2, and Tier 3 components (Relay, Soil Moisture, WaterFlow, PthSensor, Water Leak, Door/Window, OneWireTemperature, OledDisplay, EnvironmentalGas) + gateway client enhancements (BleGatewayClient, HttpGatewayClient, WiFiConnectivityDriver, BleConnectivityDriver).
-- **v1.1.0**: `TelemetryBuffer` (LittleFS persistence), `PowerManager` (battery monitoring), `OtaUpdateHandler` (OTA updates), firmware version in telemetry envelope. All complete on `develop`.
+- **v1.1.0**: `TelemetryBuffer` (LittleFS persistence), `PowerManager` (battery monitoring), `OtaUpdateHandler` (OTA updates), firmware version in telemetry envelope. All released.
 - **v1.2.0**: `EventAggregator` for composite event patterns (W29).
 - **v1.3.0**: Multi-device coordination via ESP-NOW or MQTT (W30).
 
@@ -968,7 +968,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | **Q4 2026** | Tier 5 complete ✓      | W16 ✓: tickless scheduling; W17 ✓: deep sleep with WeatherStation; W19 ✓: native drivers; W18 deferred to v1.1.0 |
 | **Q4 2026** | Pre-release prereqs ✓ | W20–W24: ConfigurationStore, TimeSynchronizationDriver, TLS examples, Command payload, Secure socket builder |
 | **Q4 2026** | Library release ✓      | v1.0.0 tag, Arduino Library Manager submission, approved and published         |
-| **Q4 2026** | v1.1.0 features ✓      | W25–W28: TelemetryBuffer, PowerManager, firmware version, OtaUpdateHandler (on `develop`) |
+| **Q4 2026** | v1.1.0 features ✓      | W25–W28: TelemetryBuffer, PowerManager, firmware version, OtaUpdateHandler (released) |
 
 ### Edge Framework Development
 
@@ -1088,12 +1088,12 @@ The Modest IoT dual-framework vision provides a complete, local-first IoT stack:
 - **Together** they form a scalable, offline-resilient, AI-ready IoT platform.
 - **DDD-guided design** ensures consistent terminology, clear context boundaries, and appropriate patterns for each framework (see ADR-023).
 
-The Nano Framework is **released as v1.0.0** and approved by the Arduino Library Manager. v1.1.0 features (W25–W28) are **complete on the `develop` branch** and ready for release. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap.
+The Nano Framework is **released as v1.0.0** and approved by the Arduino Library Manager. v1.1.0 features (W25–W28) are **released as v1.1.0**. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap.
 
 **Next steps**:
 1. Nano Framework v1.0.0 is released and approved by Arduino Library Manager.
-2. v1.1.0 features (W25–W28) are complete on `develop`: TelemetryBuffer, PowerManager, firmware version in telemetry, OtaUpdateHandler.
-3. Merge `develop` into `main` and tag `v1.1.0` when ready for Library Manager update.
+2. v1.1.0 features (W25–W28) are released: TelemetryBuffer, PowerManager, firmware version in telemetry, OtaUpdateHandler.
+3. Tag `v1.1.0` on `main` and update the Arduino Library Manager.
 4. Start Edge Framework Phase 1 development.
 5. Integrate Nano and Edge with MQTT protocol and shared telemetry schema.
 
