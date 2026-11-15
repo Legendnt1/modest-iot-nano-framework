@@ -8,6 +8,12 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 - **Arduino Library Manager Approval** (2026-11-14): The Modest IoT Nano Framework has been officially approved by Arduino and is now available in the Arduino Library Manager for easy installation directly from the Arduino IDE.
 
+### Added
+
+#### Core Framework
+
+- **Firmware version in telemetry** (W27): Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope metadata. Set via `Device::setFirmwareVersion()` and `Device::setTelemetrySchemaVersion()`. Fields are omitted from JSON output when not set (zero overhead). 5 new host tests.
+
 ## [1.0.0] - 2026-11-10
 
 ### Added
