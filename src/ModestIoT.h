@@ -27,7 +27,7 @@
 #include "TimeSynchronizationDriver.h"
 #include "PowerManager.h"
 #include "TelemetryBuffer.h"
-#include "OverTheAirUpdateHandler.h"
+#include "OtaUpdateHandler.h"
 //@} // Core Asynchronous Engine & Signaling Primitives
 
 /** @name Layer-Isolated Network Comprehension */
