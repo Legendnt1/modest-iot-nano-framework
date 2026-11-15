@@ -48,7 +48,7 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `DiagnosticsSnapshot` | 12-field runtime health snapshot (stack, heap, queue, timing). |
 | `SamplingScheduler` | Per-slot countdown scheduler with phase-aligned re-arming and minimum period enforcement. |
 | `TelemetryPackage` | Base class for telemetry payloads with envelope metadata (timestamp, sequence). |
-| `TelemetryBuffer` | Persistent telemetry buffer using LittleFS for offline storage and FIFO replay when connectivity is restored. |
+| `TelemetryBuffer` | Persistent telemetry buffer using LittleFS with monotonic indices for offline storage and FIFO replay — no file shifting overhead. |
 | `PowerManager` | Battery voltage sensing via ADC with configurable voltage divider, level calculation, and low-battery alerts. |
 | `OtaUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
 
@@ -269,6 +269,11 @@ Persist telemetry packets when the network is unavailable and replay them when c
 ```cpp
 // Initialize the buffer in setup()
 TelemetryBuffer::begin();
+
+// Optional: monitor eviction events
+TelemetryBuffer::onEviction([]() {
+    Serial.println("Warning: telemetry packet evicted due to buffer capacity");
+});
 
 // In processQueuedTelemetryData(), if send fails:
 if (!gatewayClient.sendTelemetryRecord(*packet)) {
