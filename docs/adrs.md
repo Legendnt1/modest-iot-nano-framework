@@ -608,7 +608,7 @@ Consolidate all mocks into a centralized `tests/fakes/` directory with shared he
 
 - **Positive**: Single source of truth for mocks. Changes to a mock (e.g., adding a new API) benefit all test suites. Eliminates duplicate code.
 - **Negative**: All tests share the same mock interface; test-specific mocks require conditional compilation.
-- **Rationale**: With 33 test suites, the shared harness eliminates ~33× duplicate mock code and ensures consistent behavior across all tests.
+- **Rationale**: With 36 test suites, the shared harness eliminates ~36× duplicate mock code and ensures consistent behavior across all tests.
 
 ### References
 
@@ -964,7 +964,7 @@ The Nano Framework already embodies several Domain-Driven Design (DDD) concepts 
 - **Repository-like pattern**: `SamplingScheduler` manages sensor registration and per-slot scheduling.
 - **Domain Events**: Sensor fault events (IDs 22/23), measurement requests.
 - **Anti-Corruption Layer**: `ConnectivityDriver` interface isolates framework from Arduino/ESP-IDF core APIs.
-- **Ubiquitous Language**: Consistent naming across 48 headers, 22 examples, and documentation.
+- **Ubiquitous Language**: Consistent naming across 51 headers, 23 examples, and documentation.
 
 However, the framework lacked explicit DDD **strategic design**: no documented bounded contexts, no context map, no documented aggregate invariants, and no shared glossary between Nano and Edge frameworks.
 

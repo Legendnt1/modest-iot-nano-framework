@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.0.0, 48 headers)
+title Modest IoT Nano Framework — Class Diagram (v1.1.0, 51 headers)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -103,6 +103,63 @@ package "Core" #FAFAFA {
     +{static} isSynchronized() : bool
     +{static} saveToRtc() : void
     +{static} restoreFromRtc() : void
+  }
+
+  class PowerManager {
+    +{static} DEFAULT_VCC_REFERENCE_IN_MILLIVOLTS : uint32_t = 3300
+    +{static} DEFAULT_LOW_BATTERY_THRESHOLD_IN_MILLIVOLTS : uint32_t = 3000
+    +{static} DEFAULT_VOLTAGE_DIVIDER_RATIO : float = 2.0
+    +begin(pin : int, voltageDividerRatio : float, vccReferenceInMillivolts : uint32_t) : bool
+    +isInitialized() : bool
+    +getBatteryVoltageInMillivolts() : uint32_t
+    +getBatteryLevelInPercentage() : uint8_t
+    +isLowBattery() : bool
+    +setLowBatteryThresholdInMillivolts(thresholdInMillivolts : uint32_t) : void
+    +setBatteryVoltageRange(minimumVoltageInMillivolts : uint32_t, maximumVoltageInMillivolts : uint32_t) : void
+    +getMinVoltageInMillivolts() : uint32_t
+    +getMaxVoltageInMillivolts() : uint32_t
+    +onLowBattery(callback : LowBatteryCallback) : void
+  }
+
+  class TelemetryBuffer {
+    +{static} DEFAULT_MAX_BUFFERED_PACKETS : int = 50
+    +{static} TELEMETRY_BUFFER_DIRECTORY : const char*
+    +begin(maxBufferedPacketsCount : int) : bool
+    +isInitialized() : bool
+    +store(jsonStringTelemetryPacket : const String&) : bool
+    +retrieveNext(outJsonBufferedPacket : String&) : bool
+    +getBufferedPacketCount() : int
+    +getMaxPacketsCount() : int
+    +hasBufferedPackets() : bool
+    +clear() : bool
+    +onEviction(callback : EvictionCallback) : void
+  }
+
+  enum OtaUpdateStatus {
+    Idle
+    Starting
+    Running
+    Finished
+    Error
+  }
+
+  class OtaUpdateHandler {
+    +OtaProgressCallback : type alias
+    +OtaErrorCallback : type alias
+    +OtaStartCallback : type alias
+    +OtaEndCallback : type alias
+    +begin(hostname : const char*) : bool
+    +isInitialized() : bool
+    +service() : void
+    +getStatus() : OtaUpdateStatus
+    +getLastError() : int
+    +getProgressInPercentage() : float
+    +getHostname() : const char*
+    +setPassword(password : const char*) : void
+    +onStart(callback : OtaStartCallback) : void
+    +onProgress(callback : OtaProgressCallback) : void
+    +onError(callback : OtaErrorCallback) : void
+    +onEnd(callback : OtaEndCallback) : void
   }
 
   class Device {

@@ -1,7 +1,7 @@
 # Modest IoT Nano Framework (C++ Edition)
 
 This API reference documents the public abstractions and built-in components in
-`Modest-IoT-Nano-Framework` (v1.0.0).
+`Modest-IoT-Nano-Framework` (v1.1.0).
 
 > **Note**: The repository and directory names use hyphens (`Modest-IoT-Nano-Framework`) as a file system convention. The display name is "Modest IoT Nano Framework" (with spaces).
 
@@ -26,7 +26,7 @@ For sketch-level use, include:
 #include <ModestIoT.h>
 ```
 
-This umbrella header imports all 48 source headers: core engine contracts, connectivity
+This umbrella header imports all 51 source headers: core engine contracts, connectivity
 adapters, gateway clients, and 18 built-in sensors plus 7 actuators.
 
 ## Module Navigation
@@ -34,7 +34,7 @@ adapters, gateway clients, and 18 built-in sensors plus 7 actuators.
 - @ref core_module — Device, Sensor, Actuator, Event, Command, TelemetryPackage, SamplingScheduler, ModestLog
 - @ref sensors_module — 18 sensor implementations (environmental, security, biometric, etc.)
 - @ref actuators_module — 7 actuator implementations (LED, display, servo, buzzer, etc.)
-- @ref connectivity_module — WiFi and BLE transport drivers
+- @ref connectivity_module — Wi-Fi and BLE transport drivers
 - @ref gateway_module — MQTT, HTTP, and BLE NUS telemetry gateways
 
 ## Key Features
@@ -45,7 +45,7 @@ adapters, gateway clients, and 18 built-in sensors plus 7 actuators.
 - **Cross-task commands**: `Device::enqueueCommand()` enables cloud-to-device control via MQTT subscribe.
 - **Fault detection**: Configurable consecutive-failure threshold per sensor instance.
 - **Diagnostics**: `Device::diagnostics()` reports stack, heap, queue, and timing metrics.
-- **Host testing**: Platform-independent core compiles natively for unit testing (33 test suites).
+- **Host testing**: Platform-independent core compiles natively for unit testing (36 test suites).
 
 ## Documentation Conventions
 

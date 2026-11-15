@@ -2,13 +2,40 @@
 
 All notable changes to the Modest IoT Nano Framework will be documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-11-15
+
+### Added
+
+#### Core Framework
+
+- **Firmware version in telemetry** (W27): Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope metadata. Set via `Device::setFirmwareVersion()` and `Device::setTelemetrySchemaVersion()`. Fields are omitted from JSON output when not set (zero overhead).
+- **Power manager & battery monitoring** (W26): `PowerManager` singleton for battery voltage sensing via ADC with configurable voltage divider ratio, battery level percentage calculation, and low-battery threshold alerts.
+- **Telemetry buffering with LittleFS** (W25): `TelemetryBuffer` for offline persistence when network is unavailable. Failed sends are stored as JSON files in LittleFS with FIFO eviction and replay. Uses monotonic index strategy — no O(n) file shifting, reducing Flash wear and improving performance. Added `onEviction()` callback for monitoring evictions, `getMaxPacketsCount()` getter, and unit-in-name convention for parameters.
+- **OTA update support** (W28): `OtaUpdateHandler` for Over-The-Air firmware updates via Wi-Fi. Wraps ArduinoOTA with hostname configuration, password protection, and progress/error callbacks. Added `OtaStartCallback`/`OtaEndCallback` type aliases, `getHostname()` getter, and clarified `setPassword()` timing.
+
+### Testing
+
+- 36 host test suites covering all sensors, actuators, scheduler, MQTT, BLE, HTTP, telemetry, and new v1.1.0 components
+- **TelemetryBuffer test**: 22 tests covering initialization, store, retrieve (FIFO), capacity eviction, eviction callback, getMaxPacketsCount(), and constants
+- **PowerManager test**: 18 tests covering initialization, voltage calculation, battery level, low-battery detection, custom thresholds, and edge cases
+- **OtaUpdateHandler test**: 21 tests covering initialization, status tracking, all callback type aliases (OtaProgressCallback, OtaErrorCallback, OtaStartCallback, OtaEndCallback), getHostname(), re-initialization safety, and edge cases
+- **TelemetryPackage firmware version tests**: 5 new tests for optional schemaVersion and firmwareVersion fields in telemetry envelope metadata
+
+### Documentation
+
+- Updated README.md with Arduino Library Manager badge, installation instructions, and new component documentation (PowerManager, TelemetryBuffer, OtaUpdateHandler, firmware version)
+- Updated class diagram (PlantUML) to cover all 51 source headers including new v1.1.0 components
+- Updated `keywords.txt` with all new component keywords (PowerManager, TelemetryBuffer, OtaUpdateHandler, and related methods and types)
+- Updated `docs/improvements.md` with W25–W28 marked Complete and detailed design sections
+- Updated `docs/vision.md` with v1.1.0 features listed as released
+- **Examples updated**: `WeatherStation` extended with `PowerManager` for battery monitoring and `Device::setFirmwareVersion()`. `ClimateDataUploader` extended with `TelemetryBuffer` for offline persistence and replay. New `OtaUpdateDevice` example demonstrates OTA firmware updates with hostname, password, and all callback types.
+- Git Flow workflow adopted: `main` holds releases, `develop` is the integration branch, feature branches merge into `develop`
+
+## [1.0.0] - 2026-11-10
 
 ### Milestone
 
 - **Arduino Library Manager Approval** (2026-11-14): The Modest IoT Nano Framework has been officially approved by Arduino and is now available in the Arduino Library Manager for easy installation directly from the Arduino IDE.
-
-## [1.0.0] - 2026-11-10
 
 ### Added
 

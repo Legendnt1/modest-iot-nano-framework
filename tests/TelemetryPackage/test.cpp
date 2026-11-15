@@ -192,6 +192,82 @@ public:
         std::printf("  AirQuality field count: PASS\n");
     }
 
+    // =========================================================================
+    // Test 11: Version metadata omitted when not set (nullptr default)
+    // =========================================================================
+    {
+        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
+        packet.setEnvelopeMetadata(100, 1);
+        // setVersionMetadata not called — fields should be omitted
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        assert(json == expected);
+        assert(std::string(json).find("schemaVersion") == std::string::npos);
+        assert(std::string(json).find("firmwareVersion") == std::string::npos);
+        std::printf("  Version metadata omitted: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 12: Version metadata included when set
+    // =========================================================================
+    {
+        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
+        packet.setEnvelopeMetadata(100, 1);
+        packet.setVersionMetadata("1.0", "1.0.0");
+        String json = packet.toJsonString();
+
+        // Keys sorted alphabetically: firmwareVersion, heartBeatsPerMinute,
+        // relativeHumidityPercentage, schemaVersion, sequence,
+        // skinTemperatureInCelsius, timestamp
+        std::string expected = "{\"firmwareVersion\":\"1.0.0\",\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"schemaVersion\":\"1.0\",\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        assert(json == expected);
+        std::printf("  Version metadata included: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 13: Only firmware version set (schema version nullptr)
+    // =========================================================================
+    {
+        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
+        packet.setEnvelopeMetadata(100, 1);
+        packet.setVersionMetadata(nullptr, "2.0.0");
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"firmwareVersion\":\"2.0.0\",\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        assert(json == expected);
+        assert(std::string(json).find("schemaVersion") == std::string::npos);
+        std::printf("  Only firmware version: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 14: Only schema version set (firmware version nullptr)
+    // =========================================================================
+    {
+        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
+        packet.setEnvelopeMetadata(100, 1);
+        packet.setVersionMetadata("2.0", nullptr);
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"schemaVersion\":\"2.0\",\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        assert(json == expected);
+        assert(std::string(json).find("firmwareVersion") == std::string::npos);
+        std::printf("  Only schema version: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 15: Version metadata field count
+    // =========================================================================
+    {
+        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
+        packet.setEnvelopeMetadata(100, 1);
+        packet.setVersionMetadata("1.0", "1.0.0");
+        JsonDocument doc = packet.toDocument();
+        const auto& fields = doc.getFields();
+        assert(fields.size() == 7); // timestamp, sequence, schemaVersion, firmwareVersion, heartBeatsPerMinute, skinTemperatureInCelsius, relativeHumidityPercentage
+        std::printf("  Version metadata field count: PASS\n");
+    }
+
     std::printf("All telemetry serialization tests passed.\n");
     return 0;
 }

@@ -1,8 +1,8 @@
 # Modest IoT Dual-Framework Vision
 
-**Version**: 1.0.0  
+**Version**: 1.1.0 (released)
 **Author**: Angel Velasquez  
-**Date**: 2026-11-10
+**Date**: 2026-11-15
 
 ---
 
@@ -21,7 +21,7 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 
 ### Current Status
 
-**All Tiers Complete; Pre-Release Prerequisites Remaining** (as of 2026-11-11):
+**v1.0.0 Released; v1.1.0 Released** (as of 2026-11-15):
 
 | Tier                                    | Items   | Status          |
 |-----------------------------------------|---------|-----------------|
@@ -32,13 +32,16 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 | **Tier 4**: Capabilities                | W12–W15 | **Complete** ✓   |
 | **Tier 5**: Optimization & Power        | W16–W19 | **Complete** (W16 ✓, W17 ✓, W19 ✓, W18 deferred to v1.1.0) |
 | **Pre-Release**: Prerequisites          | W20–W24 | **Complete** ✓ — W20 (Config store) ✓, W21 (Time sync) ✓, W22 (TLS/SSL) ✓, W23 (Command payload) ✓, W24 (Secure socket builder) ✓ |
+| **v1.1.0**: New Features                | W25–W28 | **Complete** ✓ — W25 (TelemetryBuffer) ✓, W26 (PowerManager) ✓, W27 (Firmware version) ✓, W28 (OtaUpdateHandler) ✓ |
 
 ### What's Delivered
 
-- **48 source headers** with full Doxygen documentation and `@runs_on` threading tags.
-- **22 example sketches** covering diverse use cases (MQTT over TLS device, BLE vitals transmitter, remote LED controller, indoor air quality display, pipe temperature monitor, equipment health monitor, smart band, air quality, RFID access, smart greenhouse, weather station, crop monitoring, home security, HTTP telemetry, etc.).
-- **33 host unit test suites** with shared mocks, Address/Undefined sanitizers, and 100% pass rate.
+- **51 source headers** with full Doxygen documentation and `@runs_on` threading tags.
+- **23 example sketches** covering diverse use cases (MQTT over TLS device, BLE vitals transmitter, remote LED controller, indoor air quality display, pipe temperature monitor, equipment health monitor, smart band, air quality, RFID access, smart greenhouse, weather station, crop monitoring, home security, HTTP telemetry, OTA update device, etc.).
+- **36 host unit test suites** with shared mocks, Address/Undefined sanitizers, and 100% pass rate.
 - **3 CI workflows**: host tests, compile examples, lint.
+- **Arduino Library Manager approved** — available via Arduino IDE Library Manager.
+- **Git Flow workflow** — `main` for releases, `develop` for integration, feature branches for isolated development.
 - **Per-slot `SamplingScheduler`** with phase-aligned re-arming and minimum period enforcement.
 - **`EngineConfig`** for tunable FreeRTOS task stacks, priorities, and core pinning.
 - **`BleConnectivityDriver`** with Nordic UART Service (NUS) supporting all ESP32 variants.
@@ -122,20 +125,25 @@ Production-ready features across all three transport options:
 | Gap | Impact | Recommendation | Effort |
 |-----|--------|----------------|--------|
 | **Persistent configuration store** | **Complete** ✓ — `ConfigurationStore` using ESP32 NVS (`Preferences`) with namespace-based isolation, type-safe getters/setters (string, int, unsigned long, float, bool), default fallbacks, read-only mode, and schema validation (containsKey, removeKey, clearNamespace). | — | Medium |
-| **No time synchronization** | **Complete** ✓ — `TimeSynchronizationDriver` with NTP support over WiFi and RTC fallback for deep-sleep devices. Telemetry timestamps use Unix epoch seconds via `getCurrentTimestamp()`. WeatherStation example demonstrates NTP initialization and RTC save/restore. | — | — |
+| **No time synchronization** | **Complete** ✓ — `TimeSynchronizationDriver` with NTP support over Wi-Fi and RTC fallback for deep-sleep devices. Telemetry timestamps use Unix epoch seconds via `getCurrentTimestamp()`. WeatherStation example demonstrates NTP initialization and RTC save/restore. | — | — |
 | **TLS/SSL examples & documentation** | **Complete** ✓ — `MqttTlsDevice` example using `WiFiClientSecure` with `MqttGatewayClient` on port 8883. Secure Communication section in README documents both MQTT and HTTP TLS with certificate options (`setInsecure()`, `setCACert()`, `setCertificate()`). | — | Low |
 | **Command payload support** | **Complete** ✓ — `Command(int, int32_t)` constructor with payload. `DRIVE_TO_ANGLE_COMMAND` (ServoMotor), `ADJUST_BRIGHTNESS_COMMAND` (RgbLed), `PLAY_FREQUENCY_COMMAND` (Buzzer). Static helpers: `validateOrAdjustPhysicalAngle()`, `adjustColorSetIntensity()`. | — | Low |
 
-**Should Not Block v1.0.0** (Addressable in v1.1.0+):
+**v1.1.0 Features — Released** ✓:
+
+| Gap | Impact | Recommendation | Status |
+|-----|--------|----------------|--------|
+| **No OTA update mechanism** | Deployed devices cannot receive bug fixes or feature updates without manual intervention. | `OtaUpdateHandler` component with Wi-Fi transport, hostname, password, progress/error callbacks. | **Complete** ✓ (W28) |
+| **No telemetry buffering** | Drop-oldest policy discards data when queue is full. No persistent buffer for offline scenarios. | `TelemetryBuffer` with LittleFS persistence, monotonic indices, FIFO eviction, eviction callback. | **Complete** ✓ (W25) |
+| **Limited power management** | DeepSleep mode exists but no light sleep configuration beyond tickless, no battery monitoring. | `PowerManager` with battery voltage sensing, level calculation, low-battery threshold alerts. | **Complete** ✓ (W26) |
+| **No firmware version in telemetry** | No standard way to report firmware version in telemetry envelope. | Optional `schemaVersion` and `firmwareVersion` fields in envelope metadata via `Device` API. | **Complete** ✓ (W27) |
+
+**Deferred to Future Versions**:
 
 | Gap | Impact | Recommendation | Target Version |
 |-----|--------|----------------|----------------|
-| **No OTA update mechanism** | Deployed devices cannot receive bug fixes or feature updates without manual intervention. | Add `OtaUpdater` component with WiFi transport. Edge Framework Phase 3 handles OTA orchestration. | v1.2.0 |
-| **No telemetry buffering** | Drop-oldest policy discards data when queue is full. No persistent buffer for offline scenarios. | Add `TelemetryBuffer` with LittleFS persistence for offline replay. | v1.1.0 |
-| **No event aggregation** | Events processed independently. No mechanism to correlate events from multiple sensors. | Add `EventAggregator` or `RuleEngine` for composite event patterns (e.g., "motion AND door opened"). | v1.2.0 |
-| **Limited power management** | DeepSleep mode exists but no light sleep configuration beyond tickless, no battery monitoring. | Add `PowerManager` with battery voltage sensing and configurable sleep modes. | v1.1.0 |
-| **No multi-device coordination** | Each device communicates independently. No mesh or device-to-device communication. | Consider ESP-NOW or MQTT-based device-to-device messaging for relay nodes. | v1.3.0 |
-| **No firmware version in telemetry** | No standard way to report firmware version in telemetry envelope. | Add optional `schemaVersion` and `firmwareVersion` fields to envelope metadata. | v1.1.0 |
+| **No event aggregation** | Events processed independently. No mechanism to correlate events from multiple sensors. | Add `EventAggregator` or `RuleEngine` for composite event patterns (e.g., "motion AND door opened"). | v1.2.0 (W29) |
+| **No multi-device coordination** | Each device communicates independently. No mesh or device-to-device communication. | Consider ESP-NOW or MQTT-based device-to-device messaging for relay nodes. | v1.3.0 (W30) |
 
 **Assessment**: The framework is **ready for v1.0.0 submission** with the four blocking items addressed. These are additive features that do not require architectural changes. The modular design and clear abstractions make them straightforward to implement while maintaining existing patterns.
 
@@ -163,11 +171,19 @@ Production-ready features across all three transport options:
 4. **Command payload support** — **Complete** ✓: Optional `int32_t` payload in `Command` constructor.
 5. **Secure socket builder** — **Complete** ✓: `createSecureSocket()` builder method on `WiFiConnectivityDriver`.
 
-**Phase 3: Library Release** (Estimated: 1 week)
+**Phase 3: Library Release** — **Complete** ✓
 
-1. Tag `v1.0.0` with `CHANGELOG.md`.
-2. Submit to Arduino Library Manager.
-3. Create AI-assisted development guide.
+1. Tag `v1.0.0` with `CHANGELOG.md` — **Complete** ✓.
+2. Submit to Arduino Library Manager — **Complete** ✓ (approved and published).
+3. Create AI-assisted development guide — **Complete** ✓.
+
+**Phase 4: v1.1.0 Features** — **Complete** ✓ (Released)
+
+1. **W25: Telemetry buffering** — **Complete** ✓: `TelemetryBuffer` with LittleFS persistence, monotonic indices, FIFO eviction, eviction callback, `getMaxPacketsCount()`, 22 host tests.
+2. **W26: Power manager** — **Complete** ✓: `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests.
+3. **W27: Firmware version** — **Complete** ✓: Optional `schemaVersion` and `firmwareVersion` in telemetry envelope, 5 new tests.
+4. **W28: OTA update support** — **Complete** ✓: `OtaUpdateHandler` with hostname, password, progress/error/start/end callbacks, 21 host tests.
+5. **Release to `main`** — In progress: `release/v1.1.0` branch ready for merge into `main` and `develop`.
 
 ### Component Expansion Strategy
 
@@ -213,8 +229,9 @@ New examples bundle multiple components to demonstrate complete use cases:
 **Library Release Impact**:
 
 - **v1.0.0**: 18 sensors (including BmeEnvironmentalSensor abstract base) + 7 actuators + Tier 1, Tier 2, and Tier 3 components (Relay, Soil Moisture, WaterFlow, PthSensor, Water Leak, Door/Window, OneWireTemperature, OledDisplay, EnvironmentalGas) + gateway client enhancements (BleGatewayClient, HttpGatewayClient, WiFiConnectivityDriver, BleConnectivityDriver).
-- **v1.1.0**: Tier 2 components (BME280, Water Leak, Door/Window) with new examples.
-- **v1.2.0**: Tier 3 components as needed, based on community feedback.
+- **v1.1.0**: `TelemetryBuffer` (LittleFS persistence), `PowerManager` (battery monitoring), `OtaUpdateHandler` (OTA updates), firmware version in telemetry envelope. All released.
+- **v1.2.0**: `EventAggregator` for composite event patterns (W29).
+- **v1.3.0**: Multi-device coordination via ESP-NOW or MQTT (W30).
 
 ### On-Device ML Inference (Tier 5)
 
@@ -914,7 +931,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 |-----------------------------|-------------------------|----------------------------------|----------------------------|
 | **Consistent patterns**     | Mediator, CQRS, events  | Same patterns at edge scale      | One mental model for both  |
 | **AI-assisted development** | Clean, documented API   | Python/ML ecosystem              | AI generates code for both |
-| **Test infrastructure**     | 33 host test suites, CI | Python pytest, integration tests | Full-stack testing         |
+| **Test infrastructure**     | 36 host test suites, CI | Python pytest, integration tests | Full-stack testing         |
 | **Documentation**           | Doxygen, ADRs, README   | Sphinx, OpenAPI specs            | Unified documentation      |
 
 ### 4.2 For IoT Products
@@ -950,7 +967,8 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | **Q4 2026** | Component Expansion ✓  | RelayActuator, SoilMoistureSensor, WaterFlowSensor with examples              |
 | **Q4 2026** | Tier 5 complete ✓      | W16 ✓: tickless scheduling; W17 ✓: deep sleep with WeatherStation; W19 ✓: native drivers; W18 deferred to v1.1.0 |
 | **Q4 2026** | Pre-release prereqs ✓ | W20–W24: ConfigurationStore, TimeSynchronizationDriver, TLS examples, Command payload, Secure socket builder |
-| **Q1 2027** | Library release        | v1.0.0 tag, Arduino Library Manager submission                                 |
+| **Q4 2026** | Library release ✓      | v1.0.0 tag, Arduino Library Manager submission, approved and published         |
+| **Q4 2026** | v1.1.0 features ✓      | W25–W28: TelemetryBuffer, PowerManager, firmware version, OtaUpdateHandler (released) |
 
 ### Edge Framework Development
 
@@ -1032,10 +1050,10 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | Metric                  | Target                                 |
 |-------------------------|----------------------------------------|
 | **Compilation success** | 100% across ESP32 variants             |
-| **Test coverage**       | 100% pass rate, 33 test suites         |
+| **Test coverage**       | 100% pass rate, 36 test suites         |
 | **Flash footprint**     | <30 KB overhead                        |
 | **RAM footprint**       | <2 KB overhead                         |
-| **Example count**       | 22 diverse examples                    |
+| **Example count**       | 23 diverse examples                    |
 | **CI workflows**        | 3 (host tests, compile examples, lint) |
 
 ### Edge Framework
@@ -1070,12 +1088,12 @@ The Modest IoT dual-framework vision provides a complete, local-first IoT stack:
 - **Together** they form a scalable, offline-resilient, AI-ready IoT platform.
 - **DDD-guided design** ensures consistent terminology, clear context boundaries, and appropriate patterns for each framework (see ADR-023).
 
-The Nano Framework is **feature-complete for v1.0.0** (Tiers 0–4 done, Component Expansion Tiers 1–3 done, Tier 5: W16 ✓, W17 ✓, W19 ✓, W18 deferred to v1.1.0). All pre-release prerequisites (W20–W24) are complete. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap.
+The Nano Framework is **released as v1.0.0** and approved by the Arduino Library Manager. v1.1.0 features (W25–W28) are **released as v1.1.0**. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap.
 
 **Next steps**:
-1. Nano Framework Tiers 0–4 are complete. Component Expansion Tiers 1–3 are complete. Tier 5: W16 ✓ (tickless scheduling), W17 ✓ (deep sleep), W19 ✓ (native drivers).
-2. Phase 2.5 pre-release prerequisites (W20–W24) are complete.
-3. Submit Nano v1.0.0 to Arduino Library Manager.
+1. Nano Framework v1.0.0 is released and approved by Arduino Library Manager.
+2. v1.1.0 features (W25–W28) are released: TelemetryBuffer, PowerManager, firmware version in telemetry, OtaUpdateHandler.
+3. Tag `v1.1.0` on `main` and update the Arduino Library Manager.
 4. Start Edge Framework Phase 1 development.
 5. Integrate Nano and Edge with MQTT protocol and shared telemetry schema.
 

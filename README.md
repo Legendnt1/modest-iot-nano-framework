@@ -2,10 +2,12 @@
 
 [![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Author**: Angel Velasquez  
 **Date created**: 2025-03-23  
-**Last updated**: 2026-11-14
+**Last updated**: 2026-11-15
+
+> **Git Flow**: This project uses Git Flow. `main` holds release versions (tagged `v1.0.0`, etc.), `develop` is the integration branch, and feature branches (e.g., `feature/W27-firmware-version`) merge into `develop`.
 
 ## Overview
 
@@ -15,7 +17,7 @@ Modest IoT Nano Framework (C++ Edition) is a lightweight, object-oriented, event
 
 The framework uses a **Mediator pattern** where a `Device` subclass owns and coordinates its sensors and actuators. Sensors emit events that propagate synchronously through the mediator, which issues commands to actuators. Telemetry flows through a queue-based pipeline from the sampler task to the network task, keeping sensor polling and network transmission isolated.
 
-This repository contains the C++ edition of the framework. A MicroPython edition is planned as a separate distribution. The [`examples/`](examples/) folder includes 22 grounded real-world devices; start with [`StatusIndicator`](examples/StatusIndicator/) for the simplest usage demonstration.
+This repository contains the C++ edition of the framework. A MicroPython edition is planned as a separate distribution. The [`examples/`](examples/) folder includes 23 grounded real-world devices; start with [`StatusIndicator`](examples/StatusIndicator/) for the simplest usage demonstration.
 
 ## Key Characteristics
 
@@ -46,6 +48,9 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `DiagnosticsSnapshot` | 12-field runtime health snapshot (stack, heap, queue, timing). |
 | `SamplingScheduler` | Per-slot countdown scheduler with phase-aligned re-arming and minimum period enforcement. |
 | `TelemetryPackage` | Base class for telemetry payloads with envelope metadata (timestamp, sequence). |
+| `TelemetryBuffer` | Persistent telemetry buffer using LittleFS with monotonic indices for offline storage and FIFO replay — no file shifting overhead. |
+| `PowerManager` | Battery voltage sensing via ADC with configurable voltage divider, level calculation, and low-battery alerts. |
+| `OtaUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
 
 ### Sensors
 
@@ -221,6 +226,93 @@ dhtSensor.setFaultThreshold(3); // Emit fault event after 3 consecutive failures
 
 When a sensor faults, it emits event ID 22 (`SENSOR_FAULT_EVENT_IDENTIFIER`). When it recovers, it emits event ID 23 (`SENSOR_RECOVERED_EVENT_IDENTIFIER`). The mediator can react by turning on an alert LED, publishing health telemetry, or switching to a safe default state.
 
+### Firmware Version in Telemetry
+
+Include your firmware version in every telemetry packet for fleet management and diagnostics:
+
+```cpp
+Device::setFirmwareVersion("1.0.0");
+```
+
+The `firmwareVersion` field appears in the JSON envelope of every telemetry record. Optionally set a schema version to track telemetry format changes:
+
+```cpp
+Device::setTelemetrySchemaVersion("1.0");
+```
+
+When neither is set (the default), both fields are omitted from the JSON output with zero overhead.
+
+### Battery Monitoring
+
+Monitor battery voltage and level for battery-powered devices:
+
+```cpp
+// Configure battery monitoring on ADC pin 34 with a 2:1 voltage divider
+PowerManager::begin(34, 2.0f);
+
+// Read battery voltage and level
+uint32_t voltage = PowerManager::getBatteryVoltageInMillivolts(); // in millivolts
+float level = PowerManager::getBatteryLevelInPercentage();        // 0.0 to 100.0
+
+// Check low battery status
+if (PowerManager::isLowBattery()) {
+    // Take action: reduce sampling, enter deep sleep, etc.
+}
+```
+
+Supports configurable voltage divider ratios, custom battery voltage ranges for different chemistries, and adjustable low-battery thresholds. Default range is 3.0V–4.2V for Li-ion batteries.
+
+### Telemetry Buffering
+
+Persist telemetry packets when the network is unavailable and replay them when connectivity is restored:
+
+```cpp
+// Initialize the buffer in setup()
+TelemetryBuffer::begin();
+
+// Optional: monitor eviction events
+TelemetryBuffer::onEviction([]() {
+    Serial.println("Warning: telemetry packet evicted due to buffer capacity");
+});
+
+// In processQueuedTelemetryData(), if send fails:
+if (!gatewayClient.sendTelemetryRecord(*packet)) {
+    TelemetryBuffer::store(packet->toJsonString());
+}
+
+// When connectivity is restored, replay buffered packets:
+String buffered;
+while (TelemetryBuffer::retrieveNext(buffered)) {
+    // Parse and resend the buffered JSON
+}
+```
+
+Uses LittleFS for persistence with configurable max buffer size (default 50 packets). Buffered packets survive unexpected reboots and are replayed in FIFO order.
+
+### OTA Firmware Updates
+
+Enable Over-The-Air firmware updates for deployed devices:
+
+```cpp
+// Configure OTA updates in setup()
+OtaUpdateHandler::begin("my-device-name");
+OtaUpdateHandler::setPassword("secret123");
+
+// Optional: track progress
+OtaUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
+    float percent = (float)progressInNumberOfBytesWritten / (float)totalNumberOfBytes * 100.0f;
+    Serial.printf("OTA Progress: %.1f%%\r", percent);
+});
+
+// In your Device subclass, call service() from maintainNetworkServices()
+void maintainNetworkServices() const override {
+    gatewayClient.service();
+    OtaUpdateHandler::service();
+}
+```
+
+Supports hostname configuration for device discovery, password protection, and progress/error callbacks. Upload firmware directly from the Arduino IDE by selecting the OTA port listed under Tools → Port. The `service()` method is called automatically by the network dispatcher task via `maintainNetworkServices()` — no `loop()` required.
+
 ## Connectivity
 
 ### Wi-Fi
@@ -295,7 +387,7 @@ HttpGatewayClient httpGateway(*secureSocket, "https://api.example.com/device/tel
 
 ## Examples
 
-The framework ships with 22 example sketches demonstrating various use cases:
+The framework ships with 23 example sketches demonstrating various use cases:
 
 | Example | Description |
 |---|---|
@@ -308,7 +400,7 @@ The framework ships with 22 example sketches demonstrating various use cases:
 | `SmartBandMqtt` | Wearable device with pulse, DHT temperature/humidity, and button; publishes via MQTT. |
 | `AirConditioningDevice` | HVAC monitor with DHT sensor, buttons, and LCD display; demonstrates I²C actuator on sampler task. |
 | `AirQualityMonitor` | Gas sensor with MQTT telemetry; demonstrates keep-alive and reconnection. |
-| `ClimateDataUploader` | DHT22 sensor with HTTP telemetry, Bearer token acquisition via GET request, response body parsing, and authenticated POST telemetry. |
+| `ClimateDataUploader` | DHT22 sensor with HTTP telemetry, Bearer token acquisition, and offline buffering; demonstrates `TelemetryBuffer` for LittleFS persistence when the network is unavailable, with FIFO eviction and replay on reconnection. |
 | `CropMonitoringStation` | Multi-sensor agricultural monitoring with tickless scheduling and MQTT telemetry. |
 | `DriverAssistantDevice` | GPS and ultrasonic distance monitoring; demonstrates multi-sensor coordination. |
 | `HomeSecurityDevice` | Water leak, door/window, PIR, and buzzer; demonstrates interrupt-driven home security. |
@@ -320,11 +412,12 @@ The framework ships with 22 example sketches demonstrating various use cases:
 | `TogglableLedDevice` | Button-controlled LED with MQTT telemetry; demonstrates CQRS command/event separation. |
 | `WaterFlowMonitor` | YF-S201 water flow sensor with hybrid interrupt/periodic scheduling. |
 | `MqttTlsDevice` | Secure environmental monitor with encrypted MQTT (TLS); demonstrates `WiFiConnectivityDriver::createSecureSocket()` builder method for TLS socket creation. |
-| `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor. |
+| `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor; demonstrates `PowerManager` for battery voltage sensing, level calculation, and low-battery alerts. |
+| `OtaUpdateDevice` | Minimal device with DHT22 and OTA firmware updates; demonstrates `OtaUpdateHandler` with hostname configuration, password protection, progress/error/start/end callbacks, and `service()` in `maintainNetworkServices()`. |
 
 ## Testing
 
-The framework includes 33 host unit test suites that run natively without hardware:
+The framework includes 36 host unit test suites that run natively without hardware:
 
 | Suite | What It Tests |
 |---|---|
@@ -360,6 +453,10 @@ The framework includes 33 host unit test suites that run natively without hardwa
 | `tests/TimeSynchronizationDriver/` | NTP initialization, timestamp fallback, sync status, RTC save/restore |
 | `tests/GasSensor/` | Analog gas detection, calibration modes, Rs/R0 ratio, PPM estimation, gas types |
 | `tests/Button/` | Debounce logic, press detection, timing, event emission |
+| `tests/DhtSensor/` | DHT single-wire protocol, temperature/humidity, CRC validation |
+| `tests/PowerManager/` | Battery voltage sensing, level calculation, low-battery threshold, custom ranges |
+| `tests/TelemetryBuffer/` | LittleFS persistence, FIFO store/retrieve, eviction callback, monotonic indices |
+| `tests/OtaUpdateHandler/` | OTA status tracking, all callback type aliases, hostname, re-initialization safety |
 
 Run all tests locally:
 
@@ -377,9 +474,13 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 
 | Artifact | Description |
 |---|---|
-| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram of the framework structure. |
-| [`docs/user-stories.md`](docs/user-stories.md) | Product-level user stories and acceptance criteria. |
-| [`docs/improvements.md`](docs/improvements.md) | Master index, implementation status, and detailed plans for all framework improvements. |
+| [`docs/adrs.md`](docs/adrs.md) | 30 Architecture Decision Records with rationale, trade-offs, and consequences. |
+| [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
+| [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
+| [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
+| [`docs/vision.md`](docs/vision.md) | Dual-framework vision (Nano + Edge), strategic roadmap, and development timeline. |
+| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 51 source headers. |
+| [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 
 ### API and Code-Level Reference (`src/`)
 
@@ -498,8 +599,8 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Telemetry packet pool (W18), telemetry buffering with LittleFS persistence, power manager with battery monitoring, and firmware version in telemetry.
-- **v1.2.0**: Over-the-air (OTA) updates and event aggregation for composite sensor rules.
+- **v1.1.0**: Released — Telemetry buffering, firmware version, power manager, OTA updates. Telemetry packet pool (W18) deferred.
+- **v1.2.0**: Event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
 

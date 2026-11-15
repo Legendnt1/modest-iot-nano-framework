@@ -204,6 +204,64 @@ toDocument	KEYWORD2
 toJsonString	KEYWORD2
 setEnvelopeMetadata	KEYWORD2
 addEnvelopeMetadata	KEYWORD2
+setVersionMetadata	KEYWORD2
+
+# Device firmware version
+setFirmwareVersion	KEYWORD2
+getFirmwareVersion	KEYWORD2
+setTelemetrySchemaVersion	KEYWORD2
+getTelemetrySchemaVersion	KEYWORD2
+
+# PowerManager
+PowerManager	KEYWORD1
+begin	KEYWORD2
+getBatteryVoltageInMillivolts	KEYWORD2
+getBatteryLevelInPercentage	KEYWORD2
+isLowBattery	KEYWORD2
+setLowBatteryThresholdInMillivolts	KEYWORD2
+getLowBatteryThresholdInMillivolts	KEYWORD2
+setBatteryVoltageRange	KEYWORD2
+getMinVoltageInMillivolts	KEYWORD2
+getMaxVoltageInMillivolts	KEYWORD2
+isInitialized	KEYWORD2
+
+# TelemetryBuffer
+TelemetryBuffer	KEYWORD1
+store	KEYWORD2
+retrieveNext	KEYWORD2
+getBufferedPacketCount	KEYWORD2
+getMaxPacketsCount	KEYWORD2
+hasBufferedPackets	KEYWORD2
+clear	KEYWORD2
+onEviction	KEYWORD2
+EvictionCallback	KEYWORD1
+DEFAULT_MAX_BUFFERED_PACKETS	LITERAL1
+TELEMETRY_BUFFER_DIRECTORY	LITERAL1
+
+# OtaUpdateHandler
+OtaUpdateHandler	KEYWORD1
+OtaUpdateStatus	KEYWORD1
+OtaProgressCallback	KEYWORD1
+OtaErrorCallback	KEYWORD1
+OtaStartCallback	KEYWORD1
+OtaEndCallback	KEYWORD1
+begin	KEYWORD2
+setPassword	KEYWORD2
+onProgress	KEYWORD2
+onError	KEYWORD2
+onStart	KEYWORD2
+onEnd	KEYWORD2
+service	KEYWORD2
+getHostname	KEYWORD2
+getStatus	KEYWORD2
+getLastError	KEYWORD2
+getProgressInPercentage	KEYWORD2
+isInitialized	KEYWORD2
+OtaUpdateStatus_Idle	LITERAL1
+OtaUpdateStatus_Starting	LITERAL1
+OtaUpdateStatus_Running	LITERAL1
+OtaUpdateStatus_Finished	LITERAL1
+OtaUpdateStatus_Error	LITERAL1
 
 # Sensor data getters
 getTemperatureInCelsius	KEYWORD2
