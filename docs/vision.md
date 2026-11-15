@@ -130,7 +130,7 @@ Production-ready features across all three transport options:
 
 | Gap | Impact | Recommendation | Target Version |
 |-----|--------|----------------|----------------|
-| **No OTA update mechanism** | Deployed devices cannot receive bug fixes or feature updates without manual intervention. | Add `OtaUpdater` component with WiFi transport. Edge Framework Phase 3 handles OTA orchestration. | v1.2.0 |
+| **No OTA update mechanism** | Deployed devices cannot receive bug fixes or feature updates without manual intervention. | Add `OverTheAirUpdateHandler` component with WiFi transport. Edge Framework Phase 3 handles OTA orchestration. | v1.1.0 |
 | **No telemetry buffering** | Drop-oldest policy discards data when queue is full. No persistent buffer for offline scenarios. | Add `TelemetryBuffer` with LittleFS persistence for offline replay. | v1.1.0 |
 | **No event aggregation** | Events processed independently. No mechanism to correlate events from multiple sensors. | Add `EventAggregator` or `RuleEngine` for composite event patterns (e.g., "motion AND door opened"). | v1.2.0 |
 | **Limited power management** | DeepSleep mode exists but no light sleep configuration beyond tickless, no battery monitoring. | Add `PowerManager` with battery voltage sensing and configurable sleep modes. | v1.1.0 |
