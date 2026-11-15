@@ -964,7 +964,7 @@ The Nano Framework already embodies several Domain-Driven Design (DDD) concepts 
 - **Repository-like pattern**: `SamplingScheduler` manages sensor registration and per-slot scheduling.
 - **Domain Events**: Sensor fault events (IDs 22/23), measurement requests.
 - **Anti-Corruption Layer**: `ConnectivityDriver` interface isolates framework from Arduino/ESP-IDF core APIs.
-- **Ubiquitous Language**: Consistent naming across 48 headers, 22 examples, and documentation.
+- **Ubiquitous Language**: Consistent naming across 51 headers, 23 examples, and documentation.
 
 However, the framework lacked explicit DDD **strategic design**: no documented bounded contexts, no context map, no documented aggregate invariants, and no shared glossary between Nano and Edge frameworks.
 
