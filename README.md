@@ -473,9 +473,12 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 
 | Artifact | Description |
 |---|---|
-| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram of the framework structure. |
-| [`docs/user-stories.md`](docs/user-stories.md) | Product-level user stories and acceptance criteria. |
-| [`docs/improvements.md`](docs/improvements.md) | Master index, implementation status, and detailed plans for all framework improvements. |
+| [`docs/adrs.md`](docs/adrs.md) | 30 Architecture Decision Records with rationale, trade-offs, and consequences. |
+| [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
+| [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
+| [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
+| [`docs/vision.md`](docs/vision.md) | Dual-framework vision (Nano + Edge), strategic roadmap, and development timeline. |
+| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 51 source headers. |
 
 ### API and Code-Level Reference (`src/`)
 
