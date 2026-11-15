@@ -13,15 +13,6 @@
 #include <cstdio>
 #include <cmath>
 
-namespace {
-
-// Helper to check float equality with tolerance
-bool floatsEqual(float a, float b, float epsilon = 0.1f) {
-    return std::fabs(a - b) < epsilon;
-}
-
-} // namespace
-
 int main() {
     std::printf("Running OtaUpdateHandler tests...\n");
 
@@ -62,7 +53,7 @@ int main() {
     // Test 5: Progress percentage is 0.0 when not started
     // =========================================================================
     {
-        assert(floatsEqual(OtaUpdateHandler::getProgressInPercentage(), 0.0f));
+        assert(std::fabs(OtaUpdateHandler::getProgressInPercentage() - 0.0f) < 0.1f);
         std::printf("  [PASS] Progress percentage is 0.0 when not started\n");
     }
 
@@ -149,9 +140,9 @@ int main() {
     // =========================================================================
     {
         // Test 10 called begin() with default hostname, so getHostname() should return it
-        const char* host = OtaUpdateHandler::getHostname();
-        assert(host != nullptr);
-        std::printf("  [PASS] getHostname() returns the hostname set during begin()\n");
+        const char* hostname = OtaUpdateHandler::getHostname();
+        assert(hostname != nullptr);
+        std::printf("  [PASS] getHostname() returns: %s\n", hostname);
     }
 
     // =========================================================================
