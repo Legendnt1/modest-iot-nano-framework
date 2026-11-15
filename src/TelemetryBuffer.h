@@ -11,6 +11,7 @@
  */
 
 #include <Arduino.h>
+#include <functional>
 
 /**
  * @brief Maximum number of buffered packets before dropping oldest.
@@ -33,8 +34,10 @@ constexpr auto TELEMETRY_BUFFER_DIRECTORY = "/telemetry_buffer";
  * persisted to LittleFS instead of being dropped. When connectivity is restored,
  * buffered packets are replayed in FIFO order.
  *
- * The buffer uses a file-per-packet strategy with sequential naming
- * (e.g., `/telemetry_buffer/00001.json`) for simple FIFO ordering.
+ * The buffer uses a file-per-packet strategy with monotonic indices
+ * (e.g., `/telemetry_buffer/00001.json`, `/telemetry_buffer/00002.json`, etc.)
+ * for FIFO ordering. New packets are appended with incrementing indices,
+ * and retrieval deletes the oldest file — no file shifting is needed.
  *
  * @par Thread Safety
  * All public methods are designed to be called from the network dispatcher task.
@@ -64,34 +67,53 @@ constexpr auto TELEMETRY_BUFFER_DIRECTORY = "/telemetry_buffer";
  * @endcode
  */
 class TelemetryBuffer {
+public:
+    /**
+     * @brief Callback signature for packet eviction events.
+     */
+    using EvictionCallback = std::function<void()>;
+
 private:
     static bool initialized; ///< Tracks whether begin() was called successfully.
-    static int maxPackets; ///< Maximum number of buffered packets before dropping oldest.
+    static int maxPacketsCount; ///< Maximum number of buffered packets before dropping oldest.
     static int packetCount; ///< Current number of buffered packets in LittleFS.
+    static unsigned int nextWriteIndex; ///< Monotonic counter for new packet file names.
+    static EvictionCallback onEvictionCallback; ///< Callback invoked when a packet is evicted.
 
     /**
-     * @brief Generates the file path for a given packet index.
-     * @param index Zero-based packet index.
+     * @brief Generates the file path for a given monotonic index.
+     * @param index Monotonic packet index.
      * @return String path like "/telemetry_buffer/00001.json".
      */
-    [[nodiscard]] static String getFilePath(int index);
+    [[nodiscard]] static String getFilePath(unsigned int index);
 
     /**
-     * @brief Counts the existing buffered packets in LittleFS.
+     * @brief Counts the existing buffered packets and finds the oldest index.
      * @return Number of .json files in the buffer directory.
+     *
+     * On ESP32, this also updates nextWriteIndex to be one past the highest
+     * existing index, ensuring new packets are appended without gaps.
      */
     [[nodiscard]] static int countPackets();
 
     /**
+     * @brief Finds the file path of the oldest packet (lowest monotonic index).
+     * @return Path string of the oldest file, or empty string if buffer is empty.
+     */
+    [[nodiscard]] static String findOldestFilePath();
+
+    /**
      * @brief Removes the oldest packet file from LittleFS.
      * @return `true` if a packet was removed, `false` if buffer was empty.
+     *
+     * Uses monotonic indices — no file shifting is needed.
      */
     static bool removeOldestPacket();
 
 public:
     /**
      * @brief Initializes the telemetry buffer in LittleFS.
-     * @param maxBufferedPackets Maximum number of packets to buffer (default: 50).
+     * @param maxBufferedPacketsCount Maximum number of packets to buffer (default: 50).
      * @return `true` if LittleFS was mounted and the buffer directory exists.
      *
      * Creates the buffer directory if it doesn't exist and counts any
@@ -100,7 +122,7 @@ public:
      * @note Must be called before any other buffer operations.
      * Call once during device setup, after LittleFS is available.
      */
-    static bool begin(int maxBufferedPackets = DEFAULT_MAX_BUFFERED_PACKETS);
+    static bool begin(int maxBufferedPacketsCount = DEFAULT_MAX_BUFFERED_PACKETS);
 
     /**
      * @brief Stores a serialized telemetry packet in the buffer.
@@ -131,6 +153,12 @@ public:
     [[nodiscard]] static int getBufferedPacketCount();
 
     /**
+     * @brief Returns the maximum number of buffered packets.
+     * @return Maximum packet count configured during begin().
+     */
+    [[nodiscard]] static int getMaxPacketsCount();
+
+    /**
      * @brief Checks whether there are buffered packets available.
      * @return `true` if at least one packet is buffered.
      */
@@ -150,6 +178,17 @@ public:
      * @return `true` if begin() was called successfully.
      */
     [[nodiscard]] static bool isInitialized();
+
+    /**
+     * @brief Registers a callback invoked when a packet is evicted due to buffer capacity.
+     * @param callback The callback function to invoke on eviction.
+     *
+     * The callback is called after the oldest packet is removed but before the
+     * new packet is stored, allowing monitoring of eviction events.
+     *
+     * @note Call `onEviction(nullptr)` to clear a previously registered callback.
+     */
+    static void onEviction(EvictionCallback callback);
 };
 
 #endif // TELEMETRY_BUFFER_H

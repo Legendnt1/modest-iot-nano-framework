@@ -11,7 +11,7 @@ All 8 improvement briefs and the roadmap are consolidated in this single documen
 | Tier                                    | Items                                                  | Goal                                                                                                | Exit criterion                                                                                                       | Status       |
 |-----------------------------------------|--------------------------------------------------------|-----------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|--------------|
 | 0: Make it correct and shippable        | W1, W2, W3, W4                                         | Everything compiles, repo is clean, rules are written down                                          | All examples compile cleanly; clean repo layout                                                                      | **Complete** |
-| 1: Safety net and visibility            | W5                                                     | Regressions caught automatically via host tests & CI                                                | CI green on PRs/pushes; all 33 host test suites pass; examples compile in CI; lint passes                         | **Complete** |
+| 1: Safety net and visibility            | W5                                                     | Regressions caught automatically via host tests & CI                                                | CI green on PRs/pushes; all 36 host test suites pass; examples compile in CI; lint passes                         | **Complete** |
 | 2: Reliability, diagnostics & footprint | W6 (logging/high-water/sensor conversion), W7, W9, W10 | Reconnection robust, tasks tunable, BLE modern, zero-cost logs, sensor fault events with conversion | Soak test reconnects; logs available behind macro; BLE tests pass; diagnostics snapshot works; sensors report faults | **Complete** |
 | 3: Core performance and DX              | W8, then W11                                           | Per-slot intervals, bounded memory use for telemetry                                                | Scheduler host tests pass; all examples use per-sensor intervals; telemetry ownership and queue policy complete      | **Complete** |
 | 4: Capabilities                         | W12, W13, W14, W15, rest of W6                         | Edge-driven sensing, remote commands, fault events                                                  | Bidirectional MQTT verified; interrupt-driven sensors tested                                                         | **Complete** (W12 ✓, W13 ✓, W14 ✓, W15 ✓) |
@@ -39,7 +39,7 @@ All 8 improvement briefs and the roadmap are consolidated in this single documen
 | **W25** | Telemetry buffering with persistence | v1.1.0 | High | `TelemetryBuffer` with LittleFS persistence for offline replay when network is unavailable. |
 | **W26** | Power manager & battery monitoring | v1.1.0 | Medium | `PowerManager` with battery voltage sensing, configurable sleep modes beyond tickless/deep-sleep. |
 | **W27** | Firmware version in telemetry    | v1.1.0 | Low        | Add optional `schemaVersion` and `firmwareVersion` fields to telemetry envelope metadata. |
-| **W28** | OTA update support               | v1.2.0   | High       | `OtaUpdater` component with WiFi transport. Edge Framework Phase 3 handles OTA orchestration. |
+| **W28** | OTA update support               | v1.1.0   | High       | `OtaUpdateHandler` component with WiFi transport. ✅ **Complete** |
 | **W29** | Event aggregation & rules        | v1.2.0   | High       | `EventAggregator` or `RuleEngine` for composite event patterns (e.g., "motion AND door opened"). |
 | **W30** | Multi-device coordination        | v1.3.0   | High       | ESP-NOW or MQTT-based device-to-device messaging for relay nodes and distributed sensing. |
 
@@ -79,10 +79,10 @@ Prioritization method: each work item is scored 0 to 5 on three benefits, and si
 | W22 | TLS/SSL examples & documentation                                                        | Pre-release | 5 | 3 | 4 | S    | 10    | **Complete** — `MqttTlsDevice` example with `WiFiClientSecure`, Secure Communication section in README |
 | W23 | Command payload support                                                                 | Pre-release | 3 | 0 | 4 | S    | 7     | **Complete** — `Command(int, int32_t)` constructor, `DRIVE_TO_ANGLE_COMMAND`, `ADJUST_BRIGHTNESS_COMMAND`, `adjustColorSetIntensity()`, `PLAY_FREQUENCY_COMMAND` |
 | W24 | WiFiConnectivityDriver secure socket builder                                             | Pre-release | 2 | 1 | 3 | XS   | 6     | **Complete** — `createSecureSocket()` builder method with optional CA certificate pinning           |
-| W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | **Complete** — `TelemetryBuffer` with LittleFS persistence, FIFO eviction, replay, 20 host tests   |
+| W25 | Telemetry buffering with LittleFS persistence                                           | v1.1.0      | 3 | 3 | 2 | L    | 4     | **Complete** — `TelemetryBuffer` with LittleFS persistence, FIFO eviction, eviction callback, `getMaxPacketsCount()`, 22 host tests |
 | W26 | Power manager & battery monitoring                                                      | v1.1.0      | 2 | 4 | 2 | M    | 5     | **Complete** — `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests |
 | W27 | Firmware version in telemetry envelope                                                  | v1.1.0      | 2 | 0 | 3 | XS   | 10    | **Complete** — `setFirmwareVersion()`, `setTelemetrySchemaVersion()`, optional envelope fields, 5 host tests |
-| W28 | OTA update support                                                                      | v1.2.0      | 4 | 2 | 3 | L    | 5     | Deferred — `OtaUpdater` component with WiFi transport                                              |
+| W28 | OTA update support                                                                      | v1.1.0      | 4 | 2 | 3 | L    | 5     | **Complete** — `OtaUpdateHandler` with hostname, password, progress/error callbacks, 21 host tests       |
 | W29 | Event aggregation & rules engine                                                        | v1.2.0      | 3 | 1 | 4 | L    | 4     | Deferred — `EventAggregator` for composite event patterns                                          |
 | W30 | Multi-device coordination (ESP-NOW / MQTT)                                              | v1.3.0      | 2 | 2 | 3 | L    | 3     | Deferred — device-to-device messaging for relay nodes and distributed sensing                       |
 
@@ -106,7 +106,6 @@ Prioritization method: each work item is scored 0 to 5 on three benefits, and si
 
 The following items are explicitly deferred to post-v1.0.0 releases. They are in-scope features that depend on v1.0.0 stability and community feedback:
 
-- **OTA updates** (W28, v1.2.0): Requires stable v1.0.0 baseline and Edge Framework Phase 3 orchestration.
 - **Event aggregation & rules engine** (W29, v1.2.0): Application-layer feature; can be implemented by users using the event handler pattern.
 - **Multi-device coordination** (W30, v1.3.0): Niche use case; ESP-NOW or MQTT-based approach TBD based on community demand.
 - **On-device ML inference** (Tier 5, v1.3.0+): `AiMicroModelController` is opt-in and requires ML runtime dependencies. Deferred until core stability is proven.
@@ -114,10 +113,10 @@ The following items are explicitly deferred to post-v1.0.0 releases. They are in
 ## Claims verified and remaining verification gaps
 
 - **Verified**: Local `arduino-cli compile` cleanly builds all 22 examples across ESP32 targets with `--library .` configured.
-- **Verified**: All 33 host test suites pass with 100% success rate, including ConfigurationStore (66 tests), TimeSynchronizationDriver (8 tests), GasSensor (32 tests), and Button (14 tests).
+- **Verified**: All 36 host test suites pass with 100% success rate, including ConfigurationStore (66 tests), TimeSynchronizationDriver (8 tests), GasSensor (32 tests), and Button (14 tests).
 - **Verified**: `library.properties` `depends=` syntax formatted for Arduino Library Manager compliance.
 - **Verified**: Bluetooth Classic fails on modern ESP32 variants (S2, S3, C3, C6, H2); resolved via target guards and `BleConnectivityDriver`.
-- **Verified**: Host test harness executes 33 unit test suites (`tests/digital_light`, `tests/rgb_led`, `tests/relay_actuator`, `tests/rfid_sensor`, `tests/ble_connectivity`, `tests/log`, `tests/mqtt_gateway`, `tests/engine_config`, `tests/diagnostics`, `tests/sensor_fault`, `tests/scheduler`, `tests/telemetry`, `tests/triggering_scheduler`, `tests/command_marshaling`, `tests/water_flow_sensor`, `tests/soil_moisture_sensor`, `tests/deep_sleep`, `tests/servo_motor`, `tests/character_lcd_display`, `tests/door_window_sensor`, `tests/water_leak_sensor`, `tests/pth_sensor`, `tests/one_wire_temperature_sensor`, `tests/oled_display`, `tests/environmental_gas_sensor`, `tests/dht_sensor`, `tests/ble_gateway_client`, `tests/http_gateway_client`, `tests/buzzer`, `tests/configuration_store`, `tests/time_synchronization`, `tests/gas_sensor`, `tests/button`) under Address and Undefined sanitizers.
+- **Verified**: Host test harness executes 36 unit test suites (`tests/digital_light`, `tests/rgb_led`, `tests/relay_actuator`, `tests/rfid_sensor`, `tests/ble_connectivity`, `tests/log`, `tests/mqtt_gateway`, `tests/engine_config`, `tests/diagnostics`, `tests/sensor_fault`, `tests/scheduler`, `tests/telemetry`, `tests/triggering_scheduler`, `tests/command_marshaling`, `tests/water_flow_sensor`, `tests/soil_moisture_sensor`, `tests/deep_sleep`, `tests/servo_motor`, `tests/character_lcd_display`, `tests/door_window_sensor`, `tests/water_leak_sensor`, `tests/pth_sensor`, `tests/one_wire_temperature_sensor`, `tests/oled_display`, `tests/environmental_gas_sensor`, `tests/dht_sensor`, `tests/ble_gateway_client`, `tests/http_gateway_client`, `tests/buzzer`, `tests/configuration_store`, `tests/time_synchronization`, `tests/gas_sensor`, `tests/button`, `tests/power_manager`, `tests/telemetry_buffer`, `tests/ota_update_handler`) under Address and Undefined sanitizers.
 - **Verified**: Logging facility (`MODEST_LOG_*`) works with host capture sink and `MIOT_LOG_*` aliases.
 - **Verified**: MQTT gateway reconnection and keep-alive verified with host tests.
 - **Remaining**: Performance, latency, memory and power figures (reasoned, to be measured on hardware).
@@ -231,12 +230,12 @@ Reserved blocks: sensor-health 22-23, connectivity link events 900-909, power ev
 **Test Runner & CI**:
 - Implemented `tests/run_all.sh` with strict warnings (`-Wall -Wextra -Werror`) and Address/Undefined sanitizers.
 - Added GitHub Actions workflows:
-  - `host-tests.yml`: runs all 33 test suites on Ubuntu and macOS.
+  - `host-tests.yml`: runs all 36 test suites on Ubuntu and macOS.
   - `compile-examples.yml`: compiles all 22 examples across ESP32 and ESP32-S3 boards.
   - `lint.yml`: validates `library.properties` with Arduino Library Manager compliance.
 - Registered all test targets in `CMakeLists.txt` with CTest integration.
 
-**Test Suites (33 total)**:
+**Test Suites (36 total)**:
 
 | #  | Suite                                | What It Tests                                                          |
 |----|--------------------------------------|------------------------------------------------------------------------|
@@ -273,18 +272,21 @@ Reserved blocks: sensor-health 22-23, connectivity link events 900-909, power ev
 | 31 | `tests/TimeSynchronizationDriver/`   | NTP initialization, timestamp fallback, sync status, RTC save/restore |
 | 32 | `tests/GasSensor/`                   | Analog gas detection, calibration modes, Rs/R0 ratio, PPM estimation  |
 | 33 | `tests/Button/`                      | Debounce logic, press detection, timing, event emission               |
+| 34 | `tests/PowerManager/`                | Battery voltage sensing, level calculation, low-battery threshold     |
+| 35 | `tests/TelemetryBuffer/`             | LittleFS persistence, FIFO store/retrieve, eviction callback          |
+| 36 | `tests/OtaUpdateHandler/`            | OTA status tracking, callback type aliases, hostname, re-initialization |
 
 **Component Test Coverage**:
 
 | Category | Total Headers | Dedicated Test | Indirect Coverage | No Test Coverage |
 |----------|--------------|---------------|-------------------|-----------------|
-| Core | 13 | 7 | 6 (base classes, umbrella) | 0 |
+| Core | 16 | 10 | 6 (base classes, umbrella) | 0 |
 | Sensors | 18 | 12 | 1 (BmeEnvironmentalSensor) | **5** |
 | Actuators | 7 | 6 | 0 | **1** |
 | Connectivity | 3 | 1 | 2 (base class, WiFi via gateways) | 0 |
 | Gateway Clients | 4 | 3 | 1 (base class) | 0 |
 | Drivers | 2 | 0 | 2 (via display tests) | 0 |
-| **Total** | **48** | **29** | **12** | **6** |
+| **Total** | **51** | **31** | **12** | **6** |
 
 **Components with No Dedicated Test Coverage**:
 
@@ -902,6 +904,8 @@ public:
 
 ## Post-Release Improvements (v1.1.0+)
 
+All v1.1.0 items (W25–W28) are **Complete** and merged into `develop`. See the [Nano Framework Completion Roadmap](docs/vision.md) for release planning.
+
 ### W26: Power manager & battery monitoring — **Complete** ✓
 
 **Problem**: Battery-powered devices need to monitor battery voltage to make power-aware decisions (reduce sampling, enter deep sleep, alert user). The ESP32 ADC can read battery voltage through a voltage divider circuit, but applications had to implement the conversion logic themselves.
@@ -963,46 +967,115 @@ if (gatewayClient.isConnected() && TelemetryBuffer::hasBufferedPackets()) {
 
 **Design decisions**:
 - Static singleton pattern — buffering is a global service shared across the device lifecycle.
-- File-per-packet strategy — each packet is a separate JSON file with zero-padded sequential names (e.g., `/telemetry_buffer/00001.json`) for simple FIFO ordering.
+- Monotonic index strategy — each packet is a separate JSON file with incrementing indices (e.g., `/telemetry_buffer/00001.json`, `/telemetry_buffer/00002.json`, etc.) for FIFO ordering. New packets are appended and the oldest is deleted on retrieval — no O(n) file shifting, reducing Flash wear and improving performance.
 - Configurable max buffer size — defaults to 50 packets (~5-15 KB depending on payload size); oldest packets are evicted when full.
-- Survives reboots — LittleFS persistence means buffered packets survive unexpected reboots.
+- Eviction callback — `onEviction()` allows monitoring when packets are evicted due to buffer capacity.
+- `getMaxPacketsCount()` getter — query the configured max packets for parity with other components' getter patterns.
+- Unit-in-name convention — parameter names use `Count` suffix (e.g., `maxBufferedPacketsCount`) for clarity.
+- Survives reboots — LittleFS persistence means buffered packets survive unexpected reboots; `countPackets()` recovers the next write index from existing files.
 - Host testing support — simulated store/retrieve behavior when not on ESP32.
 
-**Source**: `src/TelemetryBuffer.h`, `src/TelemetryBuffer.cpp`, `tests/TelemetryBuffer/test.cpp` (20 tests)
+**Source**: `src/TelemetryBuffer.h`, `src/TelemetryBuffer.cpp`, `tests/TelemetryBuffer/test.cpp` (22 tests)
+
+---
+
+### W27: Firmware version in telemetry envelope — **Complete** ✓
+
+**Problem**: Deployed devices have no standard way to report their firmware version or telemetry schema version in the telemetry envelope. Fleet management and server-side parsing cannot distinguish between devices running different firmware versions.
+
+**Solution**: Added optional `schemaVersion` and `firmwareVersion` fields to `TelemetryPackage::addEnvelopeMetadata()`. The fields are conditionally included — zero overhead when not set. `Device` provides static getter/setter API for application-level configuration.
+
+**API**:
+
+```cpp
+// Set firmware version (optional)
+Device::setFirmwareVersion("1.0.0");
+
+// Set telemetry schema version (optional)
+Device::setTelemetrySchemaVersion(1);
+
+// Every telemetry packet now includes the fields if set:
+// { "schemaVersion": 1, "firmwareVersion": "1.0.0", "timestamp": ..., "sequence": ... }
+```
+
+**Design decisions**:
+- Optional fields — `addEnvelopeMetadata()` conditionally includes them; zero overhead when not set.
+- Static API on `Device` — firmware version is a global property, not per-device-instance.
+- Schema version is `uint8_t` — sufficient for schema evolution tracking.
+- Firmware version is a `const char*` — flexible string format (semver, build hash, etc.).
+
+**Source**: `src/TelemetryPackage.h`, `src/Device.h`, `src/Device.cpp`, `tests/TelemetryPackage/test.cpp` (5 new tests, 15 total)
+
+---
+
+### W28: OTA update support — **Complete** ✓
+
+**Problem**: Deployed devices cannot receive bug fixes or feature updates without manual reflashing. For distributed IoT deployments, manual updates are impractical or impossible.
+
+**Solution**: `OtaUpdateHandler` static singleton wraps ESP32 `ArduinoOTA` with progress/error/start/end callbacks, hostname configuration, and password protection. Aligns with the framework's loopless philosophy via `service()` called from `maintainNetworkServices()`.
+
+**API**:
+
+```cpp
+// In setup():
+OtaUpdateHandler::begin("my-device");
+OtaUpdateHandler::setPassword("secret");
+
+// Optional callbacks:
+OtaUpdateHandler::onProgress([](size_t progress, size_t total) {
+    // Track progress
+});
+OtaUpdateHandler::onError([](int error) {
+    // Handle error
+});
+
+// In maintainNetworkServices() override:
+OtaUpdateHandler::service();
+```
+
+**Design decisions**:
+- Static singleton pattern — OTA is a global service.
+- `service()` method — aligns with `GatewayClient::service()` and loopless philosophy.
+- Typed callback aliases — `OtaProgressCallback`, `OtaErrorCallback`, `OtaStartCallback`, `OtaEndCallback`.
+- `getHostname()` getter — parity with other components' getter patterns.
+- Callbacks persist across re-initialization — documented in KDoc.
+- `#ifdef ARDUINO_ARCH_ESP32` guard — host testing fallback.
+
+**Source**: `src/OtaUpdateHandler.h`, `src/OtaUpdateHandler.cpp`, `tests/OtaUpdateHandler/test.cpp` (21 tests)
 
 ---
 
 ## Comparison with traditional development
 
-Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tiers 0–5 complete), and Modest IoT after all pre-release prerequisites (W20–W24) and deferred features (W25–W30) are implemented.
+Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tiers 0–5 complete, v1.0.0), and Modest IoT with v1.1.0 features (W25–W28 complete, on `develop` branch).
 
 ### Developer experience
 
-| Aspect          | Traditional `loop()`                         | Modest IoT today (Tiers 0–5)                                                  | Modest IoT with all planned features                                  |
-|-----------------|----------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------|
-| First build     | Works with the board package                 | All 22 examples compile in CI; 2 dependencies                                 | Same, plus OTA update capability                                      |
-| Structure       | One growing `loop()` with `millis()` flags   | Sensors emit events, a `Device` mediates, actuators take commands             | Same, with event aggregation for composite patterns                   |
-| Adding a sensor | New globals, new timing variable, new branch | Subclass or reuse, register in the scheduler; per-sensor default periods      | Same, plus battery monitoring for power-aware sensors                 |
-| Sampling rates  | Hand-written per-sensor timers               | Per-slot periods, minimums enforced, staggering handled                       | Same, with tickless scheduling reducing idle wake-ups                 |
-| Timing mistakes | Easy: a blocking call stalls everything      | Handler budgets documented; blocking HX711/ultrasonic removed; interrupt-driven sensors | Same, with power manager for configurable sleep modes           |
-| Debugging       | `Serial.println` scattered                   | `MODEST_LOG_*`, stack high-water marks, sensor fault events, diagnostics      | Same, plus firmware version in telemetry for fleet tracking           |
-| Configuration   | Hardcoded credentials and intervals          | `ConfigurationStore` with ESP32 NVS, namespace isolation, type-safe access, read-only mode    | Same, with persistent settings across reboots                          |
-| Time handling   | `millis()` from boot                         | `TimeSynchronizationDriver` with NTP over WiFi and RTC fallback for absolute time             | Same, with synchronized timestamps across devices                      |
-| Networking      | Blocking connect/publish in `loop()`         | Separate network task, reconnect policy, keep-alive, TLS examples, `createSecureSocket()`     | Same, with TLS/SSL as documented best practice                        |
-| Cloud-to-device | Hand-rolled callback                         | `Device::enqueueCommand` with `int32_t` payload for parameterized commands                   | Same, with event aggregation for composite patterns                   |
-| Offline data    | Lost when network unavailable                | Drop-oldest queue policy; no persistence                                      | `TelemetryBuffer` with LittleFS persistence for offline replay        |
-| Updates         | Manual reflashing required                   | Manual reflashing required                                                    | OTA updates via `OtaUpdater` component                                |
-| Testing         | Rarely possible off-device                   | 35 host test suites with CI, sanitizers enabled                               | Same, plus integration tests for new components                      |
+| Aspect          | Traditional `loop()`                         | Modest IoT v1.0.0 (Tiers 0–5)                                                 | Modest IoT v1.1.0 (W25–W28 complete)                                 |
+|-----------------|----------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------|
+| First build     | Works with the board package                 | All 22 examples compile in CI; 2 dependencies                                 | Same, plus OTA update capability via `OtaUpdateHandler`              |
+| Structure       | One growing `loop()` with `millis()` flags   | Sensors emit events, a `Device` mediates, actuators take commands             | Same, with event aggregation for composite patterns (W29, v1.2.0)    |
+| Adding a sensor | New globals, new timing variable, new branch | Subclass or reuse, register in the scheduler; per-sensor default periods      | Same, plus `PowerManager` for battery-aware sensors                  |
+| Sampling rates  | Hand-written per-sensor timers               | Per-slot periods, minimums enforced, staggering handled                       | Same, with tickless scheduling reducing idle wake-ups                |
+| Timing mistakes | Easy: a blocking call stalls everything      | Handler budgets documented; blocking HX711/ultrasonic removed; interrupt-driven sensors | Same, with `PowerManager` for configurable sleep modes          |
+| Debugging       | `Serial.println` scattered                   | `MODEST_LOG_*`, stack high-water marks, sensor fault events, diagnostics      | Same, plus `firmwareVersion` in telemetry for fleet tracking         |
+| Configuration   | Hardcoded credentials and intervals          | `ConfigurationStore` with ESP32 NVS, namespace isolation, type-safe access, read-only mode    | Same, with persistent settings across reboots                       |
+| Time handling   | `millis()` from boot                         | `TimeSynchronizationDriver` with NTP over WiFi and RTC fallback for absolute time             | Same, with synchronized timestamps across devices                   |
+| Networking      | Blocking connect/publish in `loop()`         | Separate network task, reconnect policy, keep-alive, TLS examples, `createSecureSocket()`     | Same, with TLS/SSL as documented best practice                      |
+| Cloud-to-device | Hand-rolled callback                         | `Device::enqueueCommand` with `int32_t` payload for parameterized commands                   | Same, with event aggregation for composite patterns (W29, v1.2.0)   |
+| Offline data    | Lost when network unavailable                | Drop-oldest queue policy; no persistence                                      | `TelemetryBuffer` with LittleFS persistence for offline replay       |
+| Updates         | Manual reflashing required                   | Manual reflashing required                                                    | OTA updates via `OtaUpdateHandler` component                         |
+| Testing         | Rarely possible off-device                   | 36 host test suites with CI, sanitizers enabled                               | Same, plus integration tests for new components                     |
 
 ### Performance
 
-| Aspect                     | Traditional `loop()`              | Modest IoT today (Tiers 0–5)                              | Modest IoT with all planned features                               |
+| Aspect                     | Traditional `loop()`              | Modest IoT v1.0.0 (Tiers 0–5)                             | Modest IoT v1.1.0 (W25–W28 complete)                              |
 |----------------------------|-----------------------------------|-----------------------------------------------------------|--------------------------------------------------------------------|
 | Timing model               | Cooperative polling; jitter grows | Timer ISR plus sampler task; per-slot periods; interrupt-driven sensors | Same, with tickless scheduling and configurable sleep modes |
 | Sample period accuracy     | Depends on `loop()` duration      | Per-slot periods independent of slot count                | Same, with NTP-synchronized timestamps for server-side correlation |
-| Worst-case stall           | Any blocking call                 | Interrupt-driven HX711/ultrasonic; documented budgets     | Same, with power manager handling sleep/wake transitions           |
-| Edge latency (button, PIR) | Up to one `loop()` pass           | Interrupt mode: task wake-up latency                      | Same, with event aggregation for composite event patterns          |
-| Network isolation          | A slow publish blocks sensing     | Isolated in the network task; bounded queue policy        | Same, with telemetry buffering preventing data loss during outages |
+| Worst-case stall           | Any blocking call                 | Interrupt-driven HX711/ultrasonic; documented budgets     | Same, with `PowerManager` handling sleep/wake transitions          |
+| Edge latency (button, PIR) | Up to one `loop()` pass           | Interrupt mode: task wake-up latency                      | Same, with event aggregation for composite event patterns (W29)    |
+| Network isolation          | A slow publish blocks sensing     | Isolated in the network task; bounded queue policy        | `TelemetryBuffer` prevents data loss during network outages        |
 | Heap behaviour             | Usually static                    | `unique_ptr` ownership, drop-oldest policy                | Same; pool if measurement justifies it; LittleFS for persistence   |
 | CPU when idle              | Spins in `loop()`                 | Sleeps between ticks; tickless and deep sleep supported   | Optimized sleep modes via `PowerManager`; battery-aware scheduling |
 | Energy                     | High unless hand-tuned            | Deep sleep: ~10µA; light sleep via tickless mode          | Battery monitoring enables adaptive sleep strategies               |
@@ -1011,23 +1084,23 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT today (Tie
 
 ### Resource consumption
 
-| Resource                 | Traditional `loop()` | Modest IoT today (Tiers 0–5)                                                                | Modest IoT with all planned features                            |
+| Resource                 | Traditional `loop()` | Modest IoT v1.0.0 (Tiers 0–5)                                                               | Modest IoT v1.1.0 (W25–W28 complete)                           |
 |--------------------------|----------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------|
-| Task stacks              | `loop()` task only   | 4096 B sampler + 8192 B network, configurable via `EngineConfig`                            | Same defaults; PowerManager adds minimal stack for sleep handling |
-| Queue and packets        | None                 | Queue of pointers + one heap packet per reading; bounded by queue policy                    | Same; TelemetryBuffer adds LittleFS storage for offline replay |
-| Flash                    | Smallest             | Framework, Wi-Fi, BLE driver; only 2 dependencies (ArduinoJson, MQTT)                      | Moderate increase: OtaUpdater, TelemetryBuffer                 |
-| Static RAM               | Small                | Slot table, per-object state; trigger table (4 slots); ConfigurationStore NVS cache        | Same; TelemetryBuffer adds LittleFS buffer                     |
+| Task stacks              | `loop()` task only   | 4096 B sampler + 8192 B network, configurable via `EngineConfig`                            | Same defaults; `PowerManager` adds minimal stack for sleep handling |
+| Queue and packets        | None                 | Queue of pointers + one heap packet per reading; bounded by queue policy                    | Same; `TelemetryBuffer` adds LittleFS storage for offline replay |
+| Flash                    | Smallest             | Framework, Wi-Fi, BLE driver; only 2 dependencies (ArduinoJson, MQTT)                      | Moderate increase: `OtaUpdateHandler`, `TelemetryBuffer`       |
+| Static RAM               | Small                | Slot table, per-object state; trigger table (4 slots); ConfigurationStore NVS cache        | Same; `TelemetryBuffer` adds LittleFS buffer                   |
 | Heap fragmentation       | Low                  | Lower with explicit ownership; `unique_ptr` transfer                                       | Same; pool in Tier 5 if measured; LittleFS reduces heap pressure |
-| Third-party dependencies | As needed            | Only those used (ArduinoJson, MQTT) — ESP32Servo, LiquidCrystal_I2C, PubSubClient, DHT, Adafruit, and HX711 removed | Same; no new external dependencies for planned features      |
+| Third-party dependencies | As needed            | Only those used (ArduinoJson, MQTT) — ESP32Servo, LiquidCrystal_I2C, PubSubClient, DHT, Adafruit, and HX711 removed | Same; no new external dependencies for W25–W28               |
 | Logging overhead         | User-controlled      | Zero when compiled out; UART cost when on                                                  | Same                                                           |
-| Persistent storage       | Manual SPIFFS/LittleFS | ConfigurationStore uses ESP32 NVS with namespace isolation                               | Same, plus TelemetryBuffer uses LittleFS for offline replay |
+| Persistent storage       | Manual SPIFFS/LittleFS | ConfigurationStore uses ESP32 NVS with namespace isolation                               | Same, plus `TelemetryBuffer` uses LittleFS for offline replay  |
 | Security overhead        | None by default      | TLS examples provided; no framework-level TLS enforcement                                  | TLS examples and documentation; `NetworkClientSecure` usage guided |
 
 ---
 
 ## How to validate the comparison
 
-Run the same three reference applications on the same ESP32 board, once per variant (plain `loop()`, current Modest IoT, Modest IoT with all planned features):
+Run the same three reference applications on the same ESP32 board, once per variant (plain `loop()`, Modest IoT v1.0.0, Modest IoT v1.1.0):
 
 1. **Multi-sensor monitor:** DHT, BH1750 and a button, with a display and Wi-Fi/MQTT telemetry.
 2. **Blocking-sensor stress:** the monitor plus an HX711 and an ultrasonic sensor.
@@ -1045,4 +1118,20 @@ Run the same three reference applications on the same ESP32 board, once per vari
 | Current draw                            | Inline current meter (Wokwi cannot measure it)                             |
 | Lines of application code               | Count in the reference sketches                                            |
 
-Publish the table in the README with the board, core version and commit hashes. Capture measurements after each tier, not only at the end.
+---
+
+## Future Work
+
+### Benchmark Table Publication
+
+**Goal**: Publish a benchmark comparison table in the README with measurable evidence of the framework's performance claims.
+
+**Requirements**:
+- Include the ESP32 board model, Arduino core version, and framework commit hash for reproducibility.
+- Capture measurements after each tier (Tier 0–5), not only at the end, to show the incremental impact of each tier.
+- Use the same three reference applications defined in "How to validate the comparison" above.
+- Record all metrics from the validation table (jitter, latency, stack use, heap, Flash, current draw, etc.).
+
+**Target**: Complete after v1.1.0 release when hardware testing infrastructure is available.
+
+**Status**: Not started.

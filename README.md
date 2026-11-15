@@ -48,6 +48,9 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `DiagnosticsSnapshot` | 12-field runtime health snapshot (stack, heap, queue, timing). |
 | `SamplingScheduler` | Per-slot countdown scheduler with phase-aligned re-arming and minimum period enforcement. |
 | `TelemetryPackage` | Base class for telemetry payloads with envelope metadata (timestamp, sequence). |
+| `TelemetryBuffer` | Persistent telemetry buffer using LittleFS with monotonic indices for offline storage and FIFO replay — no file shifting overhead. |
+| `PowerManager` | Battery voltage sensing via ADC with configurable voltage divider, level calculation, and low-battery alerts. |
+| `OtaUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
 
 ### Sensors
 
@@ -267,6 +270,11 @@ Persist telemetry packets when the network is unavailable and replay them when c
 // Initialize the buffer in setup()
 TelemetryBuffer::begin();
 
+// Optional: monitor eviction events
+TelemetryBuffer::onEviction([]() {
+    Serial.println("Warning: telemetry packet evicted due to buffer capacity");
+});
+
 // In processQueuedTelemetryData(), if send fails:
 if (!gatewayClient.sendTelemetryRecord(*packet)) {
     TelemetryBuffer::store(packet->toJsonString());
@@ -280,6 +288,30 @@ while (TelemetryBuffer::retrieveNext(buffered)) {
 ```
 
 Uses LittleFS for persistence with configurable max buffer size (default 50 packets). Buffered packets survive unexpected reboots and are replayed in FIFO order.
+
+### OTA Firmware Updates
+
+Enable Over-The-Air firmware updates for deployed devices:
+
+```cpp
+// Configure OTA updates in setup()
+OtaUpdateHandler::begin("my-device-name");
+OtaUpdateHandler::setPassword("secret123");
+
+// Optional: track progress
+OtaUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
+    float percent = (float)progressInNumberOfBytesWritten / (float)totalNumberOfBytes * 100.0f;
+    Serial.printf("OTA Progress: %.1f%%\r", percent);
+});
+
+// In your Device subclass, call service() from maintainNetworkServices()
+void maintainNetworkServices() const override {
+    gatewayClient.service();
+    OtaUpdateHandler::service();
+}
+```
+
+Supports hostname configuration for device discovery, password protection, and progress/error callbacks. Upload firmware directly from the Arduino IDE by selecting the OTA port listed under Tools → Port. The `service()` method is called automatically by the network dispatcher task via `maintainNetworkServices()` — no `loop()` required.
 
 ## Connectivity
 
@@ -384,7 +416,7 @@ The framework ships with 22 example sketches demonstrating various use cases:
 
 ## Testing
 
-The framework includes 35 host unit test suites that run natively without hardware:
+The framework includes 36 host unit test suites that run natively without hardware:
 
 | Suite | What It Tests |
 |---|---|
@@ -420,6 +452,10 @@ The framework includes 35 host unit test suites that run natively without hardwa
 | `tests/TimeSynchronizationDriver/` | NTP initialization, timestamp fallback, sync status, RTC save/restore |
 | `tests/GasSensor/` | Analog gas detection, calibration modes, Rs/R0 ratio, PPM estimation, gas types |
 | `tests/Button/` | Debounce logic, press detection, timing, event emission |
+| `tests/DhtSensor/` | DHT single-wire protocol, temperature/humidity, CRC validation |
+| `tests/PowerManager/` | Battery voltage sensing, level calculation, low-battery threshold, custom ranges |
+| `tests/TelemetryBuffer/` | LittleFS persistence, FIFO store/retrieve, eviction callback, monotonic indices |
+| `tests/OtaUpdateHandler/` | OTA status tracking, all callback type aliases, hostname, re-initialization safety |
 
 Run all tests locally:
 
@@ -558,8 +594,8 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Telemetry packet pool (W18). Telemetry buffering (W25), firmware version (W27), and power manager (W26) are complete.
-- **v1.2.0**: Over-the-air (OTA) updates and event aggregation for composite sensor rules.
+- **v1.1.0**: Telemetry packet pool (W18). Telemetry buffering (W25), firmware version (W27), power manager (W26), and OTA updates (W28) are complete.
+- **v1.2.0**: Event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
 

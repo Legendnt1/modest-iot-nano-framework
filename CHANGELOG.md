@@ -14,7 +14,8 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 - **Firmware version in telemetry** (W27): Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope metadata. Set via `Device::setFirmwareVersion()` and `Device::setTelemetrySchemaVersion()`. Fields are omitted from JSON output when not set (zero overhead). 5 new host tests.
 - **Power manager & battery monitoring** (W26): `PowerManager` singleton for battery voltage sensing via ADC with configurable voltage divider ratio, battery level percentage calculation, and low-battery threshold alerts. 18 new host tests.
-- **Telemetry buffering with LittleFS** (W25): `TelemetryBuffer` for offline persistence when network is unavailable. Failed sends are stored as JSON files in LittleFS with FIFO eviction and replay. Configurable max buffer size (default 50 packets). 20 new host tests.
+- **Telemetry buffering with LittleFS** (W25): `TelemetryBuffer` for offline persistence when network is unavailable. Failed sends are stored as JSON files in LittleFS with FIFO eviction and replay. Uses monotonic index strategy — no O(n) file shifting, reducing Flash wear and improving performance. Added `onEviction()` callback for monitoring evictions, `getMaxPacketsCount()` getter, and unit-in-name convention for parameters. 22 new host tests.
+- **OTA update support** (W28): `OtaUpdateHandler` for Over-The-Air firmware updates via WiFi. Wraps ArduinoOTA with hostname configuration, password protection, and progress/error callbacks. Added `OtaStartCallback`/`OtaEndCallback` type aliases, `getHostname()` getter, and clarified `setPassword()` timing. 21 new host tests.
 
 ## [1.0.0] - 2026-11-10
 
@@ -159,11 +160,12 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **EquipmentHealthMonitor**: Industrial equipment health dashboard with `ModestLog` and `diagnostics()`
 
 ### Testing
-- 35 host test suites covering all sensors, actuators, scheduler, MQTT, BLE, HTTP, and telemetry
+- 36 host test suites covering all sensors, actuators, scheduler, MQTT, BLE, HTTP, and telemetry
 - **TimeSynchronizationDriver test**: 8 tests covering NTP initialization, timestamp fallback, sync status, RTC save/restore, and full sync cycle simulation
 - **GasSensor test**: 32 tests covering constructor, static methods, calibration, all operating modes, PPM estimation, and event handling
 - **Button test**: 14 tests covering debounce logic, press detection, timing, and event emission
-- **TelemetryBuffer test**: 20 tests covering initialization, store, retrieve (FIFO), capacity eviction, clear, and constants
+- **TelemetryBuffer test**: 22 tests covering initialization, store, retrieve (FIFO), capacity eviction, eviction callback, getMaxPacketsCount(), and constants
+- **OtaUpdateHandler test**: 21 tests covering initialization, status tracking, all callback type aliases (OtaProgressCallback, OtaErrorCallback, OtaStartCallback, OtaEndCallback), getHostname(), re-initialization safety, and edge cases
 - **WeatherStation example**: Updated with NTP initialization and RTC time restore for deep-sleep time persistence
 - **HttpGatewayClient test**: HTTP methods (GET/POST/PUT/DELETE), auth headers, response body handling, statistics tracking
 - **Fake HTTPClient.h**: Mock HTTP client for host testing with configurable responses
@@ -184,9 +186,9 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 ### Documentation
 - 30 Architecture Decision Records (ADRs)
 - Doxygen documentation with API navigation tree, key features section, and `@runs_on` threading tags
-- Class diagram (PlantUML) covering all 48 source headers
+- Class diagram (PlantUML) covering all 51 source headers
 - User stories and improvement tracking with pre-release readiness assessment (W20–W29)
-- `keywords.txt` comprehensive rewrite: 468 lines with all 48 source headers, drivers, methods, and nested types
+- `keywords.txt` comprehensive rewrite: 468 lines with all 51 source headers, drivers, methods, and nested types
 
 ### Technical Details
 - ESP32 Arduino core 3.x compatible
