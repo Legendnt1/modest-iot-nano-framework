@@ -42,7 +42,7 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `Command` | Lightweight command container with identifier and optional `int32_t` payload for parameterized commands. |
 | `CommandHandler` | Base interface for command-driven components (`handle(Command)`). |
 | `Device` | Base class combining event and command handling; orchestrates the asynchronous engine, scheduler, and telemetry pipeline. |
-| `EngineConfig` | Configuration struct for FreeRTOS task stack sizes, priorities, core pinning, and queue depth. |
+| `EngineConfiguration` | Configuration struct for FreeRTOS task stack sizes, priorities, core pinning, and queue depth. |
 | `ConfigurationStore` | Persistent key-value configuration using ESP32 NVS with namespace isolation, type-safe access, and schema validation. |
 | `TimeSynchronizationDriver` | NTP-based time synchronization with RTC fallback for deep-sleep devices; replaces `millis()` timestamps with Unix epoch seconds. |
 | `DiagnosticsSnapshot` | 12-field runtime health snapshot (stack, heap, queue, timing). |
@@ -139,10 +139,10 @@ The framework runs on two FreeRTOS tasks plus a hardware timer ISR. Understandin
 
 ### Engine Configuration
 
-The `EngineConfig` struct allows tuning stack sizes, priorities, and core pinning:
+The `EngineConfiguration` struct allows tuning stack sizes, priorities, and core pinning:
 
 ```cpp
-EngineConfig config;
+EngineConfiguration config;
 config.samplerStackBytes = 4096;
 config.networkStackBytes = 8192;
 config.samplerPriority = 3;
@@ -344,17 +344,17 @@ Provides keep-alive servicing via `service()`, reconnection backoff, and bounded
 
 ### Secure Communication
 
-Both `MqttGatewayClient` and `HttpGatewayClient` accept a `Client&` reference, making `WiFiClientSecure` a drop-in replacement for `WiFiClient`. This enables TLS 1.2/1.3 encrypted communication with no framework code changes.
+Both `MqttGatewayClient` and `HttpGatewayClient` accept a `Client&` reference for the network socket, making `WiFiClientSecure` a drop-in replacement for `WiFiClient`. This enables TLS 1.2/1.3 encrypted communication with no framework code changes.
 
 **Recommended: Use the `createSecureSocket()` builder method** for concise TLS setup:
 
 ```cpp
 // Create and configure a TLS socket in one call
-WiFiClientSecure* secureSocket = wifiDriver->createSecureSocket(nullptr, true); // insecure mode for testing
+WiFiClientSecure* secureSocket = WiFiConnectivityDriver::createSecureSocket(nullptr, true); // insecure mode for testing
 // For production:
-// WiFiClientSecure* secureSocket = wifiDriver->createSecureSocket(caCertificate, false);
+// WiFiClientSecure* secureSocket = WiFiConnectivityDriver::createSecureSocket(caCertificate, false);
 
-MqttGatewayClient mqttGateway(*wifiDriver, *secureSocket, "broker.example.com", 8883, "device/telemetry", "device-001");
+MqttGatewayClient mqttGateway(wifiDriver, *secureSocket, "broker.example.com", 8883, "device/telemetry", "device-001");
 ```
 
 **Alternative: Manual `WiFiClientSecure` construction** for advanced use cases:
@@ -369,8 +369,8 @@ MqttGatewayClient mqttGateway(wifiDriver, secureClient, "broker.example.com", 88
 **HTTP over TLS** (HTTPS) follows the same pattern:
 
 ```cpp
-WiFiClientSecure* secureSocket = wifiDriver->createSecureSocket(nullptr, true);
-HttpGatewayClient httpGateway(*secureSocket, "https://api.example.com/device/telemetry");
+WiFiClientSecure* secureSocket = WiFiConnectivityDriver::createSecureSocket(nullptr, true);
+HttpGatewayClient httpGateway(wifiDriver, "https://api.example.com/device/telemetry");
 ```
 
 **Certificate options**:
@@ -400,7 +400,7 @@ The framework ships with 23 example sketches demonstrating various use cases:
 | `SmartBandMqtt` | Wearable device with pulse, DHT temperature/humidity, and button; publishes via MQTT. |
 | `AirConditioningDevice` | HVAC monitor with DHT sensor, buttons, and LCD display; demonstrates I²C actuator on sampler task. |
 | `AirQualityMonitor` | Gas sensor with MQTT telemetry; demonstrates keep-alive and reconnection. |
-| `ClimateDataUploader` | DHT22 sensor with HTTP telemetry, Bearer token acquisition, and offline buffering; demonstrates `TelemetryBuffer` for LittleFS persistence when the network is unavailable, with FIFO eviction and replay on reconnection. |
+| `ClimateDataUploader` | DHT22 sensor with HTTP telemetry, Bearer token acquisition, and offline buffering; demonstrates `TelemetryBuffer` for LittleFS persistence when the network is unavailable, with FIFO eviction and replay on reconnection, and `BearerTokenParser` utility class for isolated token extraction. |
 | `CropMonitoringStation` | Multi-sensor agricultural monitoring with tickless scheduling and MQTT telemetry. |
 | `DriverAssistantDevice` | GPS and ultrasonic distance monitoring; demonstrates multi-sensor coordination. |
 | `HomeSecurityDevice` | Water leak, door/window, PIR, and buzzer; demonstrates interrupt-driven home security. |
@@ -412,7 +412,7 @@ The framework ships with 23 example sketches demonstrating various use cases:
 | `TogglableLedDevice` | Button-controlled LED with MQTT telemetry; demonstrates CQRS command/event separation. |
 | `WaterFlowMonitor` | YF-S201 water flow sensor with hybrid interrupt/periodic scheduling. |
 | `MqttTlsDevice` | Secure environmental monitor with encrypted MQTT (TLS); demonstrates `WiFiConnectivityDriver::createSecureSocket()` builder method for TLS socket creation. |
-| `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor; demonstrates `PowerManager` for battery voltage sensing, level calculation, and low-battery alerts. |
+| `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor; demonstrates `PowerManager` for battery voltage sensing, adaptive power mode switching (Periodic → DeepSleep on low battery), and RTC-persisted low-battery state. |
 | `OtaUpdateDevice` | Minimal device with DHT22 and OTA firmware updates; demonstrates `OtaUpdateHandler` with hostname configuration, password protection, progress/error/start/end callbacks, and `service()` in `maintainNetworkServices()`. |
 
 ## Testing
@@ -428,7 +428,7 @@ The framework includes 36 host unit test suites that run natively without hardwa
 | `tests/BleGatewayClient/` | BLE NUS telemetry serialization, JSON lines framing, statistics |
 | `tests/ModestLog/` | `MODEST_LOG_*` level filtering, sink redirection, `MIOT_LOG_*` aliases |
 | `tests/MqttGatewayClient/` | MQTT keep-alive, reconnect backoff, client state |
-| `tests/EngineConfig/` | `EngineConfig` defaults, custom values, aggregate init |
+| `tests/EngineConfiguration/` | `EngineConfiguration` defaults, custom values, aggregate init |
 | `tests/DiagnosticsSnapshot/` | `DiagnosticsSnapshot`, shared counters, enqueue edge cases |
 | `tests/SensorFault/` | Fault threshold, latching, recovery events, counter reset |
 | `tests/SamplingScheduler/` | Per-slot periods, phase alignment, minimum enforcement |
@@ -548,32 +548,52 @@ Then open `docs/build/html/index.html` in your browser.
 
 ### Usage
 
+Every device in the Modest-IoT Nano-Framework extends the `Device` base class, which manages the asynchronous engine, sensor scheduling, and event dispatch. The framework is loop-less: all execution is event-driven, with sensor readings dispatched as `Event` objects to your device's `on()` handler.
+
+The example below demonstrates a minimal status indicator that toggles an LED at a fixed interval using a hardware timer event:
+
 ```cpp
 #include <ModestIoT.h>
 
-class MyDevice : public Device {
-public:
-    MyDevice() : Device(1000) { /* 1-second tick interval */ }
+class StatusIndicator : public Device {
+    private:
+    static constexpr int STATUS_LED_PIN = 2;
+    static constexpr unsigned long BLINK_INTERVAL_IN_MILLISECONDS = 500;
+    static constexpr int TIMER_EVENT_IDENTIFIER = 300;
 
-    void on(Event event) override {
-        // React to sensor events
+    Led statusLed;
+
+    StatusIndicator()
+    : Device(BLINK_INTERVAL_IN_MILLISECONDS),
+    statusLed(STATUS_LED_PIN, false, this)
+    {
+        initializeAsynchronousEngine(5);
+        appendSensorToScheduler(this, TIMER_EVENT_IDENTIFIER,
+                                 BLINK_INTERVAL_IN_MILLISECONDS, 0);
     }
 
-    void processQueuedTelemetryData(const TelemetryPackage* packet) const override {
-        // Send telemetry via gateway
+    void on(Event event) override {
+        if (event.identifier == TIMER_EVENT_IDENTIFIER) {
+            statusLed.handle(Led::TOGGLE_LED_COMMAND);
+        }
     }
 };
 
-MyDevice device;
+StatusIndicator* indicator;
 
 void setup() {
-    device.initializeAsynchronousEngine();
+    Serial.begin(115200);
+    Device::setFirmwareVersion("STI-909 FW 1.0.0");
+    indicator = new StatusIndicator();
 }
 
 void loop() {
     // Framework handles everything asynchronously
+    vTaskDelay(portTICK_PERIOD_MS);
 }
 ```
+
+For complete, grounded examples with connectivity, telemetry, and cloud integration, see the [Examples](#examples) section (23 sketches covering MQTT, HTTP, BLE, TLS, deep sleep, battery monitoring, offline buffering, and OTA updates).
 
 ## Notes
 
