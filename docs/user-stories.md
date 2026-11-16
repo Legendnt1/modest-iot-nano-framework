@@ -33,7 +33,7 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - The abstraction supports scaling from simple one-input/one-output cases to multi-component devices.
     - **Given** a device with registered sensors, **when** the engine starts, **then** sensors are scheduled via `SamplingScheduler` with per-slot intervals.
     - **Given** a device needs to shut down, **when** `stopAsynchronousEngine()` is called, **then** tasks terminate cooperatively and resources are cleaned up.
-- **Status**: ✓ Implemented. See `Device.h`, `Device.cpp`, `SamplingScheduler.h`, and `EngineConfig`.
+- **Status**: ✓ Implemented. See `Device.h`, `Device.cpp`, `SamplingScheduler.h`, and `EngineConfiguration`.
   Related: [ADR-010](adrs.md#adr-010-engineconfig-for-tunable-freertos-task-parameters), [ADR-011](adrs.md#adr-011-per-slot-samplingscheduler-with-countdown-based-dispatch), [ADR-014](adrs.md#adr-014-threading-model--single-context-sampler-with-isolated-network-task), [ADR-020](adrs.md#adr-020-stopasynchronousengine--cooperative-shutdown-via-notification-bits)
 
 ### TS04: Modular and Reusable Components
@@ -140,11 +140,11 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
 ### TS13: Configure Engine Task Parameters
 - **As an** IoT Developer, **I want** to configure FreeRTOS task stack sizes, priorities, and core pinning, **so that** I can tune the engine for my device's memory and performance requirements.
 - **Acceptance Criteria**:
-    - **Given** an `EngineConfig` struct, **when** `initializeAsynchronousEngine(config)` is called, **then** tasks are created with the specified stack sizes, priorities, and core affinity.
+    - **Given** an `EngineConfiguration` struct, **when** `initializeAsynchronousEngine(config)` is called, **then** tasks are created with the specified stack sizes, priorities, and core affinity.
     - **Given** no config is provided, **when** `initializeAsynchronousEngine(tickInterval)` is called, **then** default values are used (4096/8192 bytes, priority 3/1, core 1/1, queue 10).
     - **Given** the engine is running, **when** `stopAsynchronousEngine()` is called, **then** tasks terminate cooperatively, the timer is cleaned up, and the queue is drained.
     - **Given** `stopAsynchronousEngine()` is called twice, **when** the second call executes, **then** it is a no-op (idempotent double-stop guard).
-- **Status**: ✓ Implemented. See `Device.h` (`EngineConfig`), `Device.cpp` (`stopAsynchronousEngine`), and `tests/EngineConfig/test.cpp`.
+- **Status**: ✓ Implemented. See `Device.h` (`EngineConfiguration`), `Device.cpp` (`stopAsynchronousEngine`), and `tests/EngineConfig/test.cpp`.
   Related: [ADR-010](adrs.md#adr-010-engineconfig-for-tunable-freertos-task-parameters), [ADR-020](adrs.md#adr-020-stopasynchronousengine--cooperative-shutdown-via-notification-bits)
 
 ### TS14: Ensure Telemetry Ownership Safety
