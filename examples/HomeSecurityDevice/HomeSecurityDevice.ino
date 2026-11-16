@@ -32,6 +32,12 @@ static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
 /** @brief Sampling interval for security sensors (ms). */
 static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 200;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all HomeSecurityDevice serial output. */
+static const char* HOME_SECURITY_LOG_PREFIX = "[HomeSecurity]";
+//@} // Serial Output Configuration
+
 /** @name GPIO Pin Assignments */
 //@{
 static const int WATER_LEAK_SENSOR_PIN = 4;
@@ -76,25 +82,25 @@ protected:
     void on(Event event) override {
         switch (event.identifier) {
             case WaterLeakSensor::WATER_LEAK_DETECTED_EVENT_IDENTIFIER:
-                Serial.println("[HomeSecurity] ⚠️  WATER LEAK DETECTED!");
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " ⚠️  WATER LEAK DETECTED!").c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 break;
             case WaterLeakSensor::WATER_LEAK_CLEARED_EVENT_IDENTIFIER:
-                Serial.println("[HomeSecurity] ✓ Water leak cleared.");
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " ✓ Water leak cleared.").c_str());
                 break;
             case DoorWindowSensor::DOOR_OPENED_EVENT_IDENTIFIER:
-                Serial.println("[HomeSecurity] 🚪 Door/window opened!");
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🚪 Door/window opened!").c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 break;
             case DoorWindowSensor::DOOR_CLOSED_EVENT_IDENTIFIER:
-                Serial.println("[HomeSecurity] 🚪 Door/window closed.");
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🚪 Door/window closed.").c_str());
                 break;
             case PassiveInfraredSensor::MOTION_DETECTED_EVENT_IDENTIFIER:
-                Serial.println("[HomeSecurity] 🏃 Motion detected!");
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🏃 Motion detected!").c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 break;
             case PassiveInfraredSensor::MOTION_STOPPED_EVENT_IDENTIFIER:
-                Serial.println("[HomeSecurity] Motion stopped.");
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " Motion stopped.").c_str());
                 break;
             default:
                 break;
@@ -107,12 +113,13 @@ static HomeSecurityDevice* homeSecurityApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Serial.println("[HomeSecurity] Initializing home security system...");
+    Device::setFirmwareVersion("HSD-700 FW 1.0.0");
+    Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " Initializing home security system...").c_str());
 
     // Boot the framework application
     homeSecurityApplication = new HomeSecurityDevice();
 
-    Serial.println("[HomeSecurity] System armed. Monitoring...");
+    Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " System armed. Monitoring...").c_str());
 }
 
 void loop() {

@@ -50,6 +50,12 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all IndoorAirQualityDisplay serial output. */
+static const char* INDOOR_AIR_QUALITY_LOG_PREFIX = "[IndoorAirQualityDisplay]";
+//@} // Serial Output Configuration
+
 /** @name Application Mediator Implementation */
 //@{
 
@@ -172,8 +178,9 @@ public:
     void on(Event event) override {
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             renderDisplay();
-            Serial.printf("[IndoorAirQualityDisplay] VOC: %.0fkOhm, Temp: %.1fC, "
+            Serial.printf("%s VOC: %.0fkOhm, Temp: %.1fC, "
                           "Hum: %.1f%%, Pres: %.1fhPa\n",
+                          INDOOR_AIR_QUALITY_LOG_PREFIX,
                           airQualitySensor.getGasResistanceInKOhms(),
                           airQualitySensor.getTemperatureInCelsius(),
                           airQualitySensor.getHumidityInPercentage(),
@@ -191,8 +198,9 @@ public:
      * @return True if the sensor initialized successfully.
      */
     bool start() {
+        Device::setFirmwareVersion("IAQ-800 FW 1.0.0");
         if (!airQualitySensor.isInitialized()) {
-            Serial.println("[IndoorAirQualityDisplay] BME680 sensor not found on I2C bus");
+            Serial.println((String(INDOOR_AIR_QUALITY_LOG_PREFIX) + " BME680 sensor not found on I2C bus").c_str());
             return false;
         }
 
@@ -203,7 +211,7 @@ public:
         statusDisplay.setText(F("Starting..."), 0, 24);
         statusDisplay.handle(OledDisplay::UPDATE_DISPLAY_COMMAND);
 
-        Serial.println("[IndoorAirQualityDisplay] Indoor air quality monitor online.");
+        Serial.println((String(INDOOR_AIR_QUALITY_LOG_PREFIX) + " Indoor air quality monitor online.").c_str());
         return true;
     }
 };
@@ -231,7 +239,7 @@ void setup() {
     );
 
     if (!airQualityApplication->start()) {
-        Serial.println("[IndoorAirQualityDisplay] Device startup failed.");
+        Serial.println((String(INDOOR_AIR_QUALITY_LOG_PREFIX) + " Device startup failed.").c_str());
         return;
     }
 }

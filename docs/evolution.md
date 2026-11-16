@@ -111,7 +111,7 @@ Reserved blocks: sensor-health 22-23, connectivity link events 900-909, power ev
 - Implemented `tests/run_all.sh` with strict warnings (`-Wall -Wextra -Werror`) and Address/Undefined sanitizers.
 - Added GitHub Actions workflows:
   - `host-tests.yml`: runs all 36 test suites on Ubuntu and macOS.
-  - `compile-examples.yml`: compiles all 22 examples across ESP32 and ESP32-S3 boards.
+  - `compile-examples.yml`: compiles all 23 examples across ESP32 and ESP32-S3 boards.
   - `lint.yml`: validates `library.properties` with Arduino Library Manager compliance.
 - Registered all test targets in `CMakeLists.txt` with CTest integration.
 
@@ -129,7 +129,7 @@ Reserved blocks: sensor-health 22-23, connectivity link events 900-909, power ev
 | 8  | `tests/DiagnosticsSnapshot/`         | `DiagnosticsSnapshot`, shared counters, enqueue edge cases             |
 | 9  | `tests/SensorFault/`                 | Fault threshold, latching, recovery events, counter reset              |
 | 10 | `tests/SamplingScheduler/`           | Per-slot periods, phase alignment, minimum enforcement                 |
-| 11 | `tests/EngineConfig/`                | `EngineConfig` defaults, custom values, aggregate init                 |
+| 11 | `tests/EngineConfig/`                | `EngineConfiguration` defaults, custom values, aggregate init                 |
 | 12 | `tests/TelemetryPackage/`            | Golden JSON serialization, envelope metadata, bounded buffer           |
 | 13 | `tests/TriggeringScheduler/`         | Interrupt-driven sensor registration, trigger table, ISR handler       |
 | 14 | `tests/CommandMarshaling/`           | Command queue, cross-task marshaling, enqueue edge cases               |

@@ -43,7 +43,7 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 - **Arduino Library Manager approved** — available via Arduino IDE Library Manager.
 - **Git Flow workflow** — `main` for releases, `develop` for integration, feature branches for isolated development.
 - **Per-slot `SamplingScheduler`** with phase-aligned re-arming and minimum period enforcement.
-- **`EngineConfig`** for tunable FreeRTOS task stacks, priorities, and core pinning.
+- **`EngineConfiguration`** for tunable FreeRTOS task stacks, priorities, and core pinning.
 - **`BleConnectivityDriver`** with Nordic UART Service (NUS) supporting all ESP32 variants.
 - **Zero-cost `MODEST_LOG_*`** logging with compile-time level filtering.
 - **`DiagnosticsSnapshot`** with 12 fields: stack high-water marks, heap stats, queue counters, send statistics.
@@ -858,7 +858,7 @@ Both frameworks share the same architectural DNA, guided by Domain-Driven Design
 | **Aggregate Root**        | `Device` — orchestrates sensors/actuators                 | `DeviceProfile`, `Rule` — own business invariants                    |
 | **Repository**            | `SamplingScheduler` — sensor slot management              | `DeviceRegistry`, `TelemetryRepository` — query interfaces           |
 | **Domain Service**        | Implicit in `Device` mediator logic                       | `TelemetryIngestionService`, `RuleEngine`, `CommandDispatchService`  |
-| **Value Objects**         | `Event`, `Command`, `EngineConfig`, `DiagnosticsSnapshot` | Telemetry payload, command payload, rule condition                   |
+| **Value Objects**         | `Event`, `Command`, `EngineConfiguration`, `DiagnosticsSnapshot` | Telemetry payload, command payload, rule condition                   |
 | **Domain Events**         | `Event`/`EventHandler` system (IDs 0–999)                 | `TelemetryReceivedEvent`, `DeviceOfflineEvent`, `RuleTriggeredEvent` |
 | **CQRS**                  | `Command`/`Event` separation                              | Command dispatch / telemetry ingestion                               |
 | **Anti-Corruption Layer** | `ConnectivityDriver` isolates Arduino/ESP-IDF APIs        | REST API isolates Peewee ORM from external clients                   |

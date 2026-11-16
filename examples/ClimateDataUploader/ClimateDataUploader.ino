@@ -320,6 +320,8 @@ public:
      * and starts telemetry operations.
      * This method encapsulates all setup logic so the sketch's setup()
      * is only responsible for instance creation.
+     * Each step cleans up partial state on failure, leaving the device
+     * in a predictable state regardless of where initialization fails.
      * @param transport The Wi-Fi connectivity driver for network access.
      * @param authenticationEndpointUrl The authentication endpoint URL for token acquisition.
      * @param telemetryEndpointUrl The telemetry endpoint URL for POST requests.
@@ -335,7 +337,10 @@ public:
         Device::setFirmwareVersion("CLD-100 FW 1.1.0");
 
         // Initialize TelemetryBuffer for offline persistence
-        TelemetryBuffer::begin();
+        if (!TelemetryBuffer::begin()) {
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Failed to initialize TelemetryBuffer").c_str());
+            return false;
+        }
         TelemetryBuffer::onEviction([]() {
             Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " WARNING: Oldest buffered packet evicted due to capacity.").c_str());
         });
@@ -370,6 +375,9 @@ public:
         // Acquire Bearer token
         if (!acquireBearerToken()) {
             Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Authentication failed, aborting").c_str());
+            // Reset gateway client to clean state after failed authentication
+            gatewayClient.setServiceEndpointUrl(nullptr);
+            gatewayClient.setAuthorizationHeader(nullptr);
             return false;
         }
 

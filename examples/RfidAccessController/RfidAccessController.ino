@@ -39,6 +39,14 @@ static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 100;
 static const int ASYNC_ENGINE_QUEUE_DEPTH = 8;
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all RfidAccessController serial output. */
+static const char* RFID_ACCESS_LOG_PREFIX = "[RFID]";
+/** @brief Log prefix for access control messages. */
+static const char* RFID_ACCESS_CONTROL_PREFIX = "[Access]";
+//@} // Serial Output Configuration
+
 /**
  * @brief Access Control Device managing an RFID reader, feedback LED, and buzzer.
  */
@@ -67,21 +75,21 @@ public:
     void on(Event event) override {
         if (event.identifier == RfidSensor::TAG_DETECTED_EVENT_IDENTIFIER) {
             const char* scannedUid = rfidReader.getUid();
-            Serial.printf("[RFID] Tag detected: %s\n", scannedUid);
+            Serial.printf("%s Tag detected: %s\n", RFID_ACCESS_LOG_PREFIX, scannedUid);
 
             if (strcmp(scannedUid, AUTHORIZED_UID) == 0) {
-                Serial.println("[Access] ACCESS GRANTED");
+                Serial.println((String(RFID_ACCESS_CONTROL_PREFIX) + " ACCESS GRANTED").c_str());
                 accessLed.handle(Led::TURN_ON_COMMAND);
                 feedbackBuzzer.setTone(2000, 200);
                 feedbackBuzzer.handle(Buzzer::PLAY_TONE_COMMAND);
             } else {
-                Serial.println("[Access] ACCESS DENIED");
+                Serial.println((String(RFID_ACCESS_CONTROL_PREFIX) + " ACCESS DENIED").c_str());
                 accessLed.handle(Led::TURN_OFF_COMMAND);
                 feedbackBuzzer.setTone(500, 500);
                 feedbackBuzzer.handle(Buzzer::PLAY_TONE_COMMAND);
             }
         } else if (event.identifier == RfidSensor::TAG_REMOVED_EVENT_IDENTIFIER) {
-            Serial.println("[RFID] Tag removed from reader field.");
+            Serial.println((String(RFID_ACCESS_LOG_PREFIX) + " Tag removed from reader field.").c_str());
             accessLed.handle(Led::TURN_OFF_COMMAND);
         }
     }
@@ -91,8 +99,9 @@ static RfidAccessController* rfidAccessApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("RAC-505 FW 1.0.0");
     rfidAccessApplication = new RfidAccessController(RFID_CS_PIN, RFID_RST_PIN, ACCESS_LED_PIN, BUZZER_PIN);
-    Serial.println("[System Boot] RFID Access Controller active.");
+    Serial.println((String(RFID_ACCESS_LOG_PREFIX) + " Access Controller active.").c_str());
 }
 
 void loop() {

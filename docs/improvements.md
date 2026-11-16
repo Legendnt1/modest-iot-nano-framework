@@ -112,7 +112,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.0 (cu
 
 | Resource                 | Traditional `loop()` | Modest IoT v1.1.0 (current)                                                               | Modest IoT v1.2.0 (planned)                           |
 |--------------------------|----------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------|
-| Task stacks              | `loop()` task only   | 4096 B sampler + 8192 B network, configurable via `EngineConfig`; `PowerManager` adds minimal stack for sleep handling | Same defaults                                             |
+| Task stacks              | `loop()` task only   | 4096 B sampler + 8192 B network, configurable via `EngineConfiguration`; `PowerManager` adds minimal stack for sleep handling | Same defaults                                             |
 | Queue and packets        | None                 | Queue of pointers + one heap packet per reading; bounded by queue policy; `TelemetryBuffer` adds LittleFS storage for offline replay | Same, with event aggregation for composite patterns (W29) |
 | Flash                    | Smallest             | Framework, Wi-Fi, BLE driver; only 2 dependencies (ArduinoJson, MQTT); plus `OtaUpdateHandler`, `TelemetryBuffer` | Same, no new Flash increase for W29       |
 | Static RAM               | Small                | Slot table, per-object state; trigger table (4 slots); ConfigurationStore NVS cache; `TelemetryBuffer` adds LittleFS buffer | Same                                             |

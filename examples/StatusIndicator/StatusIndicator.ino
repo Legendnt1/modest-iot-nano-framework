@@ -30,6 +30,12 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 /** @brief Sampler event queue length for status indicator. */
 static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all StatusIndicator serial output. */
+static const char* STATUS_INDICATOR_LOG_PREFIX = "[StatusIndicator]";
+//@} // Serial Output Configuration
+
 /** @name Application Mediator Implementation */
 //@{
 
@@ -101,7 +107,7 @@ class StatusIndicator : public Device {
             // Route the pre-instantiated static toggle command directly to the actuator.
             // No local state tracking variables or toggles are written here!
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
-            Serial.println("[StatusIndicator] Timer event caught -> LED toggle dispatched.");
+            Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + " Timer event caught -> LED toggle dispatched.").c_str());
         }
     }
 };
@@ -145,6 +151,7 @@ static StatusIndicator* statusIndicatorApplication = nullptr;
  */
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("STI-909 FW 1.0.0");
 
     // Boot the framework application.
     // Background execution queues, FreeRTOS tasks, and hardware alarm vectors launch automatically!
@@ -153,7 +160,7 @@ void setup() {
     BLINK_RATE_IN_MILLISECONDS,
     CORE_TIMER_CHANNEL);
 
-    Serial.println("[StatusIndicator] Loop-less, event-driven command routing active.");
+    Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + " Loop-less, event-driven command routing active.").c_str());
 }
 
 /**

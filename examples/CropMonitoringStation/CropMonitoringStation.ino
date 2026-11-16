@@ -313,6 +313,12 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
  */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all CropMonitoringStation serial output. */
+static const char* CROP_MONITORING_LOG_PREFIX = "[CropMonitoringStation]";
+//@} // Serial Output Configuration
+
 /** @name Network Configuration */
 //@{
 
@@ -371,7 +377,8 @@ static CropMonitoringStation* cropMonitoringApplication = nullptr;
  */
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Serial.println(F("[CropMonitoringStation] Starting..."));
+    Device::setFirmwareVersion("CMS-300 FW 1.0.0");
+    Serial.println((String(CROP_MONITORING_LOG_PREFIX) + " Starting...").c_str());
 
     // Set up Wi-Fi connectivity
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);

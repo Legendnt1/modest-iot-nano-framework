@@ -2,6 +2,15 @@
 
 All notable changes to the Modest IoT Nano Framework will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+#### Examples
+- **WeatherStation**: Added adaptive power management — starts in `PowerMode::Periodic` and switches to `PowerMode::DeepSleep` when low battery is detected, with RTC-persisted low-battery state across reboots.
+- **ClimateDataUploader**: Added `BearerTokenParser` utility class for isolated token extraction, improved error handling in `start()` method with TelemetryBuffer initialization check and gateway client cleanup on token failure.
+- **All examples**: Added `Device::setFirmwareVersion()` with realistic manufacturer-style model numbers and log prefix constants for consistent serial output across all 23 examples.
+
 ## [1.1.0] - 2026-11-15
 
 ### Added
@@ -28,7 +37,7 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - Updated `keywords.txt` with all new component keywords (PowerManager, TelemetryBuffer, OtaUpdateHandler, and related methods and types)
 - Updated `docs/improvements.md` with W25–W28 marked Complete and detailed design sections
 - Updated `docs/vision.md` with v1.1.0 features listed as released
-- **Examples updated**: `WeatherStation` extended with `PowerManager` for battery monitoring and `Device::setFirmwareVersion()`. `ClimateDataUploader` extended with `TelemetryBuffer` for offline persistence and replay. New `OtaUpdateDevice` example demonstrates OTA firmware updates with hostname, password, and all callback types.
+- **Examples updated**: `WeatherStation` extended with `PowerManager` for battery monitoring. `ClimateDataUploader` extended with `TelemetryBuffer` for offline persistence. New `OtaUpdateDevice` example demonstrates OTA firmware updates with hostname, password, and all callback types.
 - Git Flow workflow adopted: `main` holds releases, `develop` is the integration branch, feature branches merge into `develop`
 
 ## [1.0.0] - 2026-11-10

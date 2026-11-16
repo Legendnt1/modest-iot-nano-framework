@@ -138,6 +138,7 @@ public:
 static PerimeterMonitor* perimeterMonitorApplication = nullptr;
 
 void setup() {
+    Device::setFirmwareVersion("PMN-202 FW 1.0.0");
     perimeterMonitorApplication = new PerimeterMonitor();
 }
 

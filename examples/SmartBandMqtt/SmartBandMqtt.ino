@@ -163,6 +163,7 @@ static SmartBandDevice* smartBandApplication   = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("SBM-606 FW 1.0.0");
 
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);
 

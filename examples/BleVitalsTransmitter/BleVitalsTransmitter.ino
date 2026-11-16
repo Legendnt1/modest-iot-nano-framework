@@ -59,6 +59,12 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all BleVitalsTransmitter serial output. */
+static const char* BLE_VITALS_TRANSMITTER_LOG_PREFIX = "[BleVitalsTransmitter]";
+//@} // Serial Output Configuration
+
 /** @name Application Mediator Implementation */
 //@{
 
@@ -91,7 +97,8 @@ private:
      */
     void reportStatistics() {
         GatewayStatistics stats = gatewayClient.getStatistics();
-        Serial.printf("[BleVitalsTransmitter] BLE stats -> succeeded: %lu, failed: %lu\n",
+        Serial.printf("%s BLE stats -> succeeded: %lu, failed: %lu\n",
+                      BLE_VITALS_TRANSMITTER_LOG_PREFIX,
                       stats.sendsSucceeded, stats.sendsFailed);
     }
 
@@ -145,9 +152,10 @@ public:
      * @return True if BLE initialization succeeded.
      */
     bool start() {
-        Serial.println("[BleVitalsTransmitter] Starting BLE advertising...");
+        Device::setFirmwareVersion("BVT-100 FW 1.0.0");
+        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + " Starting BLE advertising...").c_str());
         gatewayClient.service();
-        Serial.println("[BleVitalsTransmitter] BLE vitals transmitter online. Pair with your phone.");
+        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + " BLE vitals transmitter online. Pair with your phone.").c_str());
         return true;
     }
 };
@@ -183,7 +191,7 @@ void setup() {
     );
 
     if (!vitalsApplication->start()) {
-        Serial.println("[BleVitalsTransmitter] Device startup failed.");
+        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + " Device startup failed.").c_str());
         return;
     }
 }

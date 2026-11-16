@@ -1,15 +1,17 @@
 /**
  * @file WeatherStation.ino
- * @brief Battery-powered outdoor weather station with deep sleep and battery monitoring.
+ * @brief Battery-powered outdoor weather station with adaptive power management.
  *
  * Monitors air temperature, humidity, atmospheric pressure, and light intensity.
- * Uses ESP32 deep sleep to reduce power consumption from ~100mA active to ~10µA sleeping,
- * enabling months of operation on a coin cell battery. NTP time synchronization provides
- * absolute Unix timestamps for server-side data correlation. PowerManager monitors the
- * battery voltage via ADC and alerts when power is low.
+ * Starts in Periodic mode for normal operation, and automatically switches to
+ * DeepSleep mode when low battery is detected. The low-battery flag persists
+ * across reboots via RTC memory, so the device remains in DeepSleep mode until
+ * the battery is replaced. NTP time synchronization provides absolute Unix
+ * timestamps for server-side data correlation. PowerManager monitors the battery
+ * voltage via ADC and triggers the power mode transition.
  *
  * @par Modest IoT Nano Framework aspects illustrated:
- * - `Device` base class with `PowerMode::DeepSleep` for ESP32 deep sleep
+ * - `Device` base class with adaptive `PowerMode` switching (Periodic → DeepSleep)
  * - `DhtSensor` (digital) for temperature/humidity
  * - `PthSensor` (I2C BME280) for atmospheric pressure
  * - `DigitalLightIntensitySensor` (I2C) for ambient light
@@ -20,7 +22,7 @@
  * - `reportWakeReason()` for boot cycle tracking
  * - Cross-task event routing via `on(Event)` handler
  * @date 2026-11-15
- * @version 1.1
+ * @version 1.2
  */
 
 #include <Arduino.h>
@@ -80,12 +82,16 @@ static const char* WEATHER_STATION_LOG_PREFIX = "[WeatherStation]";
 RTC_DATA_ATTR uint32_t rtcBootCount = 0;
 /** @brief Telemetry sequence counter that survives deep sleep. */
 RTC_DATA_ATTR uint32_t rtcSequenceCounter = 0;
+/** @brief Flag set when low battery is detected; persists across deep sleep reboots. */
+RTC_DATA_ATTR bool rtcLowBatteryDetected = false;
 //@} // RTC Memory Variables
 
 /**
  * @brief Battery-Powered Weather Station Device.
- * Demonstrates ESP32 deep sleep with periodic weather sampling.
- * The device wakes, reads temperature/humidity/light, prints the results, and sleeps again.
+ * Demonstrates adaptive power management: starts in Periodic mode for normal
+ * operation, and automatically switches to DeepSleep mode when low battery
+ * is detected. The low-battery flag persists across reboots via RTC memory,
+ * so the device remains in DeepSleep mode until the battery is replaced.
  * All initialization and behavior is owned by this class; the sketch's setup()
  * is only responsible for instance creation and calling start().
  */
@@ -123,6 +129,9 @@ private:
 
     /**
      * @brief Displays the current battery status on Serial.
+     * Checks for low battery and switches to DeepSleep mode if needed.
+     * The low-battery flag persists across reboots via RTC memory,
+     * so the device remains in DeepSleep mode until the battery is replaced.
      */
     void displayBatteryStatus() {
         uint32_t batteryVoltage = PowerManager::getBatteryVoltageInMillivolts();
@@ -134,21 +143,16 @@ private:
         Serial.println(buffer);
 
         if (PowerManager::isLowBattery()) {
-            Serial.printf("%s WARNING: Low battery — consider recharging!\n",
+            rtcLowBatteryDetected = true;
+            Serial.printf("%s WARNING: Low battery detected!\n",
                           WEATHER_STATION_LOG_PREFIX);
-        }
-    }
 
-    /**
-     * @brief Configures the low-battery alert callback.
-     */
-    void configureLowBatteryAlert() {
-        PowerManager::onLowBattery([]() {
-            Serial.printf("%s CRITICAL: Battery below threshold — extending sleep interval!\n",
-                          WEATHER_STATION_LOG_PREFIX);
-            // In a real application, you might extend the deep sleep interval here
-            // to conserve the remaining battery power.
-        });
+            if (getPowerMode() != PowerMode::DeepSleep) {
+                setPowerMode(PowerMode::DeepSleep);
+                Serial.printf("%s Switched to DeepSleep mode to conserve power.\n",
+                              WEATHER_STATION_LOG_PREFIX);
+            }
+        }
     }
 
 public:
@@ -168,14 +172,14 @@ public:
           lightSensor(0, DigitalLightIntensitySensor::DEFAULT_I2C_ADDRESS,
                       DigitalLightIntensitySensor::DEFAULT_LIGHT_DETECTED_THRESHOLD_IN_LUX, this)
     {
-        // Configure deep sleep mode for maximum energy saving (~10µA vs ~100mA active)
-        setPowerMode(PowerMode::DeepSleep);
+        // Start in Periodic mode; switch to DeepSleep when low battery is detected
+        setPowerMode(PowerMode::Periodic);
     }
 
     /**
      * @brief Handles sensor data-ready events to log weather readings.
-     * After this handler returns, the device enters deep sleep (~10µA) until
-     * the next sampling interval, achieving >99.9% duty cycle energy savings.
+     * After this handler returns, the device enters the current power mode
+     * (Periodic or DeepSleep) until the next sampling interval.
      * @param event The triggered event context payload.
      * @runs_on{sampler}
      */
@@ -183,8 +187,13 @@ public:
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             displayWeatherReadings();
             displayBatteryStatus();
-            Serial.printf("%s Entering deep sleep (~10µA) until next sample...\n",
-                          WEATHER_STATION_LOG_PREFIX);
+            if (getPowerMode() == PowerMode::DeepSleep) {
+                Serial.printf("%s Entering deep sleep (~10µA) until next sample...\n",
+                              WEATHER_STATION_LOG_PREFIX);
+            } else {
+                Serial.printf("%s Waiting for next sample (Periodic mode)...\n",
+                              WEATHER_STATION_LOG_PREFIX);
+            }
         }
     }
 
@@ -233,7 +242,13 @@ public:
 
         // Initialize battery monitoring on ADC pin 34 with 2:1 voltage divider
         PowerManager::begin(BATTERY_ADC_PIN, BATTERY_DIVIDER_RATIO);
-        configureLowBatteryAlert();
+
+        // Restore DeepSleep mode if low battery was detected in a previous cycle
+        if (rtcLowBatteryDetected) {
+            setPowerMode(PowerMode::DeepSleep);
+            Serial.printf("%s Low battery detected previously — running in DeepSleep mode.\n",
+                          WEATHER_STATION_LOG_PREFIX);
+        }
 
         // Start the device behavior
         start();
