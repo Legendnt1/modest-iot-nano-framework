@@ -254,7 +254,7 @@ All contributions are made via pull requests on GitHub. Follow the [Git Flow Bra
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
 
-```
+```plaintext
 type(scope): description
 
 Optional body with more details.
@@ -270,7 +270,7 @@ Types:
 - `BREAKING CHANGE`: Incompatible API change (triggers MAJOR version bump)
 
 Examples:
-```
+```plaintext
 feat(sensor): add BME680 VOC sensor support
 fix(device): resolve race condition in command queue
 docs(readme): update installation instructions
