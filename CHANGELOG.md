@@ -59,10 +59,11 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 ### Documentation
 
-- Updated test count from 36 to 47 in README.md, docs/improvements.md, docs/user-stories.md, and docs/vision.md
+- Updated test count from 36 to 47 in README.md, docs/improvements.md, docs/user-stories.md, docs/vision.md, docs/adrs.md, and docs/doxygen-mainpage.md
 - Added all 11 new test suite entries to README.md Testing table
 - Verified 51 source headers and 23 examples counts are consistent across all documentation
 - Updated README.md Future Directions section to remove outdated v1.1.0 release notes, as the project is now at v1.1.1
+- Updated docs/vision.md Current Status section to include v1.1.1 release
 
 ## [1.1.0] - 2026-11-15
 
