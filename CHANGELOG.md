@@ -65,6 +65,7 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - Updated README.md Future Directions section to remove outdated v1.1.0 release notes, as the project is now at v1.1.1
 - Updated docs/vision.md Current Status section to include v1.1.1 release
 - Updated docs/Doxyfile `PROJECT_NUMBER` to 1.1.1 and the version in docs/doxygen-mainpage.md to reflect v1.1.1
+- Updated SECURITY.md supported versions table to support only the latest version (1.1.1), dropping 1.0.0 and 1.1.0 — standard practice for solo-maintained projects
 
 ## [1.1.0] - 2026-11-15
 
