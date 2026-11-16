@@ -102,10 +102,10 @@ run_test "test_MqttGatewayClient" \
     src/Sensor.cpp \
     tests/MqttGatewayClient/test.cpp
 
-# 7. EngineConfig and Device Configuration Suite
-run_test "test_EngineConfig" \
+# 7. EngineConfiguration and Device Configuration Suite
+run_test "test_EngineConfiguration" \
     tests/fakes/ArduinoFake.cpp \
-    tests/EngineConfig/test.cpp
+    tests/EngineConfiguration/test.cpp
 
 # 8. Diagnostics Snapshot and Shared Counters Suite
 run_test "test_DiagnosticsSnapshot" \
