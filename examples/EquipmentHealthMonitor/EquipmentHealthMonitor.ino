@@ -58,6 +58,12 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all EquipmentHealthMonitor serial output. */
+static const char* EQUIPMENT_HEALTH_LOG_PREFIX = "[EquipmentHealthMonitor]";
+//@} // Serial Output Configuration
+
 /** @name Application Mediator Implementation */
 //@{
 
@@ -204,6 +210,7 @@ public:
      * @return True if sensors are responding.
      */
     bool start() {
+        Device::setFirmwareVersion("EHM-600 FW 1.0.0");
         MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Equipment health monitor starting...");
 
         vibrationSensor.tare();
@@ -212,7 +219,7 @@ public:
                        vibrationSensor.getSignalGpioPin());
         }
 
-        Serial.println("[EquipmentHealthMonitor] Equipment health monitor online.");
+        Serial.println((String(EQUIPMENT_HEALTH_LOG_PREFIX) + " Equipment health monitor online.").c_str());
         MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Monitoring active. Diagnostics every %u samples.",
                    DIAGNOSTICS_REPORT_INTERVAL_SAMPLES);
         return true;
@@ -244,7 +251,7 @@ void setup() {
     );
 
     if (!equipmentHealthApplication->start()) {
-        Serial.println("[EquipmentHealthMonitor] Device startup failed.");
+        Serial.println((String(EQUIPMENT_HEALTH_LOG_PREFIX) + " Device startup failed.").c_str());
         return;
     }
 }
