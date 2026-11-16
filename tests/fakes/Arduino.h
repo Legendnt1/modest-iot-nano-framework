@@ -87,6 +87,7 @@ public:
 #define CHANGE 1
 #define RISING 2
 #define FALLING 3
+#define SERIAL_8N1 0x00
 
 // Mock GPIO interrupt APIs
 using InterruptHandler = void(*)();
@@ -209,6 +210,38 @@ inline bool ledcDetach(uint8_t pin) {
     (void)pin;
     return true;
 }
+
+// Fake HardwareSerial for GPS and other serial sensor testing
+class HardwareSerial {
+public:
+    char buffer[256]{};
+    int bufferSize = 0;
+    int readIndex = 0;
+
+    void begin(long baud, int config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1, bool invert = false) {
+        (void)baud; (void)config; (void)rxPin; (void)txPin; (void)invert;
+    }
+    void end() { bufferSize = 0; readIndex = 0; }
+    int available() { return bufferSize - readIndex; }
+    int read() {
+        if (readIndex < bufferSize) return (unsigned char)buffer[readIndex++];
+        return -1;
+    }
+    int peek() {
+        if (readIndex < bufferSize) return (unsigned char)buffer[readIndex];
+        return -1;
+    }
+    void flush() { readIndex = bufferSize; }
+    size_t write(uint8_t) { return 1; }
+    size_t write(const uint8_t* data, size_t len) { (void)data; return len; }
+    void feed(const char* data) {
+        bufferSize = strlen(data);
+        strncpy(buffer, data, sizeof(buffer) - 1);
+        buffer[bufferSize] = '\0';
+        readIndex = 0;
+    }
+    void clear() { bufferSize = 0; readIndex = 0; }
+};
 
 // Mock ESP32 deep sleep API for host testing (W17)
 #define RTC_DATA_ATTR

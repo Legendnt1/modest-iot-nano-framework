@@ -290,6 +290,101 @@ run_test "test_Button" \
     src/Button.cpp \
     tests/Button/test.cpp
 
+# 34. PowerManager Suite
+run_test "test_PowerManager" \
+    tests/fakes/ArduinoFake.cpp \
+    src/PowerManager.cpp \
+    tests/PowerManager/test.cpp
+
+# 35. TelemetryBuffer Suite
+run_test "test_TelemetryBuffer" \
+    tests/fakes/ArduinoFake.cpp \
+    src/TelemetryBuffer.cpp \
+    tests/TelemetryBuffer/test.cpp
+
+# 36. OtaUpdateHandler Suite
+run_test "test_OtaUpdateHandler" \
+    tests/fakes/ArduinoFake.cpp \
+    src/OtaUpdateHandler.cpp \
+    tests/OtaUpdateHandler/test.cpp
+
+# 37. Led Suite
+run_test "test_Led" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Actuator.cpp \
+    src/Led.cpp \
+    tests/Led/test.cpp
+
+# 38. PassiveInfraredSensor Suite
+run_test "test_PassiveInfraredSensor" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Sensor.cpp \
+    src/PassiveInfraredSensor.cpp \
+    tests/PassiveInfraredSensor/test.cpp
+
+# 39. PulseSensor Suite
+run_test "test_PulseSensor" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Sensor.cpp \
+    src/PulseSensor.cpp \
+    tests/PulseSensor/test.cpp
+
+# 40. Hd44780Driver Suite
+run_test "test_Hd44780Driver" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Hd44780Driver.cpp \
+    tests/Hd44780Driver/test.cpp
+
+# 41. Ssd1306Driver Suite
+run_test "test_Ssd1306Driver" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Ssd1306Driver.cpp \
+    tests/Ssd1306Driver/test.cpp
+
+# 42. WiFiConnectivityDriver Suite
+run_test "test_WiFiConnectivityDriver" \
+    tests/fakes/ArduinoFake.cpp \
+    src/WiFiConnectivityDriver.cpp \
+    tests/WiFiConnectivityDriver/test.cpp
+
+# 43. BmeEnvironmentalSensor Suite
+run_test "test_BmeEnvironmentalSensor" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Sensor.cpp \
+    src/BmeEnvironmentalSensor.cpp \
+    src/PthSensor.cpp \
+    tests/BmeEnvironmentalSensor/test.cpp
+
+# 44. UltrasonicSensor Suite
+run_test "test_UltrasonicSensor" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Sensor.cpp \
+    src/UltrasonicSensor.cpp \
+    tests/UltrasonicSensor/test.cpp
+
+# 45. LoadCellAmplifier Suite
+run_test "test_LoadCellAmplifier" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Sensor.cpp \
+    src/LoadCellAmplifier.cpp \
+    tests/LoadCellAmplifier/test.cpp
+
+# 46. GeolocationSensor Suite
+run_test "test_GeolocationSensor" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Sensor.cpp \
+    src/GeolocationSensor.cpp \
+    tests/GeolocationSensor/test.cpp
+
+# 47. Device Suite
+run_test "test_Device" \
+    tests/fakes/ArduinoFake.cpp \
+    src/Sensor.cpp \
+    src/Actuator.cpp \
+    src/Device.cpp \
+    src/SamplingScheduler.cpp \
+    tests/Device/test.cpp
+
 echo "=========================================================="
 echo " Test Summary: ${PASSED} passed, ${FAILED} failed"
 echo "=========================================================="
