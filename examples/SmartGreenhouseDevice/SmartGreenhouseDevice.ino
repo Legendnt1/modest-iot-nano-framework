@@ -127,6 +127,7 @@ static SmartGreenhouseDevice* smartGreenhouseApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("SGD-707 FW 1.0.0");
     smartGreenhouseApplication = new SmartGreenhouseDevice();
     Serial.println(SYSTEM_BOOT_MESSAGE);
 }
