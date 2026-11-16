@@ -170,6 +170,7 @@ static SmartScaleDevice* smartScaleApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("SSD-808 FW 1.0.0");
     smartScaleApplication = new SmartScaleDevice(
         FRONT_LEFT_LOAD_CELL_DATA_PIN, FRONT_LEFT_LOAD_CELL_CLOCK_PIN,
         FRONT_RIGHT_LOAD_CELL_DATA_PIN, FRONT_RIGHT_LOAD_CELL_CLOCK_PIN,
