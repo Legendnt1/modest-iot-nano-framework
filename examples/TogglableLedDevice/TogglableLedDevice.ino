@@ -26,6 +26,12 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all TogglableLedDevice serial output. */
+static const char* TOGGLABLE_LED_DEVICE_LOG_PREFIX = "[TogglableLedDevice]";
+//@} // Serial Output Configuration
+
 /** @name Application Mediator Implementation */
 //@{
 
@@ -70,7 +76,7 @@ class TogglableLedDevice : public Device {
             // The mediator maintains no local state tracking variables or toggles!
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
 
-            Serial.println("[TogglableLedDevice] Toggle LED Button press event caught -> LED toggle dispatched.");
+            Serial.println((String(TOGGLABLE_LED_DEVICE_LOG_PREFIX) + " Toggle LED Button press event caught -> LED toggle dispatched.").c_str());
         }
     }
 };
@@ -88,12 +94,13 @@ static TogglableLedDevice* togglableLedApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("TLD-110 FW 1.0.0");
 
     // Boot the framework application.
     // Background execution queues, FreeRTOS tasks, and hardware alarm vectors launch automatically!
     togglableLedApplication = new TogglableLedDevice(TOGGLE_BUTTON_PIN, STATUS_LED_PIN, CORE_TIMER_CHANNEL);
 
-    Serial.println("[System Boot] Loop-less interactive toggle node active.");
+    Serial.println((String(TOGGLABLE_LED_DEVICE_LOG_PREFIX) + " Loop-less interactive toggle node active.").c_str());
 }
 
 void loop() {
