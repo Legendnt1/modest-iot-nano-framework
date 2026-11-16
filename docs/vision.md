@@ -38,7 +38,7 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 
 - **51 source headers** with full Doxygen documentation and `@runs_on` threading tags.
 - **23 example sketches** covering diverse use cases (MQTT over TLS device, BLE vitals transmitter, remote LED controller, indoor air quality display, pipe temperature monitor, equipment health monitor, smart band, air quality, RFID access, smart greenhouse, weather station, crop monitoring, home security, HTTP telemetry, OTA update device, etc.).
-- **36 host unit test suites** with shared mocks, Address/Undefined sanitizers, and 100% pass rate.
+- **47 host unit test suites** with shared mocks, Address/Undefined sanitizers, and 100% pass rate.
 - **3 CI workflows**: host tests, compile examples, lint.
 - **Arduino Library Manager approved** — available via Arduino IDE Library Manager.
 - **Git Flow workflow** — `main` for releases, `develop` for integration, feature branches for isolated development.
@@ -931,7 +931,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 |-----------------------------|-------------------------|----------------------------------|----------------------------|
 | **Consistent patterns**     | Mediator, CQRS, events  | Same patterns at edge scale      | One mental model for both  |
 | **AI-assisted development** | Clean, documented API   | Python/ML ecosystem              | AI generates code for both |
-| **Test infrastructure**     | 36 host test suites, CI | Python pytest, integration tests | Full-stack testing         |
+| **Test infrastructure**     | 47 host test suites, CI | Python pytest, integration tests | Full-stack testing         |
 | **Documentation**           | Doxygen, ADRs, README   | Sphinx, OpenAPI specs            | Unified documentation      |
 
 ### 4.2 For IoT Products
