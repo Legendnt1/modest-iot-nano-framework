@@ -21,7 +21,7 @@ The 30 ADRs below span six categories that shaped the framework's architecture:
 | [ADR-007](#adr-007-envelope-metadata-in-telemetry-packages)                                | Envelope Metadata — Timestamp and Sequence                    | Accepted | Telemetry    |
 | [ADR-008](#adr-008-serialize-overload-rename-to-prevent-name-hiding)                       | `serialize` Overload Rename — `toDocument` and `toJsonString` | Accepted | API Design   |
 | [ADR-009](#adr-009-sensor-fault-events-with-debounced-threshold-state-machine)             | Sensor Fault Events — Debounced Threshold State Machine       | Accepted | Diagnostics  |
-| [ADR-010](#adr-010-engineconfig-for-tunable-freertos-task-parameters)                      | `EngineConfig` — Configurable Task Stacks and Priorities      | Accepted | Threading    |
+| [ADR-010](#adr-010-engineconfig-for-tunable-freertos-task-parameters)                      | `EngineConfiguration` — Configurable Task Stacks and Priorities      | Accepted | Threading    |
 | [ADR-011](#adr-011-per-slot-samplingscheduler-with-countdown-based-dispatch)               | `SamplingScheduler` — Per-Slot Countdown Scheduling           | Accepted | Scheduling   |
 | [ADR-012](#adr-012-arduinojson-retained-for-telemetry-serialization)                       | Retain ArduinoJson for Telemetry Serialization                | Accepted | Dependencies |
 | [ADR-013](#adr-013-screaming_snake_case-for-all-preprocessor-macros)                       | `SCREAMING_SNAKE_CASE` Macro Convention                       | Accepted | Naming       |
@@ -58,7 +58,7 @@ The 30 ADRs below span six categories that shaped the framework's architecture:
 | **Scheduling**   | 3     | Hybrid sensor intervals with virtual getters; per-slot countdown scheduler; non-blocking sensors     |
 | **Telemetry**    | 4     | `unique_ptr` ownership; drop-oldest policy; bounded buffer; envelope metadata                        |
 | **Diagnostics**  | 2     | Sensor fault events with debounced threshold; on-demand `DiagnosticsSnapshot`                        |
-| **Threading**    | 5     | Single-context sampler model; `EngineConfig`; cooperative shutdown; notification redesign; command marshaling |
+| **Threading**    | 5     | Single-context sampler model; `EngineConfiguration`; cooperative shutdown; notification redesign; command marshaling |
 | **API Design**   | 2     | `serialize` overload rename; identifier registry with reserved ranges                                |
 | **Dependencies** | 3     | Retain ArduinoJson; five hygiene principles for dependency decisions; native servo and LCD drivers |
 | **Testing**      | 2     | Shared mock harness; golden host tests for JSON serialization                                        |
@@ -362,12 +362,12 @@ Implement the debounced threshold state machine in the `Sensor` base class with 
 FreeRTOS task stack sizes, priorities, and core pinning were hard-coded in `Device::initializeAsynchronousEngine()`. Developers had no way to tune these parameters without modifying framework source code.
 
 Two alternatives were evaluated:
-1. **`EngineConfig` struct** — Configurable stack sizes, priorities, core pinning, and queue depth. Defaults match original hard-coded values.
+1. **`EngineConfiguration` struct** — Configurable stack sizes, priorities, core pinning, and queue depth. Defaults match original hard-coded values.
 2. **Individual constructor parameters** — Clutters the constructor signature, hard to remember parameter order.
 
 ### Decision
 
-Add `EngineConfig` struct with `samplerStackBytes`, `networkStackBytes`, `samplerPriority`, `networkPriority`, `samplerCore`, `networkCore`, and `telemetryQueueDepth`. Provide `initializeAsynchronousEngine(const EngineConfig&)` overload; the existing single-argument form delegates for backward compatibility.
+Add `EngineConfiguration` struct with `samplerStackBytes`, `networkStackBytes`, `samplerPriority`, `networkPriority`, `samplerCore`, `networkCore`, and `telemetryQueueDepth`. Provide `initializeAsynchronousEngine(const EngineConfiguration&)` overload; the existing single-argument form delegates for backward compatibility.
 
 ### Consequences
 
@@ -626,7 +626,7 @@ Consolidate all mocks into a centralized `tests/fakes/` directory with shared he
 
 ### Context
 
-The framework runs two FreeRTOS tasks with configurable stack sizes. Developers need visibility into stack consumption, heap usage, and queue behavior to tune `EngineConfig` parameters and detect issues.
+The framework runs two FreeRTOS tasks with configurable stack sizes. Developers need visibility into stack consumption, heap usage, and queue behavior to tune `EngineConfiguration` parameters and detect issues.
 
 Three alternatives were evaluated:
 1. **On-demand snapshot** — Query metrics only when `Device::diagnostics()` is called. Zero background overhead.
@@ -641,7 +641,7 @@ Stack high-water marks are queried via `uxTaskGetStackHighWaterMark()` and conve
 
 ### Consequences
 
-- **Positive**: Zero background CPU overhead during normal execution. All metrics available when needed. Enables `EngineConfig` tuning based on measured data.
+- **Positive**: Zero background CPU overhead during normal execution. All metrics available when needed. Enables `EngineConfiguration` tuning based on measured data.
 - **Negative**: Metrics are point-in-time snapshots; transient issues may be missed without continuous monitoring.
 - **Rationale**: On-demand diagnostics provide the best balance: developers get full visibility when they need it, without any runtime cost during normal operation.
 
@@ -960,7 +960,7 @@ The Modest IoT ecosystem spans two frameworks with different complexity levels: 
 The Nano Framework already embodies several Domain-Driven Design (DDD) concepts implicitly:
 - **CQRS-inspired separation**: `EventHandler`/`Event` (queries/events) vs `CommandHandler`/`Command` (commands).
 - **Aggregate Root**: `Device` orchestrates sensors, actuators, scheduler, and telemetry queue.
-- **Value Objects**: `Event`, `Command`, `EngineConfig`, `DiagnosticsSnapshot` — equality by value, no identity.
+- **Value Objects**: `Event`, `Command`, `EngineConfiguration`, `DiagnosticsSnapshot` — equality by value, no identity.
 - **Repository-like pattern**: `SamplingScheduler` manages sensor registration and per-slot scheduling.
 - **Domain Events**: Sensor fault events (IDs 22/23), measurement requests.
 - **Anti-Corruption Layer**: `ConnectivityDriver` interface isolates framework from Arduino/ESP-IDF core APIs.
@@ -981,7 +981,7 @@ Adopt DDD explicitly with a **two-tier approach**:
 - **Ubiquitous Language**: Enforce consistent naming: `Device`, `Sensor`, `Actuator`, `Event`, `Command`, `TelemetryPackage`.
 - **Bounded Context**: Document the Nano Device Context boundaries (ESP32, Arduino core, FreeRTOS tasks).
 - **Aggregate Root**: `Device` is the sole aggregate; document its invariants (sensor registration before engine start, queue length limits, fault event latching).
-- **Value Objects**: `Event`, `Command`, `EngineConfig`, `DiagnosticsSnapshot` — already implemented.
+- **Value Objects**: `Event`, `Command`, `EngineConfiguration`, `DiagnosticsSnapshot` — already implemented.
 - **Repository**: `SamplingScheduler` as sensor slot repository — already implemented.
 - **Skip**: Full repository pattern, domain event dispatcher, factories, specifications — too heavy for embedded C++.
 
