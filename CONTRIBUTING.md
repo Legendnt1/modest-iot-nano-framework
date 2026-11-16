@@ -210,8 +210,8 @@ The Modest IoT Nano Framework follows [Semantic Versioning 2.0.0](https://semver
 
 The version is managed in two places:
 
-1. **`library.properties`**: `version=1.1.0` — used by Arduino Library Manager
-2. **Git tags**: `v1.1.0` — used for release tracking
+1. **`library.properties`**: `version=1.1.1` — used by Arduino Library Manager
+2. **Git tags**: `v1.1.1` — used for release tracking
 
 Both must be updated together when creating a release.
 
