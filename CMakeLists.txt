@@ -243,12 +243,12 @@ add_executable(test_MqttGatewayClient
 )
 target_include_directories(test_MqttGatewayClient PRIVATE tests/fakes src)
 
-add_executable(test_EngineConfig
-        tests/EngineConfig/test.cpp
+add_executable(test_EngineConfiguration
+        tests/EngineConfiguration/test.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
-target_include_directories(test_EngineConfig PRIVATE tests/fakes src)
+target_include_directories(test_EngineConfiguration PRIVATE tests/fakes src)
 
 add_executable(test_DiagnosticsSnapshot
         tests/DiagnosticsSnapshot/test.cpp
@@ -504,6 +504,118 @@ add_executable(test_OtaUpdateHandler
 target_include_directories(test_OtaUpdateHandler PRIVATE tests/fakes src)
 target_compile_options(test_OtaUpdateHandler PRIVATE -Wall -Wextra -Werror)
 
+# --- New tests for previously untested components ---
+
+add_executable(test_Led
+        tests/Led/test.cpp
+        src/Led.cpp
+        src/Actuator.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_Led PRIVATE tests/fakes src)
+target_compile_options(test_Led PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_PassiveInfraredSensor
+        tests/PassiveInfraredSensor/test.cpp
+        src/Sensor.cpp
+        src/PassiveInfraredSensor.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_PassiveInfraredSensor PRIVATE tests/fakes src)
+target_compile_options(test_PassiveInfraredSensor PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_PulseSensor
+        tests/PulseSensor/test.cpp
+        src/Sensor.cpp
+        src/PulseSensor.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_PulseSensor PRIVATE tests/fakes src)
+target_compile_options(test_PulseSensor PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_Hd44780Driver
+        tests/Hd44780Driver/test.cpp
+        src/Hd44780Driver.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_Hd44780Driver PRIVATE tests/fakes src)
+target_compile_options(test_Hd44780Driver PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_Ssd1306Driver
+        tests/Ssd1306Driver/test.cpp
+        src/Ssd1306Driver.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_Ssd1306Driver PRIVATE tests/fakes src)
+target_compile_options(test_Ssd1306Driver PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_WiFiConnectivityDriver
+        tests/WiFiConnectivityDriver/test.cpp
+        src/WiFiConnectivityDriver.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_WiFiConnectivityDriver PRIVATE tests/fakes src)
+target_compile_options(test_WiFiConnectivityDriver PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_BmeEnvironmentalSensor
+        tests/BmeEnvironmentalSensor/test.cpp
+        src/Sensor.cpp
+        src/BmeEnvironmentalSensor.cpp
+        src/PthSensor.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_BmeEnvironmentalSensor PRIVATE tests/fakes src)
+target_compile_options(test_BmeEnvironmentalSensor PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_GeolocationSensor
+        tests/GeolocationSensor/test.cpp
+        src/Sensor.cpp
+        src/GeolocationSensor.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_GeolocationSensor PRIVATE tests/fakes src)
+target_compile_options(test_GeolocationSensor PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_Device
+        tests/Device/test.cpp
+        src/Sensor.cpp
+        src/Actuator.cpp
+        src/Device.cpp
+        src/SamplingScheduler.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_Device PRIVATE tests/fakes src)
+target_compile_options(test_Device PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_UltrasonicSensor
+        tests/UltrasonicSensor/test.cpp
+        src/Sensor.cpp
+        src/UltrasonicSensor.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_UltrasonicSensor PRIVATE tests/fakes src)
+target_compile_options(test_UltrasonicSensor PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_LoadCellAmplifier
+        tests/LoadCellAmplifier/test.cpp
+        src/Sensor.cpp
+        src/LoadCellAmplifier.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_LoadCellAmplifier PRIVATE tests/fakes src)
+target_compile_options(test_LoadCellAmplifier PRIVATE -Wall -Wextra -Werror)
+
 add_test(NAME DigitalLightIntensitySensorTest COMMAND test_DigitalLightIntensitySensor)
 add_test(NAME RgbLedTest COMMAND test_RgbLed)
 add_test(NAME RelayActuatorTest COMMAND test_RelayActuator)
@@ -511,7 +623,7 @@ add_test(NAME RfidSensorTest COMMAND test_RfidSensor)
 add_test(NAME BleConnectivityDriverTest COMMAND test_BleConnectivityDriver)
 add_test(NAME ModestLogTest COMMAND test_ModestLog)
 add_test(NAME MqttGatewayClientTest COMMAND test_MqttGatewayClient)
-add_test(NAME EngineConfigTest COMMAND test_EngineConfig)
+add_test(NAME EngineConfigurationTest COMMAND test_EngineConfiguration)
 add_test(NAME DiagnosticsSnapshotTest COMMAND test_DiagnosticsSnapshot)
 add_test(NAME SensorFaultTest COMMAND test_SensorFault)
 add_test(NAME SamplingSchedulerTest COMMAND test_SamplingScheduler)
@@ -540,9 +652,20 @@ add_test(NAME ButtonTest COMMAND test_Button)
 add_test(NAME PowerManagerTest COMMAND test_PowerManager)
 add_test(NAME TelemetryBufferTest COMMAND test_TelemetryBuffer)
 add_test(NAME OtaUpdateHandlerTest COMMAND test_OtaUpdateHandler)
+add_test(NAME LedTest COMMAND test_Led)
+add_test(NAME PassiveInfraredSensorTest COMMAND test_PassiveInfraredSensor)
+add_test(NAME PulseSensorTest COMMAND test_PulseSensor)
+add_test(NAME Hd44780DriverTest COMMAND test_Hd44780Driver)
+add_test(NAME Ssd1306DriverTest COMMAND test_Ssd1306Driver)
+add_test(NAME WiFiConnectivityDriverTest COMMAND test_WiFiConnectivityDriver)
+add_test(NAME BmeEnvironmentalSensorTest COMMAND test_BmeEnvironmentalSensor)
+add_test(NAME UltrasonicSensorTest COMMAND test_UltrasonicSensor)
+add_test(NAME LoadCellAmplifierTest COMMAND test_LoadCellAmplifier)
+add_test(NAME DeviceTest COMMAND test_Device)
+add_test(NAME GeolocationSensorTest COMMAND test_GeolocationSensor)
 
 add_custom_target(run_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS test_DigitalLightIntensitySensor test_RgbLed test_RelayActuator test_RfidSensor test_BleConnectivityDriver test_ModestLog test_MqttGatewayClient test_EngineConfig test_DiagnosticsSnapshot test_SensorFault test_SamplingScheduler test_TelemetryPackage test_TriggeringScheduler test_CommandMarshaling test_WaterFlowSensor test_SoilMoistureSensor test_PthSensor test_WaterLeakSensor test_DoorWindowSensor test_OneWireTemperatureSensor test_DhtSensor test_DeepSleep test_ServoMotor test_CharacterLcdDisplay test_OledDisplay test_EnvironmentalGasSensor test_BleGatewayClient test_HttpGatewayClient test_Buzzer test_ConfigurationStore test_TimeSynchronizationDriver test_GasSensor test_Button test_PowerManager test_TelemetryBuffer test_OtaUpdateHandler
+        DEPENDS test_DigitalLightIntensitySensor test_RgbLed test_RelayActuator test_RfidSensor test_BleConnectivityDriver test_ModestLog test_MqttGatewayClient test_EngineConfiguration test_DiagnosticsSnapshot test_SensorFault test_SamplingScheduler test_TelemetryPackage test_TriggeringScheduler test_CommandMarshaling test_WaterFlowSensor test_SoilMoistureSensor test_PthSensor test_WaterLeakSensor test_DoorWindowSensor test_OneWireTemperatureSensor test_DhtSensor test_DeepSleep test_ServoMotor test_CharacterLcdDisplay test_OledDisplay test_EnvironmentalGasSensor test_BleGatewayClient test_HttpGatewayClient test_Buzzer test_ConfigurationStore test_TimeSynchronizationDriver test_GasSensor test_Button test_PowerManager test_TelemetryBuffer test_OtaUpdateHandler test_Led test_PassiveInfraredSensor test_PulseSensor test_Hd44780Driver test_Ssd1306Driver test_WiFiConnectivityDriver test_BmeEnvironmentalSensor test_GeolocationSensor test_UltrasonicSensor test_LoadCellAmplifier test_Device
         COMMENT "Executing all native host test suites..."
 )
