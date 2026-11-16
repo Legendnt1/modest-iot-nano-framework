@@ -116,6 +116,12 @@ public:
      * @return A constant reference to the current LocationData.
      */
     [[nodiscard]] const LocationData& getLocationData() const { return cachedLocation; }
+
+    /**
+     * @brief Returns the GPIO pin assigned to UART transmission.
+     * @return GPIO TX pin number.
+     */
+    [[nodiscard]] int getTransmitGpioPin() const { return transmitGpioPin; }
 };
 
 #endif // GEOLOCATION_SENSOR_H
