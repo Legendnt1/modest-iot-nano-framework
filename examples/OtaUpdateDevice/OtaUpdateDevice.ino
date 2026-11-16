@@ -29,7 +29,7 @@
  * 4. Upload new firmware as usual — the IDE uses OTA automatically.
  *
  * @date 2026-11-15
- * @version 1.0
+ * @version 1.1
  */
 
 #include <Arduino.h>
@@ -55,15 +55,27 @@ static const char* OTA_PASSWORD = "ota-secret-2026";
 static const int DHT_SENSOR_PIN = 4;
 static const unsigned long TELEMETRY_POLLING_INTERVAL_IN_MILLISECONDS = 60000;
 static const uint8_t HARDWARE_TIMER_CHANNEL_INDEX = 0;
-static const int SAMPLER_QUEUE_LENGTH = 5;
 //@} // Sensor Configuration
 
-/** @name General Configuration */
+/** @name Timing Configuration */
 //@{
-static const unsigned long SERIAL_BAUD_RATE = 115200;
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 static const unsigned long CONNECTION_TIMEOUT_IN_MILLISECONDS = 15000;
-//@} // General Configuration
+//@} // Timing Configuration
+
+/** @name Framework Configuration */
+//@{
+static const int SAMPLER_QUEUE_LENGTH = 5;
+static const unsigned long SERIAL_BAUD_RATE = 115200;
+//@} // Framework Configuration
+
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all OtaUpdateDevice serial output. */
+static const char* OTA_UPDATE_DEVICE_LOG_PREFIX = "[OtaUpdateDevice]";
+/** @brief Buffer size for formatted sensor readings. */
+static const size_t SERIAL_OUTPUT_BUFFER_SIZE = 128;
+//@} // Serial Output Configuration
 
 /**
  * @brief OTA Update Device.
@@ -80,7 +92,7 @@ protected:
         // No gateway client in this example — telemetry is logged to Serial only.
         // In a real device, you would send the payload via MQTT or HTTP.
         if (rawQueueItemPayload != nullptr) {
-            Serial.println("[OtaUpdateDevice] Telemetry ready (logged locally only).");
+            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Telemetry ready (logged locally only).").c_str());
         }
     }
 
@@ -113,9 +125,10 @@ public:
      */
     void on(Event event) override {
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
-            char buffer[128];
+            char buffer[SERIAL_OUTPUT_BUFFER_SIZE];
             snprintf(buffer, sizeof(buffer),
-                     "[OtaUpdateDevice] Temp: %.1f°C, Humidity: %.1f%%",
+                     "%s Temp: %.1f°C, Humidity: %.1f%%",
+                     OTA_UPDATE_DEVICE_LOG_PREFIX,
                      dhtSensor.getTemperatureInCelsius(),
                      dhtSensor.getRelativeHumidityInPercentage());
             Serial.println(buffer);
@@ -123,6 +136,77 @@ public:
     }
 
     void handle(Command command) override {}
+
+    /**
+     * @brief Initializes OTA update handler with hostname, password,
+     * and all callback types (progress, error, start, end).
+     * @param hostname The device hostname for OTA discovery.
+     * @param password The password required for OTA authentication.
+     */
+    void configureOtaUpdate(const char* hostname, const char* password) {
+        OtaUpdateHandler::begin(hostname);
+        OtaUpdateHandler::setPassword(password);
+
+        OtaUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten,
+                                         uint32_t totalNumberOfBytes) {
+            float percent = static_cast<float>(progressInNumberOfBytesWritten)
+                           / static_cast<float>(totalNumberOfBytes) * 100.0f;
+            Serial.printf("%s OTA Progress: %.1f%%\r",
+                          OTA_UPDATE_DEVICE_LOG_PREFIX, percent);
+        });
+
+        OtaUpdateHandler::onError([](int errorCode) {
+            Serial.printf("%s OTA Error: %d\n",
+                          OTA_UPDATE_DEVICE_LOG_PREFIX, errorCode);
+        });
+
+        OtaUpdateHandler::onStart([]() {
+            Serial.println((String("\n") + OTA_UPDATE_DEVICE_LOG_PREFIX + " OTA Update started...").c_str());
+        });
+
+        OtaUpdateHandler::onEnd([]() {
+            Serial.println((String("\n") + OTA_UPDATE_DEVICE_LOG_PREFIX + " OTA Update ended.").c_str());
+        });
+
+        Serial.printf("%s OTA updates enabled on hostname: %s\n",
+                      OTA_UPDATE_DEVICE_LOG_PREFIX, hostname);
+        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " To update firmware, select this device from Arduino IDE > Tools > Port").c_str());
+    }
+
+    /**
+     * @brief Connects to Wi-Fi and initializes OTA updates.
+     * This method encapsulates all setup logic so the sketch's setup()
+     * is only responsible for instance creation.
+     * @param transport The Wi-Fi connectivity driver for network access.
+     * @param hostname The device hostname for OTA discovery.
+     * @param password The password required for OTA authentication.
+     * @param connectionTimeoutInMilliseconds Maximum time to wait for Wi-Fi connection.
+     * @return True if all initialization steps succeeded.
+     */
+    bool start(WiFiConnectivityDriver& transport,
+                const char* hostname,
+                const char* password,
+                unsigned long connectionTimeoutInMilliseconds)
+    {
+        // Set firmware version for fleet management in telemetry
+        Device::setFirmwareVersion("MOD-OTA-01 FW 1.0.0");
+
+        // Connect to Wi-Fi with timeout
+        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Connecting to Wi-Fi...").c_str());
+        if (!transport.waitForConnection(connectionTimeoutInMilliseconds)) {
+            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Wi-Fi connection timed out").c_str());
+            return false;
+        }
+
+        Serial.printf("%s Connected! IP: %s\n",
+                      OTA_UPDATE_DEVICE_LOG_PREFIX,
+                      transport.getLocalIpAddress().toString().c_str());
+
+        // Configure OTA updates
+        configureOtaUpdate(hostname, password);
+
+        return true;
+    }
 };
 
 /** @name Top-Level Declarative Canvas */
@@ -134,56 +218,19 @@ static OtaUpdateDevice* otaDeviceApplication = nullptr;
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
 
-    // Set firmware version for fleet management in telemetry
-    Device::setFirmwareVersion("MOD-OTA-01 FW 1.0.0");
-
-    // Connect to Wi-Fi
-    Serial.println("[OtaUpdateDevice] Connecting to Wi-Fi...");
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);
 
-    if (!transportDriver->waitForConnection(CONNECTION_TIMEOUT_IN_MILLISECONDS)) {
-        Serial.println("[OtaUpdateDevice] Wi-Fi connection timed out");
-        return;
-    }
-
-    Serial.printf("[OtaUpdateDevice] Connected! IP: %s\n",
-                  transportDriver->getLocalIpAddress().toString().c_str());
-
-    // Configure OTA updates
-    OtaUpdateHandler::begin(OTA_HOSTNAME);
-    OtaUpdateHandler::setPassword(OTA_PASSWORD);
-
-    // Track OTA update progress
-    OtaUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten, uint32_t totalNumberOfBytes) {
-        float percent = static_cast<float>(progressInNumberOfBytesWritten)
-                       / static_cast<float>(totalNumberOfBytes) * 100.0f;
-        Serial.printf("[OtaUpdateDevice] OTA Progress: %.1f%%\r", percent);
-    });
-
-    // Handle OTA update errors
-    OtaUpdateHandler::onError([](int errorCode) {
-        Serial.printf("[OtaUpdateDevice] OTA Error: %d\n", errorCode);
-    });
-
-    // Log OTA update start
-    OtaUpdateHandler::onStart([]() {
-        Serial.println("\n[OtaUpdateDevice] OTA Update started...");
-    });
-
-    // Log OTA update end
-    OtaUpdateHandler::onEnd([]() {
-        Serial.println("\n[OtaUpdateDevice] OTA Update ended.");
-    });
-
-    Serial.printf("[OtaUpdateDevice] OTA updates enabled on hostname: %s\n", OTA_HOSTNAME);
-    Serial.println("[OtaUpdateDevice] To update firmware, select this device from Arduino IDE > Tools > Port");
-
-    // Create the device
     otaDeviceApplication = new OtaUpdateDevice(
         DHT_SENSOR_PIN,
         TELEMETRY_POLLING_INTERVAL_IN_MILLISECONDS,
         HARDWARE_TIMER_CHANNEL_INDEX
     );
+
+    if (!otaDeviceApplication->start(*transportDriver, OTA_HOSTNAME, OTA_PASSWORD,
+                                     CONNECTION_TIMEOUT_IN_MILLISECONDS)) {
+        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Device startup failed.").c_str());
+        return;
+    }
 }
 
 void loop() {
