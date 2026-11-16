@@ -25,6 +25,44 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 #### CI Workflows
 - All three workflows (host-tests, compile-examples, lint) now trigger on `feature/*` branches for early error detection on feature branches.
 
+#### Testing — 11 New Test Suites (36 → 47 total)
+- **Led test**: Digital LED on/off/toggle commands, state tracking, parent propagation
+- **PassiveInfraredSensor test**: PIR motion detection, motion started/stopped events, propagation suppression
+- **PulseSensor test**: Heart rate detection from analog signal, moving average filter, threshold events
+- **Hd44780Driver test**: HD44780 4-bit I²C protocol, initialization sequence, command/data writes
+- **Ssd1306Driver test**: SSD1306 I²C protocol, display initialization, frame buffer commands
+- **WiFiConnectivityDriver test**: Wi-Fi STA connection, reconnection retry, status enumeration, signal strength
+- **BmeEnvironmentalSensor test**: Bosch BME280/BME680 compensation formulas, calibration data parsing, shared base class
+- **UltrasonicSensor test**: HC-SR04 distance measurement, trigger/echo timing, change detection
+- **LoadCellAmplifier test**: HX711 load cell amplifier, weight calculation, tare, power down/up cycle
+- **GeolocationSensor test**: GPS NMEA parsing, GGA/RMC sentences, coordinate conversion, location change detection
+- **Device test**: Device base class, engine initialization, scheduler integration, telemetry pipeline
+- Added `HardwareSerial` fake class to `tests/fakes/Arduino.h` with `feed()`, `clear()`, `read()`, `available()`, and `peek()` methods for serial sensor testing
+- Added `SERIAL_8N1` constant to `tests/fakes/Arduino.h` for GPS serial configuration
+- Created `tests/fakes/HardwareSerial.h` stub for `GeolocationSensor.h` include compatibility
+
+### Fixed
+
+- **GeolocationSensor**: Restored `transmitGpioPin` field and `getTransmitGpioPin()` getter that identify the UART TX GPIO pin for event source identification; previously removed due to `-Wunused-private-field` warning
+- **EngineConfig test directory**: Renamed from `tests/EngineConfig/` to `tests/EngineConfiguration/` to match the actual struct name `EngineConfiguration`
+- **LoadCellAmplifier test**: Fixed infinite loop in power down/up test by setting `fakeDigitalReadValue = LOW` before `tare()` call to simulate HX711 data-ready state
+- **CMakeLists.txt**: Added `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, `CMAKE_ARCHIVE_OUTPUT_DIRECTORY`, and `CMAKE_LIBRARY_OUTPUT_DIRECTORY` settings to organize build artifacts within the build folder structure
+- **CMakeLists.txt**: Updated stale references from `test_EngineConfig` to `test_EngineConfiguration` (target name, source path, `add_test` name, `run_tests` DEPENDS list)
+- **tests/run_all.sh**: Added missing test suites (PowerManager, TelemetryBuffer, OtaUpdateHandler, GeolocationSensor) that existed as test directories and CMake targets but were never executed by the runner
+
+### Project Structure
+
+- **Build folder consolidation**: Consolidated all build artifacts under single `build/` directory with subdirectories (`build/arduino/`, `build/test/`) instead of separate `cmake-build-*` directories at root level
+- **.gitignore cleanup**: Removed redundant `/cmake-build-debug/`, `/cmake-build-arduino/`, `/cmake-build-test/` lines; kept single `/build/` entry covering all build output
+- **Logo optimization**: Resized `assets/branding/logo.png` from 756×707 (589 KB) to 214×200 (64 KB), rendered at 100px height in README per Yegor256 "Elegant READMEs" guideline — logo is a subtle branding accent, not the dominant visual
+- **README.md**: Updated logo `<img>` tag from `width="400" height="374"` to `height="100"` only, letting browser scale width proportionally
+
+### Documentation
+
+- Updated test count from 36 to 47 in README.md, docs/improvements.md, docs/user-stories.md, and docs/vision.md
+- Added all 11 new test suite entries to README.md Testing table
+- Verified 51 source headers and 23 examples counts are consistent across all documentation
+
 ## [1.1.0] - 2026-11-15
 
 ### Added
