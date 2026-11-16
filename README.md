@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/branding/logo.png" alt="Modest IoT Nano Framework logo" height="100" />
+</p>
+
 # Modest IoT Nano Framework (C++ Edition)
 
 [![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
