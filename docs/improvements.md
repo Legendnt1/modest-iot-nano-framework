@@ -158,6 +158,6 @@ Run the same three reference applications on the same ESP32 board, once per vari
 - Use the same three reference applications defined in "How to validate the comparison" above.
 - Record all metrics from the validation table (jitter, latency, stack use, heap, Flash, current draw, etc.).
 
-**Target**: Complete after v1.1.0 release when hardware testing infrastructure is available.
+**Target**: Complete after v1.1.1 release when hardware testing infrastructure is available.
 
 **Status**: Not started.
