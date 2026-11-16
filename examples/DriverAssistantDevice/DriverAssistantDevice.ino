@@ -161,6 +161,7 @@ static DriverAssistantDevice* driverAssistantApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("DAD-400 FW 1.0.0");
     driverAssistantApplication = new DriverAssistantDevice(
         Serial2,
         GPS_RX_PIN, GPS_TX_PIN,
