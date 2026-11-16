@@ -643,7 +643,6 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.1.0**: Released — Telemetry buffering, firmware version, power manager, OTA updates. Telemetry packet pool (W18) deferred.
 - **v1.2.0**: Event aggregation for composite sensor rules.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
