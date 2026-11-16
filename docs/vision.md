@@ -21,7 +21,7 @@ Together, they form a complete IoT stack: Nano handles deterministic sensor poll
 
 ### Current Status
 
-**v1.0.0 Released; v1.1.0 Released** (as of 2026-11-15):
+**v1.0.0 Released; v1.1.0 Released; v1.1.1 Released** (as of 2026-11-15):
 
 | Tier                                    | Items   | Status          |
 |-----------------------------------------|---------|-----------------|
@@ -1050,7 +1050,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | Metric                  | Target                                 |
 |-------------------------|----------------------------------------|
 | **Compilation success** | 100% across ESP32 variants             |
-| **Test coverage**       | 100% pass rate, 36 test suites         |
+| **Test coverage**       | 100% pass rate, 47 test suites         |
 | **Flash footprint**     | <30 KB overhead                        |
 | **RAM footprint**       | <2 KB overhead                         |
 | **Example count**       | 23 diverse examples                    |
