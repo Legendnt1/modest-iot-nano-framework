@@ -2,9 +2,9 @@ name: Compile Examples
 
 on:
   push:
-    branches: [ main, develop, "release/*" ]
+    branches: [ main, develop, "release/*", "feature/*" ]
   pull_request:
-    branches: [ main, develop, "release/*" ]
+    branches: [ main, develop, "release/*", "feature/*" ]
 
 jobs:
   compile-examples:
