@@ -188,6 +188,7 @@ static AirConditioningDevice* airConditioningController = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("AC-500 FW 1.0.0");
 
     // Boot complete application context framework dynamically
     airConditioningController = new AirConditioningDevice(
