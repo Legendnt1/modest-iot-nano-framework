@@ -11,6 +11,20 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **ClimateDataUploader**: Added `BearerTokenParser` utility class for isolated token extraction, improved error handling in `start()` method with TelemetryBuffer initialization check and gateway client cleanup on token failure.
 - **All examples**: Added `Device::setFirmwareVersion()` with realistic manufacturer-style model numbers and log prefix constants for consistent serial output across all 23 examples.
 
+### Added
+
+#### Community Standards
+- **ACCESSIBILITY.md**: Accessibility statement, reporting guidance, and known limitations following W3C and Open Source Guides best practices.
+- **CODE_OF_CONDUCT.md**: Contributor Covenant Code of Conduct v2.0 with GitHub issue-based enforcement.
+- **SECURITY.md**: Security policy and vulnerability reporting process with realistic response times for a solo-maintained project.
+- **.github/ISSUE_TEMPLATE/**: Standardized issue templates — bug report, feature request, and accessibility report.
+- **.github/pull-request-template.md**: Standardized PR template with pre-submission checklist from CONTRIBUTING.md.
+- **CONTRIBUTING.md**: Updated Code of Conduct link to local `CODE_OF_CONDUCT.md` file.
+- **README.md**: Added Project Standards section linking to all community standards files.
+
+#### CI Workflows
+- All three workflows (host-tests, compile-examples, lint) now trigger on `feature/*` branches for early error detection on feature branches.
+
 ## [1.1.0] - 2026-11-15
 
 ### Added
