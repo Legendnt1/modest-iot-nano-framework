@@ -81,6 +81,7 @@ static WaterFlowMonitor* waterFlowApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("WFM-211 FW 1.0.0");
     waterFlowApplication = new WaterFlowMonitor(WATER_FLOW_SIGNAL_PIN);
     Serial.println(SYSTEM_BOOT_MESSAGE);
 }
