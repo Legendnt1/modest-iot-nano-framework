@@ -139,6 +139,7 @@ public:
 static OutdoorSecurityLightController* outdoorSecurityApplication = nullptr;
 
 void setup() {
+    Device::setFirmwareVersion("OSL-101 FW 1.0.0");
     outdoorSecurityApplication = new OutdoorSecurityLightController();
 }
 
