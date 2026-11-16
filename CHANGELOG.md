@@ -2,7 +2,7 @@
 
 All notable changes to the Modest IoT Nano Framework will be documented in this file.
 
-## [Unreleased]
+## [1.1.1] - 2026-11-16
 
 ### Changed
 
