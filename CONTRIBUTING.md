@@ -17,7 +17,7 @@ Thank you for your interest in contributing to the Modest IoT Nano Framework! Th
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct/). By participating, you are expected to uphold this code.
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
 
 ## Getting Started
 
@@ -254,7 +254,7 @@ All contributions are made via pull requests on GitHub. Follow the [Git Flow Bra
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
 
-```
+```plaintext
 type(scope): description
 
 Optional body with more details.
@@ -270,7 +270,7 @@ Types:
 - `BREAKING CHANGE`: Incompatible API change (triggers MAJOR version bump)
 
 Examples:
-```
+```plaintext
 feat(sensor): add BME680 VOC sensor support
 fix(device): resolve race condition in command queue
 docs(readme): update installation instructions
