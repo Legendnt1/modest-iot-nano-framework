@@ -421,7 +421,7 @@ The framework ships with 23 example sketches demonstrating various use cases:
 
 ## Testing
 
-The framework includes 36 host unit test suites that run natively without hardware:
+The framework includes 47 host unit test suites that run natively without hardware:
 
 | Suite | What It Tests |
 |---|---|
@@ -461,6 +461,17 @@ The framework includes 36 host unit test suites that run natively without hardwa
 | `tests/PowerManager/` | Battery voltage sensing, level calculation, low-battery threshold, custom ranges |
 | `tests/TelemetryBuffer/` | LittleFS persistence, FIFO store/retrieve, eviction callback, monotonic indices |
 | `tests/OtaUpdateHandler/` | OTA status tracking, all callback type aliases, hostname, re-initialization safety |
+| `tests/Led/` | Digital LED on/off/toggle commands, state tracking, parent propagation |
+| `tests/PassiveInfraredSensor/` | PIR motion detection, motion started/stopped events, propagation suppression |
+| `tests/PulseSensor/` | Heart rate detection from analog signal, moving average filter, threshold events |
+| `tests/Hd44780Driver/` | HD44780 4-bit I²C protocol, initialization sequence, command/data writes |
+| `tests/Ssd1306Driver/` | SSD1306 I²C protocol, display initialization, frame buffer commands |
+| `tests/WiFiConnectivityDriver/` | Wi-Fi STA connection, reconnection retry, status enumeration, signal strength |
+| `tests/BmeEnvironmentalSensor/` | Bosch BME280/BME680 compensation formulas, calibration data parsing, shared base class |
+| `tests/UltrasonicSensor/` | HC-SR04 distance measurement, trigger/echo timing, change detection |
+| `tests/LoadCellAmplifier/` | HX711 load cell amplifier, weight calculation, tare, power down/up cycle |
+| `tests/GeolocationSensor/` | GPS NMEA parsing, GGA/RMC sentences, coordinate conversion, location change detection |
+| `tests/Device/` | Device base class, engine initialization, scheduler integration, telemetry pipeline |
 
 Run all tests locally:
 
