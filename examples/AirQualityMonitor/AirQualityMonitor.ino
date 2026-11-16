@@ -321,13 +321,20 @@ static WiFiConnectivityDriver* transportDriver = nullptr;
 static MqttGatewayClient* gatewayClient = nullptr;
 static AirQualityMonitorDevice* airQualityApplication = nullptr;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all AirQualityMonitor serial output. */
+static const char* AIR_QUALITY_MONITOR_LOG_PREFIX = "[AirQualityMonitor]";
+//@} // Serial Output Configuration
+
 /**
  * @brief Initializes the device, sensors, connectivity, and MQTT gateway.
  */
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("AQM-200 FW 1.0.0");
     while (!Serial && millis() < SERIAL_TIMEOUT_IN_MILLISECONDS) { /* wait for serial port to connect */ }
-    Serial.println("\n[AirQualityMonitor] Starting up...");
+    Serial.println((String(AIR_QUALITY_MONITOR_LOG_PREFIX) + " Starting up...").c_str());
 
     // 1. Initialize Connectivity
     transportDriver = new WiFiConnectivityDriver(WIFI_SSID, WIFI_PASSWORD);
@@ -360,7 +367,7 @@ void setup() {
     airQualityApplication->startGasSensorCalibration();
     airQualityApplication->setGasSensorTargetGas(GasSensor::GasType::LPG); // Example: Target LPG for PPM calculation
 
-    Serial.println("[AirQualityMonitor] Setup complete. Monitoring started.");
+    Serial.println((String(AIR_QUALITY_MONITOR_LOG_PREFIX) + " Setup complete. Monitoring started.").c_str());
 }
 
 /**
