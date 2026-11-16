@@ -482,6 +482,15 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 51 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 
+### Project Standards
+
+| Artifact | Description |
+|---|---|
+| [`ACCESSIBILITY.md`](ACCESSIBILITY.md) | Accessibility statement, reporting guidance, and known limitations. |
+| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Contributor Covenant Code of Conduct. |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution guidelines, Git Flow workflow, and coding standards. |
+| [`SECURITY.md`](SECURITY.md) | Security policy and vulnerability reporting process. |
+
 ### API and Code-Level Reference (`src/`)
 
 The source files in `src/` include Doxygen comments in both headers and implementation files. To generate browsable API docs locally:
