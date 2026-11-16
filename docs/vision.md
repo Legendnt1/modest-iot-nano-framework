@@ -1,6 +1,6 @@
 # Modest IoT Dual-Framework Vision
 
-**Version**: 1.1.0 (released)
+**Version**: 1.1.1 (released)
 **Author**: Angel Velasquez  
 **Date**: 2026-11-15
 
@@ -183,7 +183,7 @@ Production-ready features across all three transport options:
 2. **W26: Power manager** — **Complete** ✓: `PowerManager` with battery voltage sensing, level calculation, low-battery threshold, 18 host tests.
 3. **W27: Firmware version** — **Complete** ✓: Optional `schemaVersion` and `firmwareVersion` in telemetry envelope, 5 new tests.
 4. **W28: OTA update support** — **Complete** ✓: `OtaUpdateHandler` with hostname, password, progress/error/start/end callbacks, 21 host tests.
-5. **Release to `main`** — In progress: `release/v1.1.0` branch ready for merge into `main` and `develop`.
+5. **Release to `main`** — **Complete** ✓: v1.1.0 released.
 
 ### Component Expansion Strategy
 
@@ -1088,12 +1088,12 @@ The Modest IoT dual-framework vision provides a complete, local-first IoT stack:
 - **Together** they form a scalable, offline-resilient, AI-ready IoT platform.
 - **DDD-guided design** ensures consistent terminology, clear context boundaries, and appropriate patterns for each framework (see ADR-023).
 
-The Nano Framework is **released as v1.0.0** and approved by the Arduino Library Manager. v1.1.0 features (W25–W28) are **released as v1.1.0**. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap.
+The Nano Framework is **released as v1.0.0** and approved by the Arduino Library Manager. v1.1.0 features (W25–W28) are **released as v1.1.0**, followed by v1.1.1 with example improvements and community standards. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap.
 
 **Next steps**:
 1. Nano Framework v1.0.0 is released and approved by Arduino Library Manager.
 2. v1.1.0 features (W25–W28) are released: TelemetryBuffer, PowerManager, firmware version in telemetry, OtaUpdateHandler.
-3. Tag `v1.1.0` on `main` and update the Arduino Library Manager.
+3. v1.1.1 released with example improvements and community standards.
 4. Start Edge Framework Phase 1 development.
 5. Integrate Nano and Edge with MQTT protocol and shared telemetry schema.
 
