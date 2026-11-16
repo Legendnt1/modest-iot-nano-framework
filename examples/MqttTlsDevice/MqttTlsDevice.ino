@@ -141,6 +141,12 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @name Serial Output Configuration */
+//@{
+/** @brief Log prefix for all MqttTlsDevice serial output. */
+static const char* MQTT_TLS_DEVICE_LOG_PREFIX = "[MqttTlsDevice]";
+//@} // Serial Output Configuration
+
 static WiFiConnectivityDriver* transportDriver = nullptr;
 static WiFiClientSecure* secureSocket          = nullptr;
 static MqttGatewayClient* gatewayClient        = nullptr;
@@ -148,6 +154,7 @@ static MqttTlsDevice* tlsApplication           = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion("MTL-900 FW 1.0.0");
 
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);
 
@@ -189,7 +196,7 @@ void setup() {
         HARDWARE_TIMER_CHANNEL_INDEX
     );
 
-    Serial.println("[MqttTlsDevice] TLS-encrypted MQTT environmental monitor online.");
+    Serial.println((String(MQTT_TLS_DEVICE_LOG_PREFIX) + " TLS-encrypted MQTT environmental monitor online.").c_str());
 }
 
 void loop() {
