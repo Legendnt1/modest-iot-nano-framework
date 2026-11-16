@@ -24,7 +24,7 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 - **Object-Oriented**: Built with C++ classes, inheritance, and encapsulation for maintainable code.
 - **Event-Driven**: Uses an `Event`/`EventHandler` system for asynchronous, reactive behavior.
 - **CQRS-Inspired**: Separates `Command` (control) and `Event` (notification) pathways.
-- **Asynchronous Engine**: Two FreeRTOS tasks (sampler and network worker) with configurable stack sizes, priorities, and core pinning via `EngineConfig`.
+- **Asynchronous Engine**: Two FreeRTOS tasks (sampler and network worker) with configurable stack sizes, priorities, and core pinning via `EngineConfiguration`.
 - **Per-Slot Scheduling**: `SamplingScheduler` supports independent polling intervals per sensor, independent of slot count.
 - **Zero-Cost Logging**: `MODEST_LOG_*` macros with compile-time level filtering; `MIOT_LOG_*` shorthand aliases available.
 - **Runtime Diagnostics**: `DiagnosticsSnapshot` with 12 fields: stack high-water marks, heap stats, queue counters, send statistics, and uptime.
