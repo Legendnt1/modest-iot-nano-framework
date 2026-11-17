@@ -3,6 +3,8 @@
 Comparison tables and future work for the Modest IoT Nano Framework.
 
 > **Disclaimer**: This roadmap reflects current priorities and may change based on community feedback and technical discoveries.
+>
+> **Internal planning**: A full internal planning document with detailed prioritization, cost/impact analysis, interdependency graphs, and implementation paths is maintained separately for framework maintainers.
 
 ## Document Map
 
