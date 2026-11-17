@@ -489,11 +489,13 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 
 | Artifact | Description |
 |---|---|
+| [`docs/quick-start.md`](docs/quick-start.md) | Step-by-step guide to go from zero to a working device in under 10 minutes. |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common issues and solutions: serial output, board detection, Wi-Fi, BLE, MQTT, memory, and sensors. |
+| [`docs/migration.md`](docs/migration.md) | How to convert traditional `loop()` sketches to the framework's event-driven pattern with before/after examples. |
 | [`docs/adrs.md`](docs/adrs.md) | 30 Architecture Decision Records with rationale, trade-offs, and consequences. |
 | [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
 | [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
 | [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
-| [`docs/vision.md`](docs/vision.md) | Dual-framework vision (Nano + Edge), strategic roadmap, and development timeline. |
 | [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 51 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 
@@ -643,8 +645,11 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.2.0**: Event aggregation for composite sensor rules.
+- **v1.2.0**: Event aggregation for composite sensor rules (W29).
+- **PlatformIO Registry**: Manual submission for professional IoT developer discoverability.
+- **Benchmark Publication**: Hardware-measured performance comparison table.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
+- **Edge Framework Phase 2.5**: Matter Bridge to expose Nano devices via Matter ecosystem.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
 
 ## Contact

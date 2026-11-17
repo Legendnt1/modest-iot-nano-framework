@@ -2,6 +2,31 @@
 
 All notable changes to the Modest IoT Nano Framework will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+#### PlatformIO Support
+- **library.json**: PlatformIO Registry manifest for `lib_deps` installation. Includes name, version, dependencies (ArduinoJson >=7.0.0, MQTT >=2.5.3), frameworks (`arduino`), platforms (`espressif32`), keywords, author, license, and repository URL. Enables dual registry support alongside Arduino Library Manager.
+
+#### Documentation
+- **docs/quick-start.md**: Step-by-step onboarding guide with two parallel routes — Simulation (Wokwi, no hardware required) and Hardware (ESP32 board with three toolchain paths: Arduino IDE, VS Code with PlatformIO, CLion with ESP BSP). Covers prerequisites, installation, first project with StatusIndicator example, wiring, upload, and serial output verification.
+- **docs/troubleshooting.md**: Comprehensive troubleshooting reference covering 10 issue categories: serial output, board detection, upload failures, Wi-Fi, BLE, MQTT, memory (stack/heap), sensors, scheduler, and telemetry queue. Each section uses symptom-cause-solution format with diagnostic code examples.
+- **docs/migration.md**: Step-by-step migration guide with 5 patterns: `delay()` → events, `millis()` → scheduler, blocking sensors → non-blocking, globals → Device mediator, and monolithic `loop()` → separated concerns. Each pattern includes before/after code examples and a migration checklist.
+
+### Changed
+
+#### Documentation Structure
+- **docs/improvements.md**: Pruned from internal planning document to adopter-facing summary (~210 lines). Removed interdependency graph, detailed implementation paths, and priority tables. Kept comparison tables, themed improvement summaries, and "deliberately out of scope" section.
+- **docs/evolution.md**: Minor pruning of outdated content — removed W2 dependency inventory table and replaced W18 deferred code snippets with "superseded by W46" cross-reference.
+- **docs/vision.md**: Moved to private storage (`.junie/private/`) to protect speculative Edge Framework details and timeline commitments from becoming public liabilities.
+- **README.md**: Added Quick Start, Troubleshooting Guide, and Migration Guide rows to the Documentation table. Removed `docs/vision.md` reference.
+
+### Technical Stories
+
+- **TS20: Install from IoT Registry Providers** — Implemented. Framework is now installable via Arduino Library Manager (existing `library.properties`) and PlatformIO Registry (new `library.json`). Both manifests are consistent in name, version, and dependencies.
+- **TS21: Follow Quick Start Guide** — Implemented. `docs/quick-start.md` provides two complete routes from zero to a working device in under 10 minutes, covering both simulation and hardware paths.
+
 ## [1.1.1] - 2026-11-16
 
 ### Changed

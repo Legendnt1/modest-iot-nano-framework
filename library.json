@@ -1,0 +1,38 @@
+{
+  "name": "Modest-IoT-Nano-Framework",
+  "version": "1.1.2",
+  "description": "An event-driven, asynchronous IoT framework for ESP32, built on a robust object-oriented architecture with Inversion of Control (IoC) and strict communication layer separation. Leverages thread-safe background task messaging queues driven natively by hardware timers for sophisticated, modular, and highly responsive IoT devices.",
+  "keywords": "iot, esp32, freertos, event-driven, sensor, actuator, mqtt, ble",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/modest-iot/modest-iot-nano-framework.git"
+  },
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "authors": [
+    {
+      "name": "Angel Velasquez",
+      "email": "avelasquezn@gmail.com",
+      "maintainer": true
+    }
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ArduinoJson": ">=7.0.0",
+    "MQTT": ">=2.5.3"
+  },
+  "export": {
+    "include": [
+      "src/**",
+      "examples/**",
+      "CMakeLists.txt",
+      "library.properties",
+      "library.json",
+      "keywords.txt",
+      "LICENSE.md",
+      "README.md",
+      "docs/**"
+    ]
+  },
+  "headers": "ModestIoT.h"
+}
