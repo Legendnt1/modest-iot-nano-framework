@@ -489,6 +489,7 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 
 | Artifact | Description |
 |---|---|
+| [`docs/quick-start.md`](docs/quick-start.md) | Step-by-step guide to go from zero to a working device in under 10 minutes. |
 | [`docs/adrs.md`](docs/adrs.md) | 30 Architecture Decision Records with rationale, trade-offs, and consequences. |
 | [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
 | [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
