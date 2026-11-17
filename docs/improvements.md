@@ -11,6 +11,8 @@ Comparison tables and future work for the Modest IoT Nano Framework.
 | Information | Document |
 |-------------|----------|
 | Quick start guide | [quick-start.md](quick-start.md) |
+| Troubleshooting guide | [troubleshooting.md](troubleshooting.md) |
+| Migration guide | [migration.md](migration.md) |
 | Quick start & components | [README.md](../README.md) |
 | Version history | [CHANGELOG.md](../CHANGELOG.md) |
 | Architecture decisions | [adrs.md](adrs.md) |
@@ -88,11 +90,11 @@ ESP-NOW or MQTT-based device-to-device messaging for relay nodes and distributed
 
 - **PlatformIO Registry** (✓ v1.1.2): `library.json` manifest created for PlatformIO Registry compatibility. The framework is installable via `lib_deps` in `platformio.ini`.
 - **Quick Start Guide** (✓ v1.1.2): Step-by-step onboarding from installation to first device. See [quick-start.md](quick-start.md).
-- **Troubleshooting Guide**: Common issues and solutions.
-- **Migration Guide**: Converting traditional `loop()` code to Modest IoT patterns.
+- **Troubleshooting Guide** (✓ v1.1.2): Common issues and solutions covering serial output, board detection, upload failures, Wi-Fi, BLE, MQTT, memory, sensors, and scheduler. See [troubleshooting.md](troubleshooting.md).
+- **Migration Guide** (✓ v1.1.2): Converting traditional `loop()` code to Modest IoT patterns with before/after examples. See [migration.md](migration.md).
 - **Example Template Generator**: CLI tool to generate skeleton device projects.
 
-**Target**: v1.2.0+ (PlatformIO and Quick Start complete in v1.1.2)
+**Target**: v1.2.0+ (PlatformIO, Quick Start, Troubleshooting, and Migration complete in v1.1.2)
 
 ### Sensor/Actuator Expansion
 
