@@ -6,10 +6,10 @@
 
 [![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
 
-**Version**: 1.1.1  
+**Version**: 1.1.2  
 **Author**: Angel Velasquez  
 **Date created**: 2025-03-23  
-**Last updated**: 2026-11-16
+**Last updated**: 2026-11-17
 
 > **Git Flow**: This project uses Git Flow. `main` holds release versions (tagged `v1.0.0`, etc.), `develop` is the integration branch, and feature branches (e.g., `feature/W27-firmware-version`) merge into `develop`.
 
