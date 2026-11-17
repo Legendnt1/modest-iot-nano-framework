@@ -643,8 +643,11 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.2.0**: Event aggregation for composite sensor rules.
+- **v1.2.0**: Event aggregation for composite sensor rules (W29).
+- **PlatformIO Registry**: Manual submission for professional IoT developer discoverability.
+- **Benchmark Publication**: Hardware-measured performance comparison table.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
+- **Edge Framework Phase 2.5**: Matter Bridge to expose Nano devices via Matter ecosystem.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.
 
 ## Contact
