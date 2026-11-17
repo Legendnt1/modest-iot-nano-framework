@@ -139,13 +139,13 @@ Expand the component library (currently 21 sensors, 9 actuators) with additional
 
 ## Comparison with traditional development
 
-Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.1 (current release), and Modest IoT v1.2.0 (planned).
+Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.2 (current release), and Modest IoT v1.2.0 (planned).
 
 > **Note**: Comparison tables are replaced with each release — past comparisons are not archived. When v1.2.0 ships, this table is updated to compare v1.2.0 vs v1.3.0.
 
 ### Developer experience
 
-| Aspect          | Traditional `loop()`                         | Modest IoT v1.1.1 (current)                                                 | Modest IoT v1.2.0 (planned)                                 |
+| Aspect          | Traditional `loop()`                         | Modest IoT v1.1.2 (current)                                                 | Modest IoT v1.2.0 (planned)                                 |
 |-----------------|----------------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------|
 | First build     | Works with the board package                 | All 23 examples compile in CI; 2 dependencies                                 | Same                                                                |
 | Structure       | One growing `loop()` with `millis()` flags   | Sensors emit events, a `Device` mediates, actuators take commands             | Same, with event aggregation for composite patterns (W29)    |
@@ -164,7 +164,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.1 (cu
 
 ### Performance
 
-| Aspect                     | Traditional `loop()`              | Modest IoT v1.1.1 (current)                             | Modest IoT v1.2.0 (planned)                              |
+| Aspect                     | Traditional `loop()`              | Modest IoT v1.1.2 (current)                             | Modest IoT v1.2.0 (planned)                              |
 |----------------------------|-----------------------------------|-----------------------------------------------------------|--------------------------------------------------------------------|
 | Timing model               | Cooperative polling; jitter grows | Timer ISR plus sampler task; per-slot periods; interrupt-driven sensors | Same, with event aggregation for composite patterns (W29) |
 | Sample period accuracy     | Depends on `loop()` duration      | Per-slot periods independent of slot count                | Same |
@@ -179,7 +179,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.1 (cu
 
 ### Resource consumption
 
-| Resource                 | Traditional `loop()` | Modest IoT v1.1.1 (current)                                                               | Modest IoT v1.2.0 (planned)                           |
+| Resource                 | Traditional `loop()` | Modest IoT v1.1.2 (current)                                                               | Modest IoT v1.2.0 (planned)                           |
 |--------------------------|----------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------|
 | Task stacks              | `loop()` task only   | 4096 B sampler + 8192 B network, configurable via `EngineConfiguration`; `PowerManager` adds minimal stack for sleep handling | Same defaults                                             |
 | Queue and packets        | None                 | Queue of pointers + one heap packet per reading; bounded by queue policy; `TelemetryBuffer` adds LittleFS storage for offline replay | Same, with event aggregation for composite patterns (W29) |
@@ -195,7 +195,7 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.1 (cu
 
 ## How to validate the comparison
 
-Run the same three reference applications on the same ESP32 board, once per variant (plain `loop()`, Modest IoT v1.1.0, Modest IoT v1.2.0):
+Run the same three reference applications on the same ESP32 board, once per variant (plain `loop()`, Modest IoT v1.1.2, Modest IoT v1.2.0):
 
 1. **Multi-sensor monitor:** DHT, BH1750 and a button, with a display and Wi-Fi/MQTT telemetry.
 2. **Blocking-sensor stress:** the monitor plus an HX711 and an ultrasonic sensor.
