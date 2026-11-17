@@ -289,6 +289,7 @@ The Edge Framework runs on Raspberry Pi (or similar always-on edge servers) and 
 - **Local intelligence**: Run ML models, rule engines, and anomaly detection on edge.
 - **Device management**: OTA updates, configuration management, health monitoring.
 - **Dashboard**: Local web interface for monitoring and control.
+- **Matter Bridge**: Expose Nano devices as Matter-compatible endpoints for Home Assistant, Apple Home, Google Home integration (Phase 2.5).
 
 ### Architecture
 
@@ -298,10 +299,12 @@ The Edge Framework follows **Domain-Driven Design (DDD)** principles with explic
 - **Nano Device Context**: ESP32 microcontroller. Aggregate: `Device`. Communicates via MQTT/BLE.
 - **Edge Gateway Context**: Raspberry Pi. Aggregates: `DeviceProfile`, `Rule`. Manages devices and automation.
 - **External Clients Context**: Dashboard, cloud relay, third-party integrations. Accesses Edge via REST API (Anti-Corruption Layer).
+- **Matter Context (new)**: Matter ecosystem (Home Assistant, Apple Home, etc.). Accesses Edge via Matter SDK (Anti-Corruption Layer).
 
 **Context Relationships**:
 - **Nano ↔ Edge**: Published Language — MQTT topics and BLE NUS define the stable contract.
 - **Edge → External**: Anti-Corruption Layer — REST API isolates internal models from external clients.
+- **Edge ↔ Matter**: Anti-Corruption Layer — Matter Bridge Service isolates Matter SDK from Edge domain model.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -326,19 +329,25 @@ The Edge Framework follows **Domain-Driven Design (DDD)** principles with explic
 │  │  │ ML Inference │  │ Cloud Relay  │  │ OTA Manager  │  │  │
 │  │  │ (Domain Svc) │  │ (Domain Svc) │  │ (Domain Svc) │  │  │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘  │  │
+│  │                                                        │  │
+│  │  ┌──────────────────────────────────────────────────┐  │  │
+│  │  │ Matter Bridge (Domain Svc)                       │  │  │
+│  │  │ - Nano Telemetry → Matter Attributes             │  │  │
+│  │  │ - Matter Commands → Nano Actuators               │  │  │
+│  │  └──────────────────────────────────────────────────┘  │  │
 │  └────────────────────────────────────────────────────────┘  │
 │                                                              │
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │              Connectivity Layer (ACL)                   │ │
-│  │  MQTT (Published Language) │ BLE │ REST API (ACL)       │ │
+│  │  MQTT │ BLE │ REST API (ACL) │ Matter SDK (ACL)         │ │
 │  └─────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-   ┌──────────┐         ┌──────────┐         ┌──────────┐
-   │ Nano Dev │         │ Nano Dev │         │ External │
-   │ (ESP32)  │         │ (ESP32)  │         │ Clients  │
-   └──────────┘         └──────────┘         └──────────┘```
+         │                    │                    │              │
+         ▼                    ▼                    ▼              ▼
+   ┌──────────┐         ┌──────────┐         ┌──────────┐  ┌──────────┐
+   │ Nano Dev │         │ Nano Dev │         │ External │  │ Matter   │
+   │ (ESP32)  │         │ (ESP32)  │         │ Clients  │  │ Ecosystem│
+   └──────────┘         └──────────┘         └──────────┘  └──────────┘
 ```
 
 ### Core Components
@@ -669,6 +678,7 @@ action:
 | **Charts**        | Chart.js                     | Lightweight, HTMX-compatible visualizations          |
 | **Database**      | SQLite                       | Local storage, zero-config, time-series capable      |
 | **ML Runtime**    | TensorFlow Lite              | Edge-optimized, Nano-compatible models               |
+| **Matter SDK**    | Matter SDK (Python bindings) | CSA-certified protocol stack, Docker-isolated        |
 | **Container**     | Docker / Docker Compose      | Easy deployment, service isolation                   |
 | **Config**        | YAML / environment variables | Simple, version-controllable                         |
 
@@ -820,6 +830,84 @@ services:
 - Anomaly detection for sensor data.
 - Alert notifications when thresholds are exceeded.
 
+#### Phase 2.5: Matter Bridge (Estimated: 4-6 weeks)
+
+**Purpose**: Expose Nano Framework devices as Matter-compatible endpoints, enabling integration with Home Assistant, Apple Home, Google Home, and other Matter controllers.
+
+**Rationale**: The Edge Framework is architecturally designed as a protocol translation layer (Anti-Corruption Layer per ADR-023). Adding Matter as a third protocol alongside MQTT and BLE is a natural extension that eliminates the need for resource-intensive side-by-side bridges on ESP32 devices.
+
+**Architecture**:
+
+The Matter Bridge is a new domain service within the Edge Gateway Context that translates between Nano Framework telemetry/commands and Matter cluster attributes/commands:
+
+- **Nano → Matter Direction**: Subscribes to `TelemetryReceivedEvent`, maps sensor fields to Matter cluster attributes (e.g., temperature → TemperatureMeasurement cluster).
+- **Matter → Nano Direction**: Listens for Matter cluster commands, translates them to Edge command payloads, and dispatches via `CommandDispatchService`.
+- **Device Mapping**: Links `DeviceProfile` aggregates to Matter endpoints via `matter_endpoint_id` field.
+
+**Cluster Mapping**:
+
+| Nano Sensor/Actuator | Matter Cluster | Matter Device Type |
+|---------------------|----------------|-------------------|
+| Temperature (PthSensor) | Temperature Measurement | Temperature Sensor |
+| Humidity (PthSensor) | Relative Humidity Measurement | Humidity Sensor |
+| Pressure (PthSensor) | No direct match | Custom attribute |
+| Illuminance | Illuminance Measurement | Illuminance Sensor |
+| Occupancy (PIR) | Occupancy Sensing | Occupancy Sensor |
+| Contact (Door/Window) | Contact Sensor | Contact Sensor |
+| Leak Detection | Leak Detection | Leak Detector |
+| On/Off (Led, Relay) | On/Off | On/Off Light / Plug-in Unit |
+| Level (RgbLed, Servo) | Level Control | Dimmable Light |
+
+**Implementation**:
+
+1. **Matter SDK setup** — Install Matter SDK on Raspberry Pi, verify `chip-tool` operation.
+2. **Matter server container** — Docker container with Matter SDK, Python bindings.
+3. **Basic endpoint creation** — Create a single Matter endpoint with On/Off cluster.
+4. **BLE commissioning** — QR code commissioning flow via `chip-tool pair`.
+5. **Telemetry → Attribute translation** — Map common sensor fields to Matter clusters.
+6. **Command → Cluster translation** — Map Matter commands to Nano actuator commands.
+7. **DeviceProfile ↔ Matter endpoint mapping** — Link Nano devices to Matter endpoints.
+
+**Docker Compose Extension**:
+
+```yaml
+version: '3.8'
+services:
+  mqtt:
+    image: eclipse-mosquitto:latest
+  edge-core:
+    image: modest-iot/edge-core:latest
+  dashboard:
+    image: modest-iot/dashboard:latest
+  database:
+    image: modest-iot/edge-db:latest
+  nodered:
+    image: nodered/node-red:latest
+  matter-server:  # NEW
+    image: modest-iot/matter-bridge:latest
+    depends_on:
+      - edge-core
+      - database
+    volumes:
+      - matter-data:/data
+volumes:
+  matter-data:
+```
+
+**Key Risks & Mitigations**:
+
+| Risk | Mitigation |
+|------|-----------|
+| BLE conflict (BlueZ) | Matter BLE is commissioning-only; Nano BLE is operational. Use separate adapters or time-share. |
+| Custom cluster certification | Map to existing clusters where possible. Use vendor-specific attributes for unmappable sensors. |
+| Matter SDK version lock | Docker containerization isolates Matter SDK version from Edge Framework. |
+
+**Deliverables**:
+- Matter server running alongside Edge Framework in Docker Compose.
+- Nano sensor readings visible as Matter attributes.
+- Matter controllers can control Nano actuators.
+- Bidirectional communication between Matter and Nano ecosystems.
+
 #### Phase 3: Cloud & OTA (Estimated: 4-6 weeks)
 
 1. **Cloud relay service** — AWS/GCP/Azure integration.
@@ -920,6 +1008,9 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | **Alert**     | Triggered condition requiring attention | Sensor fault event (ID 22)        | `Alert` entity                       |
 | **Online**    | Device sent telemetry within timeout    | `Device::diagnostics()`           | `DeviceProfile.online`               |
 | **Offline**   | Device exceeded telemetry timeout       | N/A                               | `DeviceProfile.is_offline()`         |
+| **Matter Endpoint** | Matter representation of a Nano device | N/A (Nano is Matter-unaware) | `DeviceProfile.matter_endpoint_id`   |
+| **Matter Cluster**  | Group of related attributes/commands   | Sensor/Actuator type              | Matter cluster ID mapping            |
+| **Matter Attribute**| State value exposed via Matter         | Telemetry field                   | Cluster attribute value              |
 
 ---
 
@@ -976,6 +1067,7 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 |-------------|------------------|----------------------------------------------------------------------------|
 | **Q1 2027** | Phase 1 complete | Core services: MQTT, device registry, telemetry ingestion, basic dashboard |
 | **Q2 2027** | Phase 2 complete | Intelligence: rule engine, ML inference, alerts, advanced dashboard        |
+| **Q2 2027** | Phase 2.5 complete | Matter Bridge: Matter SDK integration, cluster mapping, bidirectional bridge |
 | **Q3 2027** | Phase 3 complete | Cloud & OTA: cloud relay, OTA management, security hardening               |
 | **Q4 2027** | Phase 4 complete | BLE & advanced: BLE gateway, advanced ML, MicroPython edition              |
 
@@ -1067,6 +1159,17 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 | **Dashboard responsiveness** | <1 second for real-time updates   |
 | **ML inference**             | <50ms per prediction              |
 
+### Matter Bridge
+
+| Metric                       | Target                            |
+|------------------------------|-----------------------------------|
+| **Matter endpoint count**    | 100+ Nano devices as Matter nodes |
+| **Attribute update latency** | <200ms (Nano → Edge → Matter)     |
+| **Command latency**          | <300ms (Matter → Edge → Nano)     |
+| **Cluster coverage**         | 10+ standard Matter clusters      |
+| **Commissioning**            | QR code via chip-tool             |
+| **CSA certification**        | Target certified after Phase 2.5  |
+
 ### Integrated System
 
 | Metric                 | Target                                     |
@@ -1084,11 +1187,12 @@ A shared glossary ensures consistent terminology across both frameworks (see ADR
 The Modest IoT dual-framework vision provides a complete, local-first IoT stack:
 
 - **Nano Framework** delivers deterministic, architecturally disciplined microcontroller code for ESP32.
-- **Edge Framework** provides data aggregation, local intelligence, and device management on Raspberry Pi.
-- **Together** they form a scalable, offline-resilient, AI-ready IoT platform.
+- **Edge Framework** provides data aggregation, local intelligence, device management, and Matter ecosystem integration on Raspberry Pi.
+- **Matter Bridge** (Phase 2.5) exposes Nano devices as Matter-compatible endpoints, enabling integration with Home Assistant, Apple Home, Google Home, and other Matter controllers — without modifying Nano firmware.
+- **Together** they form a scalable, offline-resilient, AI-ready IoT platform that bridges the gap between resource-constrained microcontrollers and modern smart home ecosystems.
 - **DDD-guided design** ensures consistent terminology, clear context boundaries, and appropriate patterns for each framework (see ADR-023).
 
-The Nano Framework is **released as v1.0.0** and approved by the Arduino Library Manager. v1.1.0 features (W25–W28) are **released as v1.1.0**, followed by v1.1.1 with example improvements and community standards. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap.
+The Nano Framework is **released as v1.0.0** and approved by the Arduino Library Manager. v1.1.0 features (W25–W28) are **released as v1.1.0**, followed by v1.1.1 with example improvements and community standards. The Edge Framework is **planned** with a clear DDD-based architecture and development roadmap, including the Matter Bridge as Phase 2.5.
 
 **Next steps**:
 1. Nano Framework v1.0.0 is released and approved by Arduino Library Manager.
@@ -1096,5 +1200,6 @@ The Nano Framework is **released as v1.0.0** and approved by the Arduino Library
 3. v1.1.1 released with example improvements and community standards.
 4. Start Edge Framework Phase 1 development.
 5. Integrate Nano and Edge with MQTT protocol and shared telemetry schema.
+6. Implement Matter Bridge (Phase 2.5) to expose Nano devices via Matter ecosystem.
 
-This vision positions Modest IoT as a **leading open-source IoT platform** for developers who want architectural discipline, local-first processing, and AI-ready infrastructure — without vendor lock-in or cloud dependency.
+This vision positions Modest IoT as a **leading open-source IoT platform** for developers who want architectural discipline, local-first processing, AI-ready infrastructure, and Matter ecosystem integration — without vendor lock-in or cloud dependency.
