@@ -219,17 +219,19 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** a `library.json` manifest exists, **when** `Modest-IoT-Nano-Framework` is added to `lib_deps` in `platformio.ini`, **then** PlatformIO resolves and downloads the framework and its dependencies.
     - **Given** the framework is installed via either registry, **when** a sketch that includes `ModestIoT.h` is built, **then** the build succeeds without missing header errors.
     - **Given** both `library.json` and `library.properties` exist, **when** the metadata is compared, **then** the name, version, and dependencies are consistent between the two files.
-- **Status**: Planned for v1.1.2. See `library.properties` (Arduino Library Manager, published) and `library.json` (PlatformIO Registry, to be created).
+- **Status**: ✓ Implemented (v1.1.2). See `library.properties` (Arduino Library Manager, published) and `library.json` (PlatformIO Registry manifest).
 
 ### TS21: Follow Quick Start Guide
 
 - **As an** IoT Developer, **I want** a step-by-step Quick Start Guide, **so that** I can go from zero to a working device in under 10 minutes.
 - **Acceptance Criteria**:
-    - **Given** an ESP32 board and USB cable, **when** the Quick Start Guide is followed, **then** the framework is installed, the `StatusIndicator` example is opened, and the sketch is uploaded to the board.
-    - **Given** the Quick Start Guide covers installation, **when** the Installation section is read, **then** both Arduino Library Manager and PlatformIO `lib_deps` paths are documented.
+    - **Given** the Quick Start Guide offers two routes, **when** the user chooses the Simulation route, **then** the `StatusIndicator` example runs in Wokwi without any hardware or toolchain installation.
+    - **Given** the Simulation route is followed, **when** the required libraries are added in Wokwi, **then** the framework, ArduinoJson, and MQTT are available for the simulated sketch.
+    - **Given** the user chooses the Hardware route, **when** the Quick Start Guide is followed, **then** the framework is installed, the `StatusIndicator` example is opened, and the sketch is uploaded to the ESP32 board.
+    - **Given** the Hardware route covers installation, **when** the Installation section is read, **then** three toolchain paths are documented: Arduino Library Manager, PlatformIO in VS Code, and PlatformIO in CLion.
     - **Given** the `StatusIndicator` example is uploaded, **when** the Serial Monitor is connected, **then** LED toggle status messages are output confirming the framework is running.
     - **Given** the Quick Start Guide is complete, **when** the Next Steps section is reached, **then** links to the full README, examples, and documentation are provided.
-- **Status**: Planned for v1.1.2. See `docs/quick-start.md` (to be created) and `examples/StatusIndicator`.
+- **Status**: ✓ Implemented (v1.1.2). See `docs/quick-start.md` (two-route guide: Simulation via Wokwi, Hardware via ESP32) and `examples/StatusIndicator`.
 
 ---
 
