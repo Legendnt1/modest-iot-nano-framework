@@ -210,7 +210,28 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** only the firmware version is set, **when** telemetry is serialized, **then** only `firmwareVersion` appears, `schemaVersion` is omitted.
 - **Status**: ✓ Implemented (v1.1.0). See `TelemetryPackage.h`, `Device.h`, `Device.cpp`, and `tests/TelemetryPackage/test.cpp` (5 new tests).
 
+### TS20: Install via Main IoT Registry Providers
+
+- **As an** IoT Developer, **I want** to install the Modest IoT Nano Framework from a registry provider without manual steps, **so that** I can use the framework in my project with a single configuration line.
+- **Acceptance Criteria**:
+    - **Given** the framework is published to the Arduino Library Manager, **when** the Arduino IDE Library Manager lists available libraries, **then** the framework appears with the correct name, version, and description.
+    - **Given** the framework is published to the Arduino Library Manager, **when** installation is triggered, **then** the framework and its dependencies (ArduinoJson, MQTT) are downloaded and available in the sketch.
+    - **Given** a `library.json` manifest exists, **when** `Modest-IoT-Nano-Framework` is added to `lib_deps` in `platformio.ini`, **then** PlatformIO resolves and downloads the framework and its dependencies.
+    - **Given** the framework is installed via either registry, **when** a sketch that includes `ModestIoT.h` is built, **then** the build succeeds without missing header errors.
+    - **Given** both `library.json` and `library.properties` exist, **when** the metadata is compared, **then** the name, version, and dependencies are consistent between the two files.
+- **Status**: Planned for v1.1.2. See `library.properties` (Arduino Library Manager, published) and `library.json` (PlatformIO Registry, to be created).
+
+### TS21: Follow Quick Start Guide
+
+- **As an** IoT Developer, **I want** a step-by-step Quick Start Guide, **so that** I can go from zero to a working device in under 10 minutes.
+- **Acceptance Criteria**:
+    - **Given** an ESP32 board and USB cable, **when** the Quick Start Guide is followed, **then** the framework is installed, the `StatusIndicator` example is opened, and the sketch is uploaded to the board.
+    - **Given** the Quick Start Guide covers installation, **when** the Installation section is read, **then** both Arduino Library Manager and PlatformIO `lib_deps` paths are documented.
+    - **Given** the `StatusIndicator` example is uploaded, **when** the Serial Monitor is connected, **then** LED toggle status messages are output confirming the framework is running.
+    - **Given** the Quick Start Guide is complete, **when** the Next Steps section is reached, **then** links to the full README, examples, and documentation are provided.
+- **Status**: Planned for v1.1.2. See `docs/quick-start.md` (to be created) and `examples/StatusIndicator`.
+
 ---
 
 *Created: March 23, 2025.*
-*Last Updated: November 15, 2026.*
+*Last Updated: November 17, 2026.*
