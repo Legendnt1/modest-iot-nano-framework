@@ -1025,7 +1025,6 @@ A shared glossary ensures consistent terminology across both frameworks:
 - `src/Event.h`, `src/Command.h` (Nano CQRS separation)
 - `src/TelemetryPackage.h` (Nano value object)
 - `src/SamplingScheduler.h` (Nano repository)
-- `docs/vision.md` (Edge Framework architecture, bounded contexts)
 - `docs/improvements.md` (W12: command marshaling, W13: interrupts)
 
 ---

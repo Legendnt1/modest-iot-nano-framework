@@ -1,6 +1,8 @@
 # Modest IoT Improvements
 
-Active work items, comparison tables, and future work for the Modest IoT Nano Framework.
+Comparison tables and future work for the Modest IoT Nano Framework.
+
+> **Disclaimer**: This roadmap reflects current priorities and may change based on community feedback and technical discoveries.
 
 ## Document Map
 
@@ -10,14 +12,9 @@ Active work items, comparison tables, and future work for the Modest IoT Nano Fr
 | Version history | [CHANGELOG.md](../CHANGELOG.md) |
 | Architecture decisions | [adrs.md](adrs.md) |
 | User stories | [user-stories.md](user-stories.md) |
-| Dual-framework vision | [vision.md](vision.md) |
 | Class diagram | [class-diagram.puml](class-diagram.puml) |
 | Completed work items W1–W28 | [evolution.md](evolution.md) |
 | Doxygen API reference | [doxygen-mainpage.md](doxygen-mainpage.md) |
-
-## Completed Work Items
-
-Work items W1–W28 are complete and released. See [evolution.md](evolution.md) for full implementation details.
 
 ## Status Overview
 
@@ -32,35 +29,94 @@ Work items W1–W28 are complete and released. See [evolution.md](evolution.md) 
 | Pre-Release Prerequisites (W20–W24)     | **Complete** |
 | v1.1.0 Features (W25–W28)              | **Complete** |
 
-## Active Work Items
+## Planned Improvements
 
-### W29: Event aggregation & rules engine — **Deferred** (v1.2.0)
+Improvements are grouped by theme. Target versions indicate when each improvement is expected, not a commitment.
 
-**Score**: 4 | **Cost**: L | **Target**: v1.2.0
+### ArduinoJson Removal (W46)
 
-`EventAggregator` for composite event patterns (e.g., "motion AND door opened"). Application-layer feature; can be implemented by users using the event handler pattern.
+Eliminate ArduinoJson (~30-40 KB Flash) via `TelemetryWriter` abstraction and native `snprintf`-based JSON serialization. This is the highest-priority improvement, as it unblocks several downstream features.
 
-### W30: Multi-device coordination — **Deferred** (v1.3.0)
+**Target**: v1.2.0
 
-**Score**: 3 | **Cost**: L | **Target**: v1.3.0
+### On-Device ML Inference (W47)
+
+Latency-critical on-device ML inference using emlearn (~2 KB Flash, ~50 bytes RAM). Opt-in via build guards, Arduino Library Manager compatible. Supports classical ML models: Random Forest, Decision Trees, KNN, simple neural networks.
+
+**Target**: v1.3.0
+
+### Event Aggregation & Rules Engine (W29, W31)
+
+`EventAggregator` for composite event patterns (e.g., "motion AND door opened within 5 seconds"). Application-layer feature; can be implemented by users using the event handler pattern.
+
+**Target**: v1.2.0–v1.3.0
+
+### Multi-Device Coordination (W30, W36)
 
 ESP-NOW or MQTT-based device-to-device messaging for relay nodes and distributed sensing.
 
-### W18: Telemetry pool and writer interface — **Deferred**
+**Target**: v1.3.0–v1.4.0
 
-**Score**: 2 | **Cost**: L
+### Telemetry Enhancements (W32–W34, W41–W43)
 
-Packet pool with placement-new and `TelemetryWriter` format abstraction. Requires heap measurements to justify the architectural investment. Full details in [evolution.md](evolution.md#tier-5-optimization-and-power-complete).
+- **Alarm Lane** (W32): High-priority queue for critical alerts.
+- **Schema Registry** (W33): Telemetry schema versioning with validation.
+- **MQTT QoS** (W34): Configurable QoS and retained message support.
+- **Remote Diagnostics** (W41): On-demand diagnostics telemetry.
+- **Statistical Aggregation** (W42): Min/max/average over time windows.
+- **Change-Only Mode** (W43): Suppress telemetry when values are stable.
 
-## Deferred to Future Versions
+**Target**: v1.2.0–v1.3.0
 
-- **Event aggregation & rules engine** (W29, v1.2.0): Application-layer feature; can be implemented by users using the event handler pattern.
-- **Multi-device coordination** (W30, v1.3.0): Niche use case; ESP-NOW or MQTT-based approach TBD based on community demand.
-- **On-device ML inference** (Tier 5, v1.3.0+): `AiMicroModelController` is opt-in and requires ML runtime dependencies. Deferred until core stability is proven.
+### Power & Battery (W37–W38)
+
+- **Adaptive Sampling** (W37): Automatically adjust sampling based on battery level.
+- **Sleep Schedule** (W38): Time-aware sleep scheduling with wake windows.
+
+**Target**: v1.3.0
+
+### Security & Fleet Management (W39)
+
+- **Secure Element** (W39): Hardware-backed credential storage via ESP32 eFuse or external secure elements.
+
+**Target**: v1.4.0
+
+### Developer Experience
+
+- **PlatformIO Registry**: Publish to PlatformIO for professional IoT developer discoverability.
+- **Quick Start Guide**: Step-by-step onboarding from installation to first device.
+- **Troubleshooting Guide**: Common issues and solutions.
+- **Migration Guide**: Converting traditional `loop()` code to Modest IoT patterns.
+- **Example Template Generator**: CLI tool to generate skeleton device projects.
+
+**Target**: v1.1.2–v1.2.0
+
+### Sensor/Actuator Expansion
+
+Expand the component library (currently 21 sensors, 9 actuators) with additional IoT components: BMP280, INA219, SGP30/SGP40, BMA4000/LIS2DH12, VL53L0X, CAP1188, DC Motor Controller, Stepper Motor, Multi-channel Relay Board.
+
+**Target**: v1.2.0+
+
+### Component Enhancements
+
+- **ConfigurationStore**: Schema migration, configuration profiles, backup/restore.
+- **PowerManager**: Fuel gauge integration, charging status, power budget tracking.
+
+**Target**: v1.3.0
+
+### Process & Release
+
+- **Automated Release Workflow**: Full test suite, example compilation, Doxygen generation, and registry publishing on tag push.
+- **Code Coverage Reporting**: gcov/lcov integration with minimum threshold.
+- **Dependency Update Monitoring**: Monitor MQTT library and ESP32 Arduino core updates.
+- **Benchmark Table**: Publish measurable evidence of framework performance claims.
+
+**Target**: v1.2.0+
+
+---
 
 ## Deliberately out of scope
 
-- Replacing ArduinoJson (no viable embedded alternative).
 - TLS/SSL implementation in the framework (use ESP32's built-in `WiFiClientSecure`; W22 examples are complete).
 - Targeted (per-instance) commands until a use case appears.
 - Switchable sensor power rails and ADC/DMA sampling.
@@ -122,10 +178,10 @@ Compares three points: a traditional Arduino `loop()` app, Modest IoT v1.1.1 (cu
 |--------------------------|----------------------|---------------------------------------------------------------------------------------------|----------------------------------------------------------------|
 | Task stacks              | `loop()` task only   | 4096 B sampler + 8192 B network, configurable via `EngineConfiguration`; `PowerManager` adds minimal stack for sleep handling | Same defaults                                             |
 | Queue and packets        | None                 | Queue of pointers + one heap packet per reading; bounded by queue policy; `TelemetryBuffer` adds LittleFS storage for offline replay | Same, with event aggregation for composite patterns (W29) |
-| Flash                    | Smallest             | Framework, Wi-Fi, BLE driver; only 2 dependencies (ArduinoJson, MQTT); plus `OtaUpdateHandler`, `TelemetryBuffer` | Same, no new Flash increase for W29       |
+| Flash                    | Smallest             | Framework, Wi-Fi, BLE driver; only 2 dependencies (ArduinoJson, MQTT); plus `OtaUpdateHandler`, `TelemetryBuffer` | W46 removes ArduinoJson (~30-40 KB Flash), leaving only MQTT       |
 | Static RAM               | Small                | Slot table, per-object state; trigger table (4 slots); ConfigurationStore NVS cache; `TelemetryBuffer` adds LittleFS buffer | Same                                             |
 | Heap fragmentation       | Low                  | Lower with explicit ownership; `unique_ptr` transfer; LittleFS reduces heap pressure        | Same; pool in Tier 5 if measured (W18)                              |
-| Third-party dependencies | As needed            | Only those used (ArduinoJson, MQTT) — ESP32Servo, LiquidCrystal_I2C, PubSubClient, DHT, Adafruit, and HX711 removed | Same; no new external dependencies for W29               |
+| Third-party dependencies | As needed            | Only those used (ArduinoJson, MQTT) — ESP32Servo, LiquidCrystal_I2C, PubSubClient, DHT, Adafruit, and HX711 removed | W46 removes ArduinoJson; only MQTT remains               |
 | Logging overhead         | User-controlled      | Zero when compiled out; UART cost when on                                                  | Same                                                           |
 | Persistent storage       | Manual SPIFFS/LittleFS | ConfigurationStore uses ESP32 NVS with namespace isolation; `TelemetryBuffer` uses LittleFS for offline replay | Same, with event aggregation for composite patterns (W29)  |
 | Security overhead        | None by default      | TLS examples provided; `NetworkClientSecure` usage guided; no framework-level TLS enforcement                                  | Same, with event aggregation for composite patterns (W29) |
@@ -152,265 +208,3 @@ Run the same three reference applications on the same ESP32 board, once per vari
 | Current draw                            | Inline current meter (Wokwi cannot measure it)                             |
 | Lines of application code               | Count in the reference sketches                                            |
 
----
-
-## Future Work
-
-### Benchmark Table Publication
-
-**Goal**: Publish a benchmark comparison table in the README with measurable evidence of the framework's performance claims.
-
-**Requirements**:
-- Include the ESP32 board model, Arduino core version, and framework commit hash for reproducibility.
-- Capture measurements after each tier (Tier 0–5), not only at the end, to show the incremental impact of each tier.
-- Use the same three reference applications defined in "How to validate the comparison" above.
-- Record all metrics from the validation table (jitter, latency, stack use, heap, Flash, current draw, etc.).
-
-**Target**: Complete after v1.1.1 release when hardware testing infrastructure is available.
-
-**Status**: Not started.
-
-### PlatformIO Registry Submission
-
-**Goal**: Publish the Modest IoT Nano Framework to the PlatformIO Registry for professional IoT developer discoverability and instant dependency management.
-
-**Rationale**: PlatformIO's user base skews toward professional IoT developers who use CI/CD pipelines, version-pinned dependencies, and professional IDEs (VS Code, CLion). Manual registration provides enhanced discoverability, instant updates, and professional credibility compared to relying on PlatformIO's auto-crawler of the Arduino Library Registry.
-
-**Requirements**:
-- Create `library.json` in the project root with rich metadata (name, version, description, keywords, repository, authors, license, frameworks, platforms, dependencies).
-- Install PlatformIO CLI (`pip install platformio`).
-- Validate package with `pio pkg pack`.
-- Register PlatformIO account and publish via `pio pkg publish`.
-- Integrate `pio pkg publish` into the release workflow for future versions.
-
-**Benefits**:
-- Instant update control (no 24-hour auto-crawler delay).
-- Enhanced discoverability via custom library ID and rich metadata.
-- Professional credibility with version history, download stats, and example code.
-- CI/CD integration for automated testing and publishing.
-
-**Target**: Complete after v1.1.1 release, alongside Benchmark Table Publication.
-
-**Status**: Not started.
-
-### Documentation Improvements
-
-**Goal**: Reduce onboarding friction and support burden through targeted documentation additions.
-
-**Items**:
-- **Quick Start Guide**: Step-by-step guide from installing Arduino IDE + ESP32 board support to compiling StatusIndicator and progressing to SmartBandMqtt.
-- **Troubleshooting Guide**: Common issues and solutions (Wi-Fi connection failures, MQTT disconnects, sensor read failures, stack overflow, heap fragmentation).
-- **Migration Guide**: Before/after code comparison showing traditional `loop()` vs Modest IoT Device subclass, converting `millis()` timing to SamplingScheduler, blocking to interrupt-driven patterns.
-
-**Target**: v1.1.2 or v1.2.0.
-
-**Status**: Not started.
-
-### Process Improvements
-
-**Goal**: Improve release consistency, test quality, and dependency hygiene through automated workflows.
-
-**Items**:
-- **Automated Release Workflow**: GitHub Actions workflow that runs full test suite, compiles all 23 examples, generates Doxygen docs, creates GitHub release, and publishes to PlatformIO Registry on tag push.
-- **Code Coverage Reporting**: Add gcov/lcov to test workflow to measure code coverage, report percentage in CI, and set minimum threshold (e.g., 80%).
-- **Dependency Update Monitoring**: Add dependabot or renovate to monitor ArduinoJson, MQTT library, ESP32 Arduino core, and CI workflow action updates.
-
-**Target**: v1.2.0.
-
-**Status**: Not started.
-
-### Sensor/Actuator Expansion
-
-**Goal**: Expand the component library (currently 21 sensors, 9 actuators) to cover additional IoT use cases.
-
-**Priority Sensors** (following ADR-016 dependency hygiene):
-- **BMP280** (Barometric Altimeter): Extends existing BmeEnvironmentalSensor, low complexity.
-- **INA219** (Current Sensor): I²C power monitoring, low complexity.
-- **SGP30/SGP40** (Air Quality Index): VOC/CO2 detection, medium complexity.
-- **BMA4000/LIS2DH12** (Accelerometer): Motion detection, tilt, medium complexity.
-- **VL53L0X** (Proximity Sensor): Time-of-flight distance, medium complexity.
-- **CAP1188** (Touch Sensor): Capacitive touch buttons, low complexity.
-
-**Priority Actuators**:
-- **DC Motor Controller** (L298N/L293D): Motor speed/direction, low complexity.
-- **Stepper Motor** (A4988/TMC2209): Precise positioning, medium complexity.
-- **Multi-channel Relay Board**: Extends RelayActuator, low complexity.
-
-**Target**: v1.2.0+ (prioritized by dependency hygiene: zero-dependency first, common I²C next, niche last).
-
-**Status**: Not started.
-
-### Component Enhancements
-
-**Goal**: Enhance existing core components with fleet management and advanced power features.
-
-**ConfigurationStore**:
-- Schema migration: Versioned schemas with automatic migration hooks when firmware version changes.
-- Configuration profiles: Multiple profiles (development, production, testing) switchable at runtime.
-- Configuration backup/restore: Export/import as JSON for fleet management.
-
-**PowerManager**:
-- Fuel gauge integration: Support for MAX17048, BQ27441 ICs via I²C for state-of-charge estimation.
-- Charging status monitoring: Detect charging state (charging, full, discharging).
-- Power budget tracking: Track average current consumption to estimate remaining battery life.
-
-**Target**: v1.3.0.
-
-**Status**: Not started.
-
-### W31: Event Aggregator with Time Windows
-
-**Target**: v1.2.0 | **Cost**: Medium | **Impact**: High
-
-Refinement of W29: Extend the `Event` class with an optional `uint32_t timestamp` field (populated from `TimeSynchronizationDriver`), and introduce `EventAggregator` as an `EventHandler` maintaining a sliding window of recent events. Support AND/OR/NOT operators with configurable time windows (e.g., "motion AND door opened within 5 seconds"), emitting composite events with a new identifier range (800-899).
-
-**Status**: Not started.
-
-### W32: Alarm Lane Priority Queue
-
-**Target**: v1.3.0 | **Cost**: Medium | **Impact**: High
-
-Add a parallel high-priority lane for alarm telemetry. Critical alerts (water leak, fire, security breach) bypass the standard queue via `Device::enqueueAlarm()`. Network task checks alarm lane first. Alarm packets get a distinct envelope field (`"priority": "alarm"`) for edge-side routing. Bounded alarm queue (e.g., 4 slots) prevents flooding.
-
-**Status**: Not started.
-
-### W33: Telemetry Schema Registry
-
-**Target**: v1.3.0 | **Cost**: Low-Medium | **Impact**: Medium
-
-Lightweight schema versioning with validation. `TelemetrySchema` struct defines required fields, types, and version. `Device::registerSchema()` validates outgoing packets. Envelope metadata already supports `schemaVersion` — adds validation hooks. Prevents silent data corruption during fleet upgrades.
-
-**Status**: Not started.
-
-### W34: MQTT QoS and Retained Message Support
-
-**Target**: v1.2.0 | **Cost**: Low | **Impact**: Medium
-
-`MqttGatewayClient` currently uses hardcoded QoS 0. Expose QoS and retained message controls: `setQoS(uint8_t)` for default QoS (0/1/2), per-message QoS overload on `sendTelemetryRecord()`, and `setRetained(bool)` for last-known-state topics. Alarm lane (W32) could default to QoS 1.
-
-**Status**: Not started.
-
-### W35: CoAP Gateway Client
-
-**Target**: v1.4.0 | **Cost**: Large | **Impact**: Medium
-
-Add `CoapGatewayClient` extending `GatewayClient`. UDP-based lightweight alternative to MQTT for constrained networks (RFC 7252). Observe pattern for subscriptions. DTLS support for secure CoAP. Useful for Thread-based networks and LwM2M device management.
-
-**Status**: Not started.
-
-### W36: ESP-NOW Gateway Client
-
-**Target**: v1.3.0 | **Cost**: Medium | **Impact**: Medium
-
-Add `EspNowGatewayClient` for mesh relay scenarios. Direct ESP32-to-ESP32 telemetry without Wi-Fi AP or MQTT broker. Broadcast or unicast modes. Lower latency than MQTT for local device coordination. Complements W30 by providing the transport layer.
-
-**Status**: Not started.
-
-### W37: Adaptive Sampling Based on Battery Level
-
-**Target**: v1.3.0 | **Cost**: Low-Medium | **Impact**: High
-
-Built-in adaptive sampling strategy. `Device::setAdaptiveSampling(bool)` — opt-in. When battery drops below threshold, automatically increase sampling intervals. Configurable tiers: normal (100-50%), reduced (50-20%), critical (20-0%). Emit `BATTERY_LOW_EVENT` (910) and `BATTERY_CRITICAL_EVENT` (911).
-
-**Status**: Not started.
-
-### W38: Sleep Schedule with Wake Windows
-
-**Target**: v1.3.0 | **Cost**: Medium | **Impact**: Medium
-
-Time-aware sleep scheduling. `SleepSchedule` struct with time windows and intervals. `Device::setSleepSchedule()` replaces fixed deep-sleep interval. Uses `TimeSynchronizationDriver` for absolute time. Example: `{06:00-22:00 → 5min, 22:00-06:00 → 1hour}`.
-
-**Status**: Not started.
-
-### W39: Secure Element Integration
-
-**Target**: v1.4.0 | **Cost**: Large | **Impact**: High
-
-Abstract secure credential storage. `SecureElement` interface for hardware-backed key access. `EspSecureElement` using ESP32 eFuse and secure boot. `Atecc608aSecureElement` for Microchip ATECC608A via I²C. `ConfigurationStore` integration reads secrets from secure element instead of NVS.
-
-**Status**: Not started.
-
-### W40: Device Provisioning via BLE
-
-**Target**: v1.3.0 | **Cost**: Medium | **Impact**: High
-
-BLE-based provisioning flow. `ProvisioningMode` — device advertises as configurable via BLE. Smartphone app or Edge Framework sends credentials via BLE NUS. Credentials stored in `ConfigurationStore`. Auto-exit provisioning mode after successful Wi-Fi connection.
-
-**Status**: Not started.
-
-### W41: Remote Diagnostics Endpoint
-
-**Target**: v1.2.0 | **Cost**: Low | **Impact**: High
-
-Built-in diagnostics telemetry on demand. `Device::publishDiagnostics()` serializes `DiagnosticsSnapshot` as telemetry. Subscribe to diagnostics command topic; respond with diagnostics payload. Edge Framework can poll diagnostics from the fleet. Optional periodic publishing with configurable interval.
-
-**Status**: Not started.
-
-### W42: On-Device Statistical Aggregation
-
-**Target**: v1.2.0 | **Cost**: Medium | **Impact**: High
-
-Built-in statistical aggregation before transmission. `AggregationPolicy` — min, max, average, count over a time window. `Device::setAggregationPolicy(Sensor*, AggregationPolicy)` — per-sensor opt-in. Aggregated telemetry replaces individual readings. Reduces network traffic by 10-100x for high-frequency sensors.
-
-**Status**: Not started.
-
-### W43: Change-Only Telemetry Mode
-
-**Target**: v1.2.0 | **Cost**: Low | **Impact**: Medium
-
-Framework-level change detection. `Device::setChangeOnlyMode(bool, float epsilon)` — global or per-sensor. Compare current reading with last sent value; suppress if within epsilon. Reduces telemetry volume for stable sensors. Complements W42 as a simpler alternative.
-
-**Status**: Not started.
-
-### W44: Component Dependency Graph Tool
-
-**Target**: v1.2.0 | **Cost**: Low | **Impact**: Medium
-
-Host tool that generates a dependency graph. Parse `#include` directives across all headers. Generate PlantUML or Mermaid diagram of component dependencies. Identify circular dependencies or unnecessary coupling. CI integration fails if new circular dependency is introduced.
-
-**Status**: Not started.
-
-### W45: Example Template Generator
-
-**Target**: v1.2.0 | **Cost**: Low-Medium | **Impact**: High
-
-CLI tool or script that generates a skeleton device. `generate_device.py --name MyDevice --sensors DHT,BME280 --actuator Led --gateway MQTT`. Generates: `MyDevice.h`, `MyDevice.cpp`, `MyTelemetryPackage.h`, example sketch. Pre-configured with selected sensors, actuators, and gateway.
-
-**Status**: Not started.
-
-### Prioritized Roadmap
-
-| Priority | Improvement | Target | Cost | Impact |
-|----------|-------------|--------|------|--------|
-| 1 | README Future Directions update | Immediate | Low | High |
-| 2 | `library.json` for PlatformIO | v1.1.2 | Low | High |
-| 3 | Benchmark measurements | Post-v1.1.1 | Medium | High |
-| 4 | Quick Start Guide | v1.1.2 | Low | High |
-| 5 | Troubleshooting Guide | v1.1.2 | Low | High |
-| 6 | W31: Event Aggregator with Time Windows | v1.2.0 | Medium | High |
-| 7 | W41: Remote Diagnostics Endpoint | v1.2.0 | Low | High |
-| 8 | W34: MQTT QoS & Retained Messages | v1.2.0 | Low | Medium |
-| 9 | W42: On-Device Statistical Aggregation | v1.2.0 | Medium | High |
-| 10 | W43: Change-Only Telemetry Mode | v1.2.0 | Low | Medium |
-| 11 | Migration Guide | v1.2.0 | Low | High |
-| 12 | BMP280 sensor | v1.2.0 | Low | Medium |
-| 13 | INA219 current sensor | v1.2.0 | Low | Medium |
-| 14 | Code coverage reporting | v1.2.0 | Low | Medium |
-| 15 | Automated release workflow | v1.2.0 | Medium | Medium |
-| 16 | Dependency update monitoring | v1.2.0 | Low | Medium |
-| 17 | W44: Component Dependency Graph Tool | v1.2.0 | Low | Medium |
-| 18 | W45: Example Template Generator | v1.2.0 | Low-Medium | High |
-| 19 | W29: Event Aggregation & Rules Engine | v1.2.0 | Large | High |
-| 20 | W32: Alarm Lane Priority Queue | v1.3.0 | Medium | High |
-| 21 | W33: Telemetry Schema Registry | v1.3.0 | Low-Medium | Medium |
-| 22 | W37: Adaptive Sampling by Battery | v1.3.0 | Low-Medium | High |
-| 23 | W38: Sleep Schedule with Wake Windows | v1.3.0 | Medium | Medium |
-| 24 | W40: BLE Device Provisioning | v1.3.0 | Medium | High |
-| 25 | SGP30 air quality sensor | v1.3.0 | Medium | Medium |
-| 26 | PowerManager fuel gauge | v1.3.0 | Medium | Medium |
-| 27 | ConfigurationStore migration | v1.3.0 | Medium | Medium |
-| 28 | W30: Multi-device coordination | v1.3.0 | Large | Medium |
-| 29 | W36: ESP-NOW Gateway Client | v1.3.0 | Medium | Medium |
-| 30 | W35: CoAP Gateway Client | v1.4.0 | Large | Medium |
-| 31 | W39: Secure Element Integration | v1.4.0 | Large | High |
-| 32 | MicroPython Edition proof of concept | v1.4.0 | Very Large | High |

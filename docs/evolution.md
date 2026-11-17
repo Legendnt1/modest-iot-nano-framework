@@ -1,8 +1,8 @@
 # Modest IoT Framework Evolution
 
-Historical record of completed work items W1–W28 with full implementation details.
+Historical record of completed work items W1–W28 with implementation details.
 
-For current status, active work items, and future plans, see [improvements.md](improvements.md).
+> This document records completed work. For current status and planned improvements, see [improvements.md](improvements.md).
 
 ---
 
@@ -20,24 +20,10 @@ For current status, active work items, and future plans, see [improvements.md](i
 
 ### W2: Delete dead `LoadCellController`, unused deps, unused includes, pin ArduinoJson
 
-**Inventory** (verified from `src/` and `library.properties`):
-
-| Dependency                | Used by                       | Declared in `depends=`   | Notes                                                                                |
-|---------------------------|-------------------------------|--------------------------|--------------------------------------------------------------------------------------|
-| `LiquidCrystal_I2C`       | ~~`CharacterLcdDisplay`~~     | **Removed**              | Replaced with native HD44780 I2C protocol via `Hd44780Driver`                       |
-| `DHT sensor library`      | ~~`DhtSensor`~~         | **Removed**              | Replaced with native single-wire protocol in `DhtSensor`                  |
-| `ESP32Servo`              | ~~`ServoMotor`~~              | **Removed**              | Replaced with native LEDC PWM via `ledcAttach()`/`ledcWrite()`                      |
-| `MQTT (>=2.5.3)`          | `MqttGatewayClient`           | yes                      | Replaced deprecated PubSubClient with MQTT Things (256dpi/arduino-mqtt)             |
-| `ArduinoJson`             | `TelemetryPackage` (needed)   | yes, pinned to `>=7.0.0` | Code uses the v7 `JsonDocument` type                                                 |
-| `HX711`                   | ~~`LoadCellController` only~~ | **Removed**              | `LoadCellController` deleted; `LoadCellAmplifier` implements HX711 protocol natively |
-| `EspSoftwareSerial`       | nothing                       | **Removed**              | Not referenced anywhere                                                              |
-| `Adafruit_Unified_Sensor` | nothing directly              | **Removed**              | Not used anywhere; removed from library.properties                                   |
-
 **Resolution**:
 - Deleted `LoadCellController.h/.cpp` and its `keywords.txt` entry.
-- Removed `HX711_Arduino_Library` and `EspSoftwareSerial` from `library.properties`.
+- Removed unused dependencies from `library.properties` (HX711, EspSoftwareSerial, Adafruit Unified Sensor, LiquidCrystal_I2C, DHT sensor library, ESP32Servo, PubSubClient).
 - Pinned `ArduinoJson (>=7.0.0)` in `library.properties`.
-- Corrected dependency names for Arduino Library Manager compliance (`DHT sensor library`, `Adafruit Unified Sensor`).
 - Removed unused `#include <ArduinoJson.h>` from `GatewayClient.h` and `MqttGatewayClient.cpp`.
 - Cleaned drafting comments from `HttpGatewayClient.cpp`.
 
@@ -739,30 +725,9 @@ Added `disconnect()` method (stops advertising, resets connected flag) and `getS
 
 ### W18: Telemetry pool and writer interface
 
-**Packet Pool** (A3): Placement-new into a pool with typed `acquire<T>()`. Keeps polymorphism and type safety with no heap.
+**Superseded by W46** (ArduinoJson removal, see [improvements.md](improvements.md)).
 
-```cpp
-template <size_t SlotBytes, uint8_t SlotCount>
-class TelemetryPool {
-public:
-    template <typename T, typename... Args>
-    TelemetryHandle<T> acquire(Args&&... args);
-};
-```
-
-**TelemetryWriter Interface**: Format-neutral output so a package writes to a "sink" rather than to a `JsonDocument`.
-
-```cpp
-class TelemetryWriter {
-public:
-    virtual void field(const char* name, int32_t v) = 0;
-    virtual void field(const char* name, float v) = 0;
-    virtual void field(const char* name, bool v) = 0;
-    virtual void field(const char* name, const char* v) = 0;
-};
-```
-
-**Breaking change**: Every `TelemetryPackage` subclass must change from `serialize(JsonDocument&)` to `write(TelemetryWriter&)`. Keep `serialize(JsonDocument&)` as a deprecated adapter path for one release.
+The `TelemetryWriter` format abstraction portion has been reprioritized as W46. The packet pool with placement-new remains deferred pending heap measurements.
 
 **Source**: `src/TelemetryPackage.h`
 

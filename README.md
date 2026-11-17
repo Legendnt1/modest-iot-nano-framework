@@ -493,7 +493,6 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
 | [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
 | [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
-| [`docs/vision.md`](docs/vision.md) | Dual-framework vision (Nano + Edge), strategic roadmap, and development timeline. |
 | [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 51 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 
