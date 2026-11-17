@@ -2,7 +2,7 @@
 
 All notable changes to the Modest IoT Nano Framework will be documented in this file.
 
-## [Unreleased]
+## [1.1.2] - 2026-11-17
 
 ### Added
 
@@ -21,11 +21,6 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **docs/evolution.md**: Minor pruning of outdated content — removed W2 dependency inventory table and replaced W18 deferred code snippets with "superseded by W46" cross-reference.
 - **docs/vision.md**: Moved to private storage (`.junie/private/`) to protect speculative Edge Framework details and timeline commitments from becoming public liabilities.
 - **README.md**: Added Quick Start, Troubleshooting Guide, and Migration Guide rows to the Documentation table. Removed `docs/vision.md` reference.
-
-### Technical Stories
-
-- **TS20: Install from IoT Registry Providers** — Implemented. Framework is now installable via Arduino Library Manager (existing `library.properties`) and PlatformIO Registry (new `library.json`). Both manifests are consistent in name, version, and dependencies.
-- **TS21: Follow Quick Start Guide** — Implemented. `docs/quick-start.md` provides two complete routes from zero to a working device in under 10 minutes, covering both simulation and hardware paths.
 
 ## [1.1.1] - 2026-11-16
 
