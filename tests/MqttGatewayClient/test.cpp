@@ -4,7 +4,7 @@
 #include "WiFiConnectivityDriver.h"
 #include "TelemetryPackage.h"
 #include "Command.h"
-#include <ArduinoJson.h>
+#include "JsonTelemetryWriter.h"
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -54,9 +54,9 @@ public:
 
     ~SampleTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& destination) const override {
-        destination["id"] = sensorId;
-        destination["value"] = readingValue;
+    void write(TelemetryWriter& writer) const override {
+        writer.field("id", sensorId);
+        writer.field("value", readingValue);
     }
 };
 
