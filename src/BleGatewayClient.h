@@ -57,11 +57,11 @@ public:
      * Serializes the payload to JSON, appends a newline terminator, and sends the result
      * as a GATT notification on the BLE TX characteristic. Runs in the network task context.
      *
-     * @param abstractTelemetryPayload Polymorphic payload to serialize and transmit.
+     * @param telemetryPackage The payload to serialize and transmit.
      * @return True if the payload was successfully queued for GATT notification.
      * @runs_on{network}
      */
-    bool sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) override;
+    bool sendTelemetryRecord(const TelemetryPackage& telemetryPackage) override;
 
     /**
      * @brief Periodic background upkeep routine for BLE connection maintenance.
