@@ -74,13 +74,13 @@ public:
     ~AirQualityTelemetryPackage() override = default;
 
     /**
-     * @brief Serializes the telemetry data into a JSON object.
-     * @param serializationDestination The `JsonDocument` where data will be stored.
+     * @brief Writes the telemetry data fields to the given writer.
+     * @param writer The telemetry writer to populate.
      */
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_GAS_PPM] = this->gasConcentrationInPpm;
-        serializationDestination[JSON_KEY_GAS_DETECTED] = this->gasDetected;
-        serializationDestination[JSON_KEY_SENSOR_MODE] = this->operatingMode;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_GAS_PPM, this->gasConcentrationInPpm);
+        writer.field(JSON_KEY_GAS_DETECTED, this->gasDetected);
+        writer.field(JSON_KEY_SENSOR_MODE, this->operatingMode);
     }
 };
 //@} // Concrete Application Data Schema Specification
@@ -118,18 +118,21 @@ private:
 
         switch (gasSensor.getOperatingMode()) {
             case GasSensor::OperatingMode::RawMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: RAW");
+                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: %s",
+                         GasSensor::operatingModeName(gasSensor.getOperatingMode()));
                 snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Raw Val: %d", gasSensor.getRawAnalogValue());
                 break;
             case GasSensor::OperatingMode::CalibratingMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: CALIBRATING");
+                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: %s",
+                         GasSensor::operatingModeName(gasSensor.getOperatingMode()));
                 snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Keep in clean air!");
                 break;
             case GasSensor::OperatingMode::AccurateMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: ACCURATE");
+                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: %s",
+                         GasSensor::operatingModeName(gasSensor.getOperatingMode()));
                 if (gasSensor.getTargetGasType() != GasSensor::GasType::None) {
                     snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "%s: %.1f PPM",
-                             getGasTypeName(gasSensor.getTargetGasType()),
+                             GasSensor::gasTypeName(gasSensor.getTargetGasType()),
                              gasSensor.getGasConcentrationInPpm());
                 } else {
                     snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Rs/R0: %.2f", gasSensor.getRsR0Ratio());
@@ -148,28 +151,6 @@ private:
             statusDisplay.handle(CharacterLcdDisplay::TURN_BACKLIGHT_ON_COMMAND);
         } else {
             statusDisplay.handle(CharacterLcdDisplay::TURN_BACKLIGHT_OFF_COMMAND);
-        }
-    }
-
-    /**
-     * @brief Gets the string representation of a gas type.
-     * @param type The `GasSensor::GasType`.
-     * @return The gas type name as a string.
-     */
-    const char* getGasTypeName(GasSensor::GasType type) {
-        switch (type) {
-            case GasSensor::GasType::LPG: return "LPG";
-            case GasSensor::GasType::Methane: return "CH4";
-            case GasSensor::GasType::CarbonMonoxide: return "CO";
-            case GasSensor::GasType::Alcohol: return "Alcohol";
-            case GasSensor::GasType::Propane: return "Propane";
-            case GasSensor::GasType::Hydrogen: return "H2";
-            case GasSensor::GasType::Smoke: return "Smoke";
-            case GasSensor::GasType::Ammonia: return "NH3";
-            case GasSensor::GasType::Benzene: return "Benzene";
-            case GasSensor::GasType::Toluene: return "Toluene";
-            case GasSensor::GasType::Acetone: return "Acetone";
-            default: return "Unknown";
         }
     }
 
