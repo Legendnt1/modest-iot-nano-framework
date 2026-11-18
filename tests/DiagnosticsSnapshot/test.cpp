@@ -22,8 +22,8 @@
 // Concrete test subclass of TelemetryPackage to satisfy abstract interface
 class TestTelemetryPackage : public TelemetryPackage {
 public:
-    void serialize(JsonDocument& doc) const override {
-        doc["test"] = 1;
+    void write(TelemetryWriter& writer) const override {
+        writer.field("test", 1);
     }
 };
 
@@ -82,8 +82,8 @@ public:
 // Concrete test subclass of TelemetryPackage to satisfy abstract interface
 class TestTelemetryPackage : public TelemetryPackage {
 public:
-    void serialize(JsonDocument& doc) const override {
-        doc["test"] = 1;
+    void write(TelemetryWriter& writer) const override {
+        writer.field("test", 1);
     }
 };
 
