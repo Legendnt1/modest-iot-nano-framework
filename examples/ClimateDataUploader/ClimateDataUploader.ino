@@ -29,7 +29,6 @@
 #include <Arduino.h>
 #include <cstring>
 #include <memory>
-#include <ArduinoJson.h>
 #include "ModestIoT.h"
 
 /** @name Hardware Configuration */
@@ -191,9 +190,9 @@ public:
 
     ~ClimateTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_TEMPERATURE_IN_CELSIUS] = temperatureInCelsius;
-        serializationDestination[JSON_KEY_HUMIDITY_IN_PERCENTAGE] = humidityInPercentage;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_TEMPERATURE_IN_CELSIUS, temperatureInCelsius);
+        writer.field(JSON_KEY_HUMIDITY_IN_PERCENTAGE, humidityInPercentage);
     }
 };
 //@} // Concrete Application Data Schema Specification
