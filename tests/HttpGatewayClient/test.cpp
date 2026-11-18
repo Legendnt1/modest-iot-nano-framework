@@ -12,7 +12,7 @@
 #include "TelemetryPackage.h"
 #include <Arduino.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
+#include "JsonTelemetryWriter.h"
 #include <cassert>
 #include <cstring>
 #include <string>
@@ -24,9 +24,9 @@ namespace {
  */
 class TestTelemetryPayload : public TelemetryPackage {
 protected:
-    void serialize(JsonDocument& doc) const override {
-        doc["temperature"] = 24.5f;
-        doc["humidity"] = 65.0f;
+    void write(TelemetryWriter& writer) const override {
+        writer.field("temperature", 24.5f);
+        writer.field("humidity", 65.0f);
     }
 };
 
