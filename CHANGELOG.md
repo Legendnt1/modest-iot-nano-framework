@@ -35,6 +35,7 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 #### Examples Migrated
 - **SmartBandMqtt, BleVitalsTransmitter, AirQualityMonitor, CropMonitoringStation, ClimateDataUploader, MqttTlsDevice**: All 6 examples with TelemetryPackage subclasses migrated from `serialize(JsonDocument&)` to `write(TelemetryWriter&)`. Replaced `doc["key"] = value` with `writer.field("key", value)`.
+- **Telemetry field type consistency**: Changed all `int` member variables in TelemetryPackage subclasses to `int32_t` to match `TelemetryWriter::field()` overloads and avoid platform-dependent ambiguity (where `int` differs from `int32_t` on some architectures like x86_64 Linux). Affected examples: **SmartBandMqtt** (`heartBeatsPerMinute`), **BleVitalsTransmitter** (`heartBeatsPerMinute`), **AirQualityMonitor** (`operatingMode`), **CropMonitoringStation** (`soilMoisture`). Developers using these examples as templates should update any custom `int` fields to `int32_t` when upgrading.
 - **AirQualityMonitor**: Replaced custom `getGasTypeName()` function with `GasSensor::gasTypeName()`. Replaced hardcoded operating mode strings with `GasSensor::operatingModeName()`.
 
 #### Tests Migrated
