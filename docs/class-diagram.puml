@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.2.0, 53 headers, W32)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 53 headers, W32 + example)
 
 ' ─────────────────────────────────────────────
 '  CORE
