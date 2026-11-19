@@ -25,6 +25,12 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 #### Examples — Destructor Safety
 - **9 Device subclasses** replaced `= default` destructors with proper `stopAsynchronousEngine()` calls: BleVitalsTransmitter, ClimateDataUploader, EquipmentHealthMonitor, IndoorAirQualityDisplay, MqttTlsDevice, OtaUpdateDevice, PipeTemperatureMonitor, RemoteLedController, SmartBandMqtt. Ensures the engine stops before sensor/actuator member destruction.
 
+#### StatusIndicator Example Refinement
+- **examples/StatusIndicator/StatusIndicator.ino**: Added `start()` method for post-construction initialization (firmware version), replacing inline `Device::setFirmwareVersion()` in `setup()`. Added proper destructor calling `stopAsynchronousEngine()` before member destruction. Reorganized constants into Doxygen groups (Engine Configuration, Device Configuration, Serial Output Configuration, Hardware Configuration) and extracted firmware version as named constant. Simplified `setup()` to: serial init → construct → `start()` → log.
+
+#### Quick Start Guide Enhancement
+- **docs/quick-start.md**: Added `HomeSecurityDevice` to the Recommended Examples list with a description of the high-priority telemetry lane (`enqueueTelemetryPayload()` vs `enqueueHighPriorityPayload()`), directing users ready for advanced features to this example after completing the StatusIndicator onboarding.
+
 #### TelemetryWriter Abstraction (W46)
 - **src/TelemetryWriter.h**: Abstract interface for telemetry field serialization with pure virtual `field()` overloads for `int32_t`, `float`, `bool`, and `const char*`. Decouples telemetry packages from the JSON serialization format, enabling future format writers (CBOR, MessagePack, binary).
 - **src/JsonTelemetryWriter.h/cpp**: Native `snprintf`-based JSON writer implementation using a 512-byte fixed stack buffer. Zero heap allocation per serialization, automatic comma handling, buffer overflow detection, and string escaping for special characters.
