@@ -43,8 +43,6 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 #### Native JSON Parser
 - **MqttGatewayClient**: Minimal `parseJsonInt()` and `parseJsonInt32()` functions (~30 lines) replace ArduinoJson's `deserializeJson()` for MQTT command parsing. Handles only the two required fields (`commandIdentifier`, `commandPayload`) with malformed JSON detection and error logging.
 
-### Changed
-
 #### ArduinoJson Dependency Removed (W46)
 - **TelemetryPackage.h**: Replaced `serialize(JsonDocument&)` with `write(TelemetryWriter&)` pure virtual method. Removed `toDocument()` method, simplified `toJsonString()` to use `JsonTelemetryWriter`. Eliminated `JsonDocument` type from the public API.
 - **MqttGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Replaced `deserializeJson()` with native `parseJsonInt()`/`parseJsonInt32()` JSON parser for command extraction. Removed `#include <ArduinoJson.h>`.
