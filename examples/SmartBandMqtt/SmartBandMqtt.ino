@@ -37,7 +37,7 @@
 
 class SmartBandTelemetryPackage : public TelemetryPackage {
     private:
-    int heartBeatsPerMinute;
+    int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
     float relativeHumidityInPercentage;
 
@@ -49,10 +49,10 @@ class SmartBandTelemetryPackage : public TelemetryPackage {
 
     ~SmartBandTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_HEART_BEATS_PER_MINUTE]       = this->heartBeatsPerMinute;
-        serializationDestination[JSON_KEY_SKIN_TEMPERATURE_IN_CELSIUS]   = this->skinTemperatureInCelsius;
-        serializationDestination[JSON_KEY_RELATIVE_HUMIDITY_PERCENTAGE] = this->relativeHumidityInPercentage;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_HEART_BEATS_PER_MINUTE, this->heartBeatsPerMinute);
+        writer.field(JSON_KEY_SKIN_TEMPERATURE_IN_CELSIUS, this->skinTemperatureInCelsius);
+        writer.field(JSON_KEY_RELATIVE_HUMIDITY_PERCENTAGE, this->relativeHumidityInPercentage);
     }
 };
 //@} // Concrete Application Data Schema Specification

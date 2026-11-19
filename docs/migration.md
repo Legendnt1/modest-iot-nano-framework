@@ -420,11 +420,11 @@ void loop() {
 #include <ModestIoT.h>
 
 class SensorTelemetryPackage : public TelemetryPackage {
-    int value;
+    int32_t value;
 public:
-    SensorTelemetryPackage(int v) : value(v) {}
-    void serialize(JsonDocument& doc) const override {
-        doc["value"] = value;
+    SensorTelemetryPackage(int32_t v) : value(v) {}
+    void write(TelemetryWriter& writer) const override {
+        writer.field("value", value);
     }
 };
 

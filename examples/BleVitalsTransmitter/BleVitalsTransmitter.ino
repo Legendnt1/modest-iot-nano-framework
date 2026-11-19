@@ -36,7 +36,7 @@ static const int SAMPLER_QUEUE_LENGTH = 10;
 
 class VitalsTelemetryPackage : public TelemetryPackage {
 private:
-    int heartBeatsPerMinute;
+    int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
 
 public:
@@ -46,9 +46,9 @@ public:
 
     ~VitalsTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_HEART_BEATS_PER_MINUTE] = heartBeatsPerMinute;
-        serializationDestination[JSON_KEY_SKIN_TEMPERATURE_IN_CELSIUS] = skinTemperatureInCelsius;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_HEART_BEATS_PER_MINUTE, heartBeatsPerMinute);
+        writer.field(JSON_KEY_SKIN_TEMPERATURE_IN_CELSIUS, skinTemperatureInCelsius);
     }
 };
 //@} // Concrete Application Data Schema Specification

@@ -131,10 +131,10 @@ public:
 
     /**
      * @brief Polling contract hook: Serializes and ships the payload via HTTP.
-     * @param abstractTelemetryPayload Polymorphic payload to serialize and transmit.
+     * @param telemetryPackage The payload to serialize and transmit.
      * @return True if the server responded with a valid success status code (2xx).
      */
-    bool sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) override;
+    bool sendTelemetryRecord(const TelemetryPackage& telemetryPackage) override;
 };
 
 #endif // HTTP_GATEWAY_CLIENT_H

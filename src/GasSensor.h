@@ -328,6 +328,22 @@ public:
      * @return `true` if gas is detected, `false` otherwise.
      */
     [[nodiscard]] bool isGasDetected() const;
+
+    /**
+     * @brief Returns a human-readable name for a GasType enum value.
+     * Useful for display, logging, or telemetry serialization.
+     * @param type The GasType to convert.
+     * @return A null-terminated string representing the gas type name.
+     */
+    [[nodiscard]] static const char* gasTypeName(GasType type);
+
+    /**
+     * @brief Returns a human-readable name for an OperatingMode enum value.
+     * Useful for display, logging, or telemetry serialization.
+     * @param mode The OperatingMode to convert.
+     * @return A null-terminated string representing the operating mode name.
+     */
+    [[nodiscard]] static const char* operatingModeName(OperatingMode mode);
 };
 
 #endif // GAS_SENSOR_H

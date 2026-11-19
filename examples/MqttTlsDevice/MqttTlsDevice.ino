@@ -56,10 +56,10 @@ class EnvironmentalTelemetryPackage : public TelemetryPackage {
 
     ~EnvironmentalTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_TEMPERATURE_CELSIUS]   = this->temperatureInCelsius;
-        serializationDestination[JSON_KEY_HUMIDITY_PERCENTAGE]   = this->humidityInPercentage;
-        serializationDestination[JSON_KEY_PRESSURE_HECTOPASCALS] = this->pressureInHectopascals;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_TEMPERATURE_CELSIUS, this->temperatureInCelsius);
+        writer.field(JSON_KEY_HUMIDITY_PERCENTAGE, this->humidityInPercentage);
+        writer.field(JSON_KEY_PRESSURE_HECTOPASCALS, this->pressureInHectopascals);
     }
 };
 //@} // Concrete Application Data Schema Specification

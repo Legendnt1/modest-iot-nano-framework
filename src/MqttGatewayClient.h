@@ -23,13 +23,13 @@
 class MqttGatewayClient : public GatewayClient {
 private:
     MQTTClient mqttClient; ///< Underlying MQTT client instance (MQTT Things).
-    
+
     const char* clientIdentifier; ///< Unique client identifier.
     const char* publishTopic; ///< MQTT topic for publishing telemetry.
     const char* subscribeTopic; ///< MQTT topic for subscribing to inbound commands.
 
     unsigned long lastReconnectAttemptTimestamp; ///< Timestamp of the last broker connection attempt.
-    unsigned long reconnectIntervalMilliseconds; ///< Minimum cooldown between reconnect attempts in milliseconds.
+    unsigned long reconnectIntervalInMilliseconds; ///< Minimum cooldown between reconnect attempts in milliseconds.
 
     uint32_t sendsSucceededCount; ///< Successful telemetry transmissions.
     uint32_t sendsFailedCount; ///< Failed telemetry transmissions.
@@ -80,7 +80,7 @@ public:
      *        Required when subscribeTopic is non-null; ignored otherwise.
      * @param deviceId Unique identification literal used during broker handshakes.
      */
-    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient, 
+    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient,
                       const char* brokerIpAddress, uint16_t brokerPort,
                       const char* publishTopic, const char* subscribeTopic,
                       Device* targetDevice,
@@ -99,18 +99,18 @@ public:
      * @param topic Target MQTT topic string destination for publishing records.
      * @param deviceId Unique identification literal used during broker handshakes.
      */
-    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient, 
+    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient,
                       const char* brokerIpAddress, uint16_t brokerPort,
                       const char* topic, const char* deviceId = "ModestIotNode");
-    
+
     ~MqttGatewayClient() override = default;
 
     /**
      * @brief Polymorphically serializes any payload inheriting from TelemetryPackage and publishes it.
-     * @param abstractTelemetryPayload Polymorphic payload to serialize and publish.
+     * @param telemetryPackage The payload to serialize and publish.
      * @return True if the payload byte stream was successfully accepted and pushed by the broker.
      */
-    bool sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) override;
+    bool sendTelemetryRecord(const TelemetryPackage& telemetryPackage) override;
 
     /**
      * @brief Periodic background upkeep routine for MQTT ping packets and keep-alive handling.
@@ -137,9 +137,9 @@ public:
 
     /**
      * @brief Sets the cooldown interval between broker reconnection attempts.
-     * @param intervalMilliseconds Cooldown period in milliseconds (default: 5000ms).
+     * @param intervalInMilliseconds Cooldown period in milliseconds (default: 5000ms).
      */
-    void setReconnectInterval(unsigned long intervalMilliseconds);
+    void setReconnectInterval(unsigned long intervalInMilliseconds);
 
     /**
      * @brief Gets the configured cooldown interval between broker reconnection attempts.

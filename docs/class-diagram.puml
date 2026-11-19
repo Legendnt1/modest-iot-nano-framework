@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.1.1, 51 headers)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 53 headers)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -227,10 +227,28 @@ package "Core" #FAFAFA {
     #executeCommand(command : Command) : void
   }
 
+  interface TelemetryWriter {
+    +field(name : const char*, value : int32_t) : void
+    +field(name : const char*, value : float) : void
+    +field(name : const char*, value : bool) : void
+    +field(name : const char*, value : const char*) : void
+  }
+
+  class JsonTelemetryWriter {
+    +JsonTelemetryWriter()
+    +field(name : const char*, value : int32_t) : void
+    +field(name : const char*, value : float) : void
+    +field(name : const char*, value : bool) : void
+    +field(name : const char*, value : const char*) : void
+    +finalize() : void
+    +getString() const : const char*
+    +hasOverflow() const : bool
+  }
+
   abstract class TelemetryPackage {
-    +serialize(serializationDestination : JsonDocument&) const : void
-    +toDocument() const : JsonDocument
+    +write(writer : TelemetryWriter&) const : void
     +toJsonString() const : String
+    +serializeToBuffer(buffer : char*, bufferSize : size_t) const : size_t
   }
 }
 
@@ -726,7 +744,7 @@ package "Gateway" #FFF8EE {
     #communicationTransportDriver : ConnectivityDriver&
     #serviceEndpointUrl : const char*
     +GatewayClient(transportDriver : ConnectivityDriver&, targetEndpoint : const char*)
-    +sendTelemetryRecord(abstractTelemetryPayload : const TelemetryPackage&) : bool
+    +sendTelemetryRecord(telemetryPackage : const TelemetryPackage&) : bool
     +service() : void
     +loop() : void
     +isConnected() : bool
@@ -760,7 +778,7 @@ package "Gateway" #FFF8EE {
     +isConnected() : bool
     +getStatistics() : GatewayStatistics
     +sendRequest(method : HttpMethod, payload : const char*) : bool
-    +sendTelemetryRecord(abstractTelemetryPayload : const TelemetryPackage&) : bool
+    +sendTelemetryRecord(telemetryPackage : const TelemetryPackage&) : bool
     -executeHttpRequest(method : HttpMethod, payload : const char*) : bool
   }
 
@@ -783,7 +801,7 @@ package "Gateway" #FFF8EE {
     -subscribeTopic : const char*
     -targetDevice : Device*
     +MqttGatewayClient(transportDriver : ConnectivityDriver&, networkClient : Client&, brokerIpAddress : const char*, brokerPort : uint16_t, publishTopic : const char*, subscribeTopic : const char*, targetDevice : Device*, deviceId : const char* = "ModestIotNode")
-    +sendTelemetryRecord(abstractTelemetryPayload : const TelemetryPackage&) : bool
+    +sendTelemetryRecord(telemetryPackage : const TelemetryPackage&) : bool
     +service() : void
     +loop() : void
     +isConnected() : bool
@@ -863,6 +881,8 @@ Device   "0..4" o--> Sensor : triggerTable
 
 GatewayClient     --> ConnectivityDriver : uses
 GatewayClient     ..> TelemetryPackage   : serializes
+TelemetryPackage  ..> TelemetryWriter    : writes to
+TelemetryWriter   <|.. JsonTelemetryWriter : implements
 
 MqttGatewayClient *-- MQTTClient : owns
 MqttGatewayClient --> Client       : uses socket

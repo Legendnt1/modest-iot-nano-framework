@@ -8,32 +8,87 @@
 
 #include "MqttGatewayClient.h"
 #include "ModestLog.h"
-#include <ArduinoJson.h>   // JSON parsing for incoming command payloads
 
 // Static pointer for callback access (set by constructor)
-static MqttGatewayClient* gActiveMqttClient = nullptr;
+static MqttGatewayClient *gActiveMqttClient = nullptr;
 
-MqttGatewayClient::MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient, 
-                                     const char* brokerIpAddress, const uint16_t brokerPort,
-                                     const char* publishT, const char* subscribeT,
-                                     Device* targetDev,
-                                     const char* deviceId)
+/**
+ * @brief Native JSON integer field extractor.
+ *
+ * Searches for "key": in the JSON string and extracts the following integer value.
+ * This replaces ArduinoJson's deserializeJson for the simple 2-field MQTT command format.
+ *
+ * @param jsonString Null-terminated JSON string.
+ * @param key The field name to search for.
+ * @param outValue Pointer to store the extracted value.
+ * @return True if the field was found and parsed successfully.
+ */
+static bool parseJsonInt(const char *jsonString, const char *key, int *outValue) {
+    constexpr auto pattern = "\"";
+    const char *pos = strstr(jsonString, pattern);
+    while (pos != nullptr) {
+        pos = pos + 1; // Skip opening quote
+        const char *keyStart = pos;
+        const char *keyEnd = strchr(pos, '"');
+        if (keyEnd == nullptr) break;
+
+        if (const size_t keyLen = static_cast<size_t>(keyEnd - keyStart);
+            strlen(key) == keyLen && strncmp(keyStart, key, keyLen) == 0) {
+            // Found the key, now find the value after ": "
+            const char *valueStart = keyEnd + 1;
+            while (*valueStart == ' ' || *valueStart == ':') {
+                valueStart++;
+            }
+            char *endPtr;
+            const long val = strtol(valueStart, &endPtr, 10);
+            if (endPtr != valueStart) {
+                *outValue = static_cast<int>(val);
+                return true;
+            }
+        }
+        // Look for the next key
+        pos = strchr(keyEnd, '"');
+    }
+    return false;
+}
+
+/**
+ * @brief Native JSON int32_t field extractor.
+ *
+ * @param json Null-terminated JSON string.
+ * @param key The field name to search for.
+ * @param outValue Pointer to store the extracted value.
+ * @return True if the field was found and parsed successfully.
+ */
+static bool parseJsonInt32(const char *json, const char *key, int32_t *outValue) {
+    int intValue;
+    if (!parseJsonInt(json, key, &intValue)) {
+        return false;
+    }
+    *outValue = intValue;
+    return true;
+}
+
+MqttGatewayClient::MqttGatewayClient(ConnectivityDriver &transportDriver, Client &networkClient,
+                                     const char *brokerIpAddress, const uint16_t brokerPort,
+                                     const char *publishT, const char *subscribeT,
+                                     Device *targetDev,
+                                     const char *deviceId)
     : GatewayClient(transportDriver, ""), // We don't use serviceEndpointUrl here, so pass ""
       mqttClient(networkClient),
       clientIdentifier(deviceId),
       publishTopic(publishT),
       subscribeTopic(subscribeT),
       lastReconnectAttemptTimestamp(0),
-      reconnectIntervalMilliseconds(DEFAULT_RECONNECT_INTERVAL_MILLISECONDS),
+      reconnectIntervalInMilliseconds(DEFAULT_RECONNECT_INTERVAL_MILLISECONDS),
       sendsSucceededCount(0),
       sendsFailedCount(0),
       firstFailureLogged(false),
       serializationBuffer{},
       targetDevice(targetDev),
-      subscribePayloadBuffer{}
-{
+      subscribePayloadBuffer{} {
     mqttClient.begin(brokerIpAddress, brokerPort, networkClient);
-    
+
     // Register the static callback if subscribe is enabled
     if (subscribeTopic != nullptr) {
         gActiveMqttClient = this;
@@ -41,23 +96,22 @@ MqttGatewayClient::MqttGatewayClient(ConnectivityDriver& transportDriver, Client
     }
 }
 
-MqttGatewayClient::MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient, 
-                                     const char* brokerIpAddress, const uint16_t brokerPort,
-                                     const char* topic, const char* deviceId)
+MqttGatewayClient::MqttGatewayClient(ConnectivityDriver &transportDriver, Client &networkClient,
+                                     const char *brokerIpAddress, const uint16_t brokerPort,
+                                     const char *topic, const char *deviceId)
     : GatewayClient(transportDriver, ""), // We don't use serviceEndpointUrl here, so pass ""
       mqttClient(networkClient),
       clientIdentifier(deviceId),
       publishTopic(topic),
       subscribeTopic(nullptr),
       lastReconnectAttemptTimestamp(0),
-      reconnectIntervalMilliseconds(DEFAULT_RECONNECT_INTERVAL_MILLISECONDS),
+      reconnectIntervalInMilliseconds(DEFAULT_RECONNECT_INTERVAL_MILLISECONDS),
       sendsSucceededCount(0),
       sendsFailedCount(0),
       firstFailureLogged(false),
       serializationBuffer{},
       targetDevice(nullptr),
-      subscribePayloadBuffer{}
-{
+      subscribePayloadBuffer{} {
     mqttClient.begin(brokerIpAddress, brokerPort, networkClient);
 }
 
@@ -73,7 +127,8 @@ void MqttGatewayClient::ensureBrokerSessionConnection() {
 
     // Rate-limit connection attempts to avoid blocking the network task during outages
     if (const unsigned long currentTimestamp = millis(); lastReconnectAttemptTimestamp == 0 ||
-                                                   currentTimestamp - lastReconnectAttemptTimestamp >= reconnectIntervalMilliseconds) {
+                                                         currentTimestamp - lastReconnectAttemptTimestamp >=
+                                                         reconnectIntervalInMilliseconds) {
         lastReconnectAttemptTimestamp = currentTimestamp;
         MODEST_LOG_I("MQTT", "Attempting connection to broker for client ID: %s", clientIdentifier);
 
@@ -111,15 +166,15 @@ int MqttGatewayClient::getClientState() {
     return mqttClient.lastError();
 }
 
-void MqttGatewayClient::setReconnectInterval(const unsigned long intervalMilliseconds) {
-    reconnectIntervalMilliseconds = intervalMilliseconds;
+void MqttGatewayClient::setReconnectInterval(const unsigned long intervalInMilliseconds) {
+    reconnectIntervalInMilliseconds = intervalInMilliseconds;
 }
 
 unsigned long MqttGatewayClient::getReconnectInterval() const {
-    return reconnectIntervalMilliseconds;
+    return reconnectIntervalInMilliseconds;
 }
 
-bool MqttGatewayClient::sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) {
+bool MqttGatewayClient::sendTelemetryRecord(const TelemetryPackage &telemetryPackage) {
     // Check transport capability before processing
     if (!communicationTransportDriver.canTransmit()) {
         communicationTransportDriver.connect(); // Asynchronously attempt a link recovery
@@ -143,10 +198,8 @@ bool MqttGatewayClient::sendTelemetryRecord(const TelemetryPackage& abstractTele
     }
 
     // Serialize telemetry payload into bounded buffer
-    JsonDocument payload;
-    abstractTelemetryPayload.addEnvelopeMetadata(payload);
-    abstractTelemetryPayload.serialize(payload);
-    if (const size_t serializedLength = serializeJson(payload, serializationBuffer, sizeof(serializationBuffer)); serializedLength == 0) {
+    if (const size_t serializedLength = telemetryPackage.serializeToBuffer(
+        serializationBuffer, MAX_TELEMETRY_PAYLOAD_SIZE); serializedLength == 0) {
         MODEST_LOG_W("MQTT", "Payload too large for serialization buffer (%u bytes)", MAX_TELEMETRY_PAYLOAD_SIZE);
         sendsFailedCount++;
         if (!firstFailureLogged) {
@@ -157,7 +210,8 @@ bool MqttGatewayClient::sendTelemetryRecord(const TelemetryPackage& abstractTele
     }
 
     // Publish telemetry payload to the broker topic
-    const bool publishSuccessStatus = mqttClient.publish(publishTopic, serializationBuffer, strlen(serializationBuffer));
+    const bool publishSuccessStatus = mqttClient.
+            publish(publishTopic, serializationBuffer, strlen(serializationBuffer));
     if (!publishSuccessStatus) {
         sendsFailedCount++;
         if (!firstFailureLogged) {
@@ -168,7 +222,7 @@ bool MqttGatewayClient::sendTelemetryRecord(const TelemetryPackage& abstractTele
         sendsSucceededCount++;
         MODEST_LOG_D("MQTT", "Published telemetry payload to topic: %s", publishTopic);
     }
-    
+
     // Maintain internal background MQTT processing states (pings, heartbeats)
     mqttClient.loop();
 
@@ -182,7 +236,7 @@ GatewayStatistics MqttGatewayClient::getStatistics() const {
     return stats;
 }
 
-const char* MqttGatewayClient::getSubscribeTopic() const {
+const char *MqttGatewayClient::getSubscribeTopic() const {
     return subscribeTopic;
 }
 
@@ -198,7 +252,7 @@ void MqttGatewayClient::subscribeToTopic() {
     if (subscribeTopic == nullptr) {
         return;
     }
-    
+
     if (mqttClient.subscribe(subscribeTopic, DEFAULT_MQTT_QOS)) {
         MODEST_LOG_I("MQTT", "Subscribed to topic: %s", subscribeTopic);
     } else {
@@ -206,8 +260,8 @@ void MqttGatewayClient::subscribeToTopic() {
     }
 }
 
-void MqttGatewayClient::mqttMessageCallback(String& topic, String& payload) {
-    (void)topic; // Used only in MODEST_LOG_D, which may be compiled out
+void MqttGatewayClient::mqttMessageCallback(String &topic, String &payload) {
+    (void) topic; // Used only in MODEST_LOG_D, which may be compiled out
     if (gActiveMqttClient == nullptr || gActiveMqttClient->targetDevice == nullptr) {
         return;
     }
@@ -223,26 +277,20 @@ void MqttGatewayClient::mqttMessageCallback(String& topic, String& payload) {
         MODEST_LOG_W("MQTT", "Incoming command payload too large (%d bytes)", length);
         return;
     }
-    
+
     // Null-terminate the payload for JSON parsing
     memcpy(gActiveMqttClient->subscribePayloadBuffer, payload.c_str(), length);
     gActiveMqttClient->subscribePayloadBuffer[length] = '\0';
 
-    // Parse JSON to extract command identifier
-    JsonDocument doc;
-    if (const DeserializationError error = deserializeJson(doc, gActiveMqttClient->subscribePayloadBuffer); error != DeserializationError::Ok) {
-        MODEST_LOG_W("MQTT", "Failed to parse command JSON (error code: %d)", static_cast<int>(error));
-        return;
-    }
-
-    // Extract command identifier from JSON
-    if (!doc[JSON_KEY_COMMAND_IDENTIFIER].is<int>()) {
+    // Parse JSON to extract command identifier using native deserializer
+    int commandId;
+    if (!parseJsonInt(gActiveMqttClient->subscribePayloadBuffer, JSON_KEY_COMMAND_IDENTIFIER, &commandId)) {
         MODEST_LOG_W("MQTT", "Incoming command missing command identifier field");
         return;
     }
 
-    const int commandId = doc[JSON_KEY_COMMAND_IDENTIFIER].as<int>();
-    const int32_t commandPayload = doc[JSON_KEY_COMMAND_PAYLOAD] | 0;
+    int32_t commandPayload = 0;
+    parseJsonInt32(gActiveMqttClient->subscribePayloadBuffer, JSON_KEY_COMMAND_PAYLOAD, &commandPayload);
     MODEST_LOG_D("MQTT", "Received command %d (payload %ld) on topic: %s", commandId, commandPayload, topic.c_str());
 
     // Marshal the command to the sampler task via Device::enqueueCommand()
@@ -250,4 +298,5 @@ void MqttGatewayClient::mqttMessageCallback(String& topic, String& payload) {
     const Command command(commandId, commandPayload);
     gActiveMqttClient->targetDevice->enqueueCommand(gActiveMqttClient->targetDevice, command);
 }
+
 /** @} */

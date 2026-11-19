@@ -22,7 +22,6 @@
 
 #include <Arduino.h>
 #include <memory>
-#include <ArduinoJson.h>
 #include <ModestIoT.h>
 
 /** @name Default Configuration Constants */
@@ -69,7 +68,7 @@ static const int SAMPLER_QUEUE_LENGTH = 5;
  */
 class CropMonitoringTelemetryPackage : public TelemetryPackage {
     private:
-    int soilMoisture;
+    int32_t soilMoisture;
     float airTemperatureInCelsius;
     float airHumidityInPercentage;
     float lightIntensityInLux;
@@ -87,11 +86,11 @@ class CropMonitoringTelemetryPackage : public TelemetryPackage {
 
     ~CropMonitoringTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_SOIL_MOISTURE]              = this->soilMoisture;
-        serializationDestination[JSON_KEY_AIR_TEMPERATURE_IN_CELSIUS]   = this->airTemperatureInCelsius;
-        serializationDestination[JSON_KEY_AIR_HUMIDITY_IN_PERCENTAGE]   = this->airHumidityInPercentage;
-        serializationDestination[JSON_KEY_LIGHT_INTENSITY_IN_LUX]       = this->lightIntensityInLux;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_SOIL_MOISTURE, this->soilMoisture);
+        writer.field(JSON_KEY_AIR_TEMPERATURE_IN_CELSIUS, this->airTemperatureInCelsius);
+        writer.field(JSON_KEY_AIR_HUMIDITY_IN_PERCENTAGE, this->airHumidityInPercentage);
+        writer.field(JSON_KEY_LIGHT_INTENSITY_IN_LUX, this->lightIntensityInLux);
     }
 };
 //@} // Concrete Application Data Schema Specification

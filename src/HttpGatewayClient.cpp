@@ -60,7 +60,7 @@ bool HttpGatewayClient::sendRequest(const HttpMethod method, const char* payload
     return executeHttpRequest(method, payload);
 }
 
-bool HttpGatewayClient::sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) {
+bool HttpGatewayClient::sendTelemetryRecord(const TelemetryPackage& telemetryPackage) {
     // Check transport capability before processing
     if (!communicationTransportDriver.canTransmit()) {
         communicationTransportDriver.connect();
@@ -69,10 +69,7 @@ bool HttpGatewayClient::sendTelemetryRecord(const TelemetryPackage& abstractTele
     }
 
     // Serialize telemetry payload into bounded buffer
-    JsonDocument payload;
-    abstractTelemetryPayload.addEnvelopeMetadata(payload);
-    abstractTelemetryPayload.serialize(payload);
-    if (const size_t serializedLength = serializeJson(payload, serializationBuffer, sizeof(serializationBuffer)); serializedLength == 0) {
+    if (const size_t serializedLength = telemetryPackage.serializeToBuffer(serializationBuffer, SERIALIZATION_BUFFER_SIZE); serializedLength == 0) {
         MODEST_LOG_W("HTTP", "Payload too large for serialization buffer (%u bytes)", SERIALIZATION_BUFFER_SIZE);
         sendsFailedCount++;
         return false;

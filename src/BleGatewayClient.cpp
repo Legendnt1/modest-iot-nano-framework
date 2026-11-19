@@ -10,7 +10,6 @@
 #include "BleGatewayClient.h"
 #include "BleConnectivityDriver.h"
 #include "ModestLog.h"
-#include <ArduinoJson.h>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <cstring>
 
@@ -25,18 +24,15 @@ BleGatewayClient::BleGatewayClient(ConnectivityDriver& transportDriver, const ch
     memset(serializationBuffer, 0, SERIALIZATION_BUFFER_SIZE);
 }
 
-bool BleGatewayClient::sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) {
+bool BleGatewayClient::sendTelemetryRecord(const TelemetryPackage& telemetryPackage) {
     if (!communicationTransportDriver.canTransmit()) {
         sendsFailedCount++;
         MODEST_LOG_W("BleGateway", "BLE peer not connected; telemetry dropped");
         return false;
     }
 
-    // Serialize telemetry to fixed-size buffer using the same pattern as MqttGatewayClient
-    JsonDocument payload;
-    abstractTelemetryPayload.addEnvelopeMetadata(payload);
-    abstractTelemetryPayload.serialize(payload);
-    const size_t serializedLength = serializeJson(payload, serializationBuffer, sizeof(serializationBuffer));
+    // Serialize telemetry to fixed-size buffer
+    const size_t serializedLength = telemetryPackage.serializeToBuffer(serializationBuffer, SERIALIZATION_BUFFER_SIZE);
     if (serializedLength == 0) {
         sendsFailedCount++;
         MODEST_LOG_W("BleGateway", "Payload too large for serialization buffer (%u bytes)", SERIALIZATION_BUFFER_SIZE);
