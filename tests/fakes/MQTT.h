@@ -41,6 +41,10 @@ public:
     static inline std::string lastPayload = "";
     static inline std::string lastClientId = "";
 
+    // Publish QoS and retained simulation controls
+    static inline int lastPublishQos = 0;
+    static inline bool lastPublishRetained = false;
+
     // Subscribe simulation controls
     static inline int subscribeCount = 0;
     static inline std::string lastSubscribeTopic = "";
@@ -59,6 +63,8 @@ public:
         lastTopic.clear();
         lastPayload.clear();
         lastClientId.clear();
+        lastPublishQos = 0;
+        lastPublishRetained = false;
         subscribeCount = 0;
         lastSubscribeTopic.clear();
         lastSubscribeQos = 0;
@@ -116,10 +122,10 @@ public:
     }
 
     /**
-     * @brief Publish a message to a topic.
-     * MQTT Things signature: publish(topic, payload, length)
+     * @brief Publish a message to a topic with QoS and retained flag.
+     * MQTT Things signature: publish(topic, payload, length, retained, qos)
      */
-    bool publish(const char* topic, const char* payload, int length) {
+    bool publish(const char* topic, const char* payload, int length, bool retainedFlag = false, int qos = 0) {
         if (!isBrokerConnected) {
             return false;
         }
@@ -129,6 +135,8 @@ public:
         publishCount++;
         lastTopic = topic ? topic : "";
         lastPayload = std::string(payload ? payload : "", length);
+        lastPublishQos = qos;
+        lastPublishRetained = retainedFlag;
         return true;
     }
 
