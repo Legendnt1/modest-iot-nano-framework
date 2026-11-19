@@ -104,7 +104,9 @@ class MqttTlsDevice : public Device {
         appendSensorToScheduler(&environmentalSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
     }
 
-    ~MqttTlsDevice() override = default;
+    ~MqttTlsDevice() override {
+        stopAsynchronousEngine();
+    }
 
     void on(Event event) override {
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {

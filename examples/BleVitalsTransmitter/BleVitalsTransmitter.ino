@@ -137,7 +137,9 @@ public:
         appendSensorToScheduler(&skinTempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
     }
 
-    ~BleVitalsTransmitter() override = default;
+    ~BleVitalsTransmitter() override {
+        stopAsynchronousEngine();
+    }
 
     void on(Event event) override {
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {

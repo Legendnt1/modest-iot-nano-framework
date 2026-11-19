@@ -151,7 +151,9 @@ public:
         appendSensorToScheduler(&pipeSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
     }
 
-    ~PipeTemperatureMonitor() override = default;
+    ~PipeTemperatureMonitor() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data events and fault/recovery events.

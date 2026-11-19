@@ -167,7 +167,9 @@ public:
         appendSensorToScheduler(&airQualitySensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
     }
 
-    ~IndoorAirQualityDisplay() override = default;
+    ~IndoorAirQualityDisplay() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data events and updates the display.

@@ -299,7 +299,9 @@ public:
         appendSensorToScheduler(&climateSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
     }
 
-    ~ClimateDataUploader() override = default;
+    ~ClimateDataUploader() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data-ready events to package and queue telemetry.

@@ -169,7 +169,9 @@ public:
                    config.samplerStackBytes, config.queueLength);
     }
 
-    ~EquipmentHealthMonitor() override = default;
+    ~EquipmentHealthMonitor() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data events and reports readings with structured logging.

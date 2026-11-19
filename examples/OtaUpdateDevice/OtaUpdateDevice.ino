@@ -116,7 +116,9 @@ public:
         appendSensorToScheduler(&dhtSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
     }
 
-    ~OtaUpdateDevice() override = default;
+    ~OtaUpdateDevice() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data-ready events to log readings.

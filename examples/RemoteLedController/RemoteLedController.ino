@@ -113,7 +113,9 @@ public:
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
-    ~RemoteLedController() override = default;
+    ~RemoteLedController() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles events dispatched by the framework.

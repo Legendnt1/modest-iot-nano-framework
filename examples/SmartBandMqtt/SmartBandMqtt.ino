@@ -110,7 +110,9 @@ class SmartBandDevice : public Device {
                                           FALLING);
     }
 
-    ~SmartBandDevice() override = default;
+    ~SmartBandDevice() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data-ready and button press events.
