@@ -863,3 +863,25 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - Diagnostics track dropped alerts and queue pressure for fleet monitoring
 
 **Source**: `src/Device.h`, `src/Device.cpp`, `src/TelemetryPackage.h`
+
+---
+
+### W32 Example: HomeSecurityDevice High-Priority Lane Demonstration — **Complete** ✓
+
+**Problem**: The high-priority telemetry lane (W32) was implemented but had no example demonstrating both `enqueueTelemetryPayload()` and `enqueueHighPriorityPayload()` side-by-side.
+
+**Resolution**: Extended `HomeSecurityDevice` with MQTT gateway integration and two TelemetryPackage subclasses. Routine status updates (door closed, motion stopped, leak cleared) use the standard queue via `enqueueTelemetryPayload()`. Critical alerts (water leak detected, door opened) use the high-priority queue via `enqueueHighPriorityPayload()`, with `"priority": "high"` in the JSON envelope.
+
+**Implementation**:
+
+- **SecurityStatusTelemetryPackage**: Routine telemetry with `doorOpen`, `motionDetected`, and `waterLeak` boolean fields. Enqueued via `enqueueTelemetryPayload()` for non-critical status updates.
+- **SecurityAlertTelemetryPackage**: Critical alert telemetry with `alertType` (string) and `alertState` (boolean) fields. Enqueued via `enqueueHighPriorityPayload()` for time-sensitive alerts.
+- **on(Event) handler**: Clearly comments which events go to which queue — water leak and door opened are CRITICAL (high-priority lane), while door closed, motion detected/stopped, and leak cleared are ROUTINE (standard queue).
+- **3 golden tests**: SecurityStatus routine telemetry (no priority field), SecurityAlert with `markAsHighPriority()` (priority field present), SecurityAlert without `markAsHighPriority()` (no priority field).
+
+**Benefits**:
+- Developers can see both enqueue paths side-by-side in a realistic security monitoring scenario
+- The example serves as a template for any application that needs to distinguish between routine telemetry and critical alerts
+- Clear comments in the `on(Event)` handler explain the rationale for each enqueue decision
+
+**Source**: `examples/HomeSecurityDevice/HomeSecurityDevice.ino`, `tests/TelemetryPackage/test.cpp`
