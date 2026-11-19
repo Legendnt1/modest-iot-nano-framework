@@ -21,6 +21,7 @@
 #include "EventHandler.h"
 #include "CommandHandler.h"
 #include "TelemetryPackage.h"
+#include "JsonParser.h"
 #include "Device.h"
 #include "LocationData.h"
 #include "ConfigurationStore.h"
