@@ -250,7 +250,7 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** an incoming MQTT message with JSON payload `{"commandIdentifier": N, "commandPayload": V}`, **when** the native JSON parser extracts values, **then** the command ID and payload are extracted correctly.
     - **Given** the JSON payload is malformed, **when** the native JSON parser processes it, **then** an error is logged and the message is ignored.
     - **Given** the JSON payload is missing the `commandIdentifier` field, **when** the native JSON parser processes it, **then** an error is logged and the message is ignored.
-- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp` (`parseJsonInt()`, `parseJsonInt32()`).
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp` (`JsonParser::parseInt()`, `JsonParser::parseInt32()`).
 
 ### TS24: ArduinoJson Dependency Removal
 
@@ -310,6 +310,62 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** high-priority alerts have been dropped due to a full queue, **when** `diagnostics()` is called, **then** `highPriorityDropped` reflects the total count of dropped alerts.
     - **Given** the high-priority queue has reached a certain depth, **when** `diagnostics()` is called, **then** `highPriorityQueueHighWaterMark` reflects the maximum depth observed.
 - **Status**: ✓ Implemented (v1.2.0). See `Device.h` (DiagnosticsSnapshot extension), `Device.cpp`.
+
+### TS30: Configure MQTT QoS for Telemetry Publishing
+
+- **As an** IoT Developer, **I want** to configure the QoS level for MQTT telemetry publishing, **so that** I can ensure message delivery reliability based on my application's requirements.
+- **Acceptance Criteria**:
+    - **Given** a MqttGatewayClient is created with QoS 1, **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish uses QoS 1.
+    - **Given** a MqttGatewayClient is created with QoS 0 (default), **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish uses QoS 0.
+    - **Given** a MqttGatewayClient is created with QoS 2, **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish uses QoS 2.
+    - **Given** a MqttGatewayClient is created, **when** QoS is changed via `setPublishQoS()`, **then** subsequent publishes use the new QoS level.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS31: Configure Retained Messages for Last-Known-Good Telemetry
+
+- **As an** IoT Developer, **I want** to publish telemetry with the retained flag, **so that** the MQTT broker stores the last-known-good message for new subscribers.
+- **Acceptance Criteria**:
+    - **Given** a MqttGatewayClient is created with retained mode enabled, **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish includes the retained flag.
+    - **Given** a MqttGatewayClient is created with retained mode disabled (default), **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish does not include the retained flag.
+    - **Given** a MqttGatewayClient is created, **when** retained mode is changed via `setRetained()`, **then** subsequent publishes use the new retained setting.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS32: Configure MQTT QoS for Subscribe
+
+- **As an** IoT Developer, **I want** to configure the QoS level for MQTT topic subscription, **so that** incoming commands are received with the desired delivery guarantee.
+- **Acceptance Criteria**:
+    - **Given** a MqttGatewayClient is created with subscribe QoS 1, **when** the client subscribes to the command topic, **then** the subscription uses QoS 1.
+    - **Given** a MqttGatewayClient is created with subscribe QoS 0 (default), **when** the client subscribes to the command topic, **then** the subscription uses QoS 0.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS33: Add QoS and Retained Configuration to MqttGatewayClient
+
+- **As an** IoT Developer, **I want** MqttGatewayClient to accept QoS and retained parameters, **so that** I can configure delivery guarantees at construction time.
+- **Acceptance Criteria**:
+    - **Given** MqttGatewayClient constructors accept QoS and retained parameters, **when** a client is created, **then** the parameters are stored as member variables.
+    - **Given** the default constructor parameters, **when** a client is created without explicit QoS/retained, **then** QoS defaults to 0 and retained defaults to false.
+    - **Given** `setPublishQoS()`, `setRetained()`, and `setSubscribeQoS()` exist, **when** they are called, **then** the stored values are updated.
+    - **Given** `getPublishQoS()`, `getRetained()`, and `getSubscribeQoS()` exist, **when** they are called, **then** the current values are returned.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS34: Update MQTT publish and subscribe to use QoS and Retained
+
+- **As an** IoT Developer, **I want** MqttGatewayClient to pass QoS and retained to the MQTT library, **so that** messages are published with the configured delivery guarantees.
+- **Acceptance Criteria**:
+    - **Given** `sendTelemetryRecord()` calls `mqttClient.publish()`, **when** the method executes, **then** the publish call includes the configured QoS and retained parameters.
+    - **Given** `subscribeToTopic()` calls `mqttClient.subscribe()`, **when** the method executes, **then** the subscribe call uses the configured subscribe QoS.
+    - **Given** the test mock is updated, **when** a test verifies QoS and retained, **then** the mock records and exposes these values for assertion.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp`, `tests/fakes/MQTT.h`, `tests/MqttGatewayClient/test.cpp`.
+
+### TS35: Parse JSON Commands with JsonParser
+
+- **As an** IoT Developer, **I want** to parse JSON payloads from MQTT commands, HTTP responses, and BLE notifications, **so that** I can extract values without ArduinoJson.
+- **Acceptance Criteria**:
+    - **Given** a JSON string `{"commandId": 1, "threshold": 42.5}`, **when** `JsonParser::parseInt()` is called with key "commandId", **then** the value 1 is extracted.
+    - **Given** a JSON string `{"enabled": true}`, **when** `JsonParser::parseBool()` is called with key "enabled", **then** the value true is extracted.
+    - **Given** a JSON string `{"name": "sensor_01"}`, **when** `JsonParser::parseString()` is called with key "name", **then** the string "sensor_01" is copied to the output buffer.
+    - **Given** a missing key, **when** any `JsonParser` method is called, **then** false is returned and the output value is unchanged.
+- **Status**: ✓ Implemented (v1.2.0). See `JsonParser.h`, `JsonParser.cpp`, `tests/JsonParser/test.cpp`.
 
 ---
 
