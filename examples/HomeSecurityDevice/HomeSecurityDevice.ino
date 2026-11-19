@@ -165,11 +165,11 @@ public:
 };
 //@} // Concrete Application Data Schema Specification
 
+/// @brief Wi-Fi transport driver instance (used by HomeSecurityDevice::start()).
+static WiFiConnectivityDriver* transportDriver = nullptr;
+
 /** @name Application Mediator Implementation */
 //@{
-
-/// @brief Forward declaration of the Wi-Fi transport driver (defined below).
-static WiFiConnectivityDriver* transportDriver;
 
 class HomeSecurityDevice : public Device {
 private:
@@ -326,7 +326,6 @@ public:
 };
 //@} // Application Mediator Implementation
 
-WiFiConnectivityDriver* transportDriver = nullptr;
 static HomeSecurityDevice* homeSecurityApplication = nullptr;
 
 void setup() {
