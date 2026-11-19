@@ -215,7 +215,7 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
 - **As an** IoT Developer, **I want** to install the Modest IoT Nano Framework from a registry provider without manual steps, **so that** I can use the framework in my project with a single configuration line.
 - **Acceptance Criteria**:
     - **Given** the framework is published to the Arduino Library Manager, **when** the Arduino IDE Library Manager lists available libraries, **then** the framework appears with the correct name, version, and description.
-    - **Given** the framework is published to the Arduino Library Manager, **when** installation is triggered, **then** the framework and its dependencies (ArduinoJson, MQTT) are downloaded and available in the sketch.
+    - **Given** the framework is published to the Arduino Library Manager, **when** installation is triggered, **then** the framework and its dependency (MQTT) are downloaded and available in the sketch.
     - **Given** a `library.json` manifest exists, **when** `Modest-IoT-Nano-Framework` is added to `lib_deps` in `platformio.ini`, **then** PlatformIO resolves and downloads the framework and its dependencies.
     - **Given** the framework is installed via either registry, **when** a sketch that includes `ModestIoT.h` is built, **then** the build succeeds without missing header errors.
     - **Given** both `library.json` and `library.properties` exist, **when** the metadata is compared, **then** the name, version, and dependencies are consistent between the two files.
@@ -226,14 +226,73 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
 - **As an** IoT Developer, **I want** a step-by-step Quick Start Guide, **so that** I can go from zero to a working device in under 10 minutes.
 - **Acceptance Criteria**:
     - **Given** the Quick Start Guide offers two routes, **when** the user chooses the Simulation route, **then** the `StatusIndicator` example runs in Wokwi without any hardware or toolchain installation.
-    - **Given** the Simulation route is followed, **when** the required libraries are added in Wokwi, **then** the framework, ArduinoJson, and MQTT are available for the simulated sketch.
+    - **Given** the Simulation route is followed, **when** the required libraries are added in Wokwi, **then** the framework and MQTT are available for the simulated sketch.
     - **Given** the user chooses the Hardware route, **when** the Quick Start Guide is followed, **then** the framework is installed, the `StatusIndicator` example is opened, and the sketch is uploaded to the ESP32 board.
     - **Given** the Hardware route covers installation, **when** the Installation section is read, **then** three toolchain paths are documented: Arduino Library Manager, PlatformIO in VS Code, and PlatformIO in CLion.
     - **Given** the `StatusIndicator` example is uploaded, **when** the Serial Monitor is connected, **then** LED toggle status messages are output confirming the framework is running.
     - **Given** the Quick Start Guide is complete, **when** the Next Steps section is reached, **then** links to the full README, examples, and documentation are provided.
 - **Status**: ✓ Implemented (v1.1.2). See `docs/quick-start.md` (two-route guide: Simulation via Wokwi, Hardware via ESP32) and `examples/StatusIndicator`.
 
+### TS22: Format-Neutral Telemetry Serialization
+
+- **As an** IoT Developer, **I want** telemetry packages to be decoupled from the JSON serialization format, **so that** I can swap JSON for CBOR, MessagePack, or binary protocols without changing telemetry package code.
+- **Acceptance Criteria**:
+    - **Given** a `TelemetryWriter` interface exists, **when** a `TelemetryPackage` subclass implements `write(TelemetryWriter&)`, **then** the package declares data fields without knowing the serialization format.
+    - **Given** a `JsonTelemetryWriter` implementation exists, **when** `write()` is called with a `JsonTelemetryWriter`, **then** the output is valid JSON with envelope metadata (timestamp, sequence, schemaVersion, firmwareVersion).
+    - **Given** the `TelemetryWriter` interface is abstract, **when** a new format writer (e.g., CBOR) is needed, **then** only the new writer class needs to be implemented — no telemetry package changes required.
+    - **Given** `JsonTelemetryWriter` uses a fixed stack buffer, **when** serialization occurs, **then** no heap allocation is made (zero `JsonDocument` usage).
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryWriter.h`, `JsonTelemetryWriter.h`, `JsonTelemetryWriter.cpp`, and `TelemetryPackage.h`.
+
+### TS23: Native JSON Deserialization for MQTT Commands
+
+- **As an** IoT Developer, **I want** incoming MQTT commands to be deserialized without ArduinoJson, **so that** the framework has zero external dependencies for JSON handling.
+- **Acceptance Criteria**:
+    - **Given** an incoming MQTT message with JSON payload `{"commandIdentifier": N, "commandPayload": V}`, **when** the native deserializer parses it, **then** the command ID and payload are extracted correctly.
+    - **Given** the JSON payload is malformed, **when** the native deserializer parses it, **then** an error is logged and the message is ignored.
+    - **Given** the JSON payload is missing the `commandIdentifier` field, **when** the native deserializer parses it, **then** an error is logged and the message is ignored.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp` (`parseJsonInt()`, `parseJsonInt32()`).
+
+### TS24: ArduinoJson Dependency Removal
+
+- **As an** IoT Developer, **I want** the framework to have no ArduinoJson dependency, **so that** my firmware saves ~30-40 KB of Flash and avoids per-serialization heap allocations.
+- **Acceptance Criteria**:
+    - **Given** W46 is complete, **when** `library.properties` and `library.json` are checked, **then** ArduinoJson is removed from the dependencies list.
+    - **Given** W46 is complete, **when** all source files are searched for `#include <ArduinoJson.h>`, **then** no matches are found in production code.
+    - **Given** W46 is complete, **when** all 23 examples compile, **then** the build succeeds without ArduinoJson.
+    - **Given** W46 is complete, **when** all 47 host test suites run, **then** all tests pass without the ArduinoJson mock.
+- **Status**: ✓ Implemented (v1.2.0). See `library.properties`, `library.json`, and all migrated source files.
+
+### TS25: Implement TelemetryWriter Abstraction
+
+- **As an** IoT Developer, **I want** a `TelemetryWriter` interface and `JsonTelemetryWriter` implementation, **so that** telemetry packages can serialize to JSON without ArduinoJson.
+- **Acceptance Criteria**:
+    - **Given** `TelemetryWriter` is an abstract class, **when** the interface is reviewed, **then** it has pure virtual `field()` overloads for `int32_t`, `float`, `bool`, and `const char*`.
+    - **Given** `JsonTelemetryWriter` implements `TelemetryWriter`, **when** `field()` is called, **then** the value is appended to a fixed-size stack buffer using `snprintf`.
+    - **Given** `JsonTelemetryWriter` has a `finalize()` method, **when** all fields are written, **then** the buffer contains valid JSON with proper comma separation and closing brace.
+    - **Given** `JsonTelemetryWriter` uses a 512-byte buffer, **when** the buffer is full, **then** serialization stops and an error is logged.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryWriter.h`, `JsonTelemetryWriter.h`, `JsonTelemetryWriter.cpp`.
+
+### TS26: Migrate TelemetryPackage to TelemetryWriter
+
+- **As an** IoT Developer, **I want** `TelemetryPackage` to use `TelemetryWriter` instead of `JsonDocument`, **so that** the core API is decoupled from ArduinoJson.
+- **Acceptance Criteria**:
+    - **Given** `TelemetryPackage` has a `write(TelemetryWriter&)` pure virtual method, **when** subclasses override it, **then** they call `writer.field()` for each data field.
+    - **Given** `TelemetryPackage::toJsonString()` exists, **when** it is called, **then** it creates a `JsonTelemetryWriter`, calls `addEnvelopeMetadata()` and `write()`, and returns the JSON string.
+    - **Given** `TelemetryPackage::addEnvelopeMetadata()` exists, **when** it is called with a `TelemetryWriter`, **then** timestamp, sequence, schemaVersion, and firmwareVersion fields are written.
+    - **Given** the old `serialize(JsonDocument&)` method is removed, **when** the codebase is searched for `serialize(JsonDocument&)`, **then** no matches are found.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h`.
+
+### TS27: Migrate Gateway Clients and Add Native Deserializer
+
+- **As an** IoT Developer, **I want** gateway clients to use `JsonTelemetryWriter` and a native JSON deserializer, **so that** no ArduinoJson is used in the network task.
+- **Acceptance Criteria**:
+    - **Given** `MqttGatewayClient::sendTelemetryRecord()` uses `serializeToBuffer()`, **when** telemetry is sent, **then** the JSON payload is serialized to a fixed buffer without heap allocation.
+    - **Given** `BleGatewayClient::sendTelemetryRecord()` uses `serializeToBuffer()`, **when** telemetry is sent, **then** the JSON payload is serialized to a fixed buffer without heap allocation.
+    - **Given** `mqttMessageCallback()` uses a native JSON deserializer, **when** a command arrives, **then** `commandIdentifier` and `commandPayload` are extracted without ArduinoJson.
+    - **Given** the native deserializer handles malformed JSON, **when** invalid JSON arrives, **then** an error is logged and the message is ignored.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp`, `BleGatewayClient.cpp`, `HttpGatewayClient.cpp`.
+
 ---
 
 *Created: March 23, 2025.*
-*Last Updated: November 17, 2026.*
+*Last Updated: November 18, 2026.*
