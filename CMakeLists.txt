@@ -288,6 +288,7 @@ add_executable(test_TriggeringScheduler
         src/Sensor.cpp
         src/Device.cpp
         src/SamplingScheduler.cpp
+        src/JsonTelemetryWriter.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -298,6 +299,7 @@ add_executable(test_CommandMarshaling
         src/Device.cpp
         src/SamplingScheduler.cpp
         src/Sensor.cpp
+        src/JsonTelemetryWriter.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -372,6 +374,7 @@ add_executable(test_DeepSleep
         src/Device.cpp
         src/SamplingScheduler.cpp
         src/Sensor.cpp
+        src/JsonTelemetryWriter.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -594,6 +597,7 @@ add_executable(test_Device
         src/Actuator.cpp
         src/Device.cpp
         src/SamplingScheduler.cpp
+        src/JsonTelemetryWriter.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
