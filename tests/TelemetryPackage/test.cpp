@@ -10,7 +10,7 @@ namespace {
 // Concrete telemetry packages matching the examples
 class SmartBandTelemetryPackage : public TelemetryPackage {
 private:
-    int heartBeatsPerMinute;
+    int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
     float relativeHumidityInPercentage;
 
@@ -33,7 +33,7 @@ class AirQualityTelemetryPackage : public TelemetryPackage {
 private:
     float gasConcentrationInPpm;
     bool gasDetected;
-    int operatingMode;
+    int32_t operatingMode;
 
 public:
     AirQualityTelemetryPackage(float ppm, bool detected, int mode)
@@ -139,7 +139,7 @@ public:
         JsonTelemetryWriter writer;
         // Fill the buffer with many fields to trigger overflow
         for (int i = 0; i < 100; i++) {
-            writer.field("field", i);
+            writer.field("field", static_cast<int32_t>(i));
         }
         writer.finalize();
         assert(writer.hasOverflow());
