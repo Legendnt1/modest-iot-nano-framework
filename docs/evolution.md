@@ -837,3 +837,29 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - Format-neutral telemetry enables future compact binary protocols
 
 **Source**: `src/TelemetryWriter.h`, `src/JsonTelemetryWriter.h`, `src/JsonTelemetryWriter.cpp`, `src/TelemetryPackage.h`, `src/MqttGatewayClient.cpp`, `src/BleGatewayClient.cpp`, `src/HttpGatewayClient.cpp`, `src/GasSensor.h`, `src/GasSensor.cpp`, `tests/fakes/TelemetryWriter.h`
+
+---
+
+### W32: High-Priority Telemetry Lane — **Complete** ✓
+
+**Problem**: Critical alerts (water leak, fire, security breach) were enqueued in the standard telemetry queue alongside routine data. The network task processed packets in FIFO order, so alerts could be delayed behind routine telemetry.
+
+**Resolution**: Added a separate high-priority queue (4 slots) that the network task checks first (non-blocking) before polling the standard queue. High-priority packets include `"priority": "high"` in the JSON envelope for edge-side routing.
+
+**Implementation**:
+
+- **Device::enqueueHighPriorityPayload()**: Enqueues to the high-priority queue with envelope metadata and priority marker. Bounded queue (4 slots) drops new alerts when full (no eviction, as alerts are too critical to replace).
+- **TelemetryPackage::markAsHighPriority()**: Sets the high-priority flag, adding `"priority": "high"` to the envelope during serialization.
+- **TelemetryPackage::isHighPriority()**: Accessor for the high-priority flag.
+- **Network task modification**: Checks high-priority queue first (non-blocking `xQueueReceive`), then standard queue (100ms timeout). One alert per loop iteration prevents starvation of routine telemetry.
+- **DiagnosticsSnapshot extension**: New fields `highPriorityEnqueued`, `highPriorityDropped`, `highPriorityQueueHighWaterMark` for monitoring queue pressure.
+- **Device refactoring**: Extracted `assignEnvelopeMetadata()` helper (shared by both enqueue methods) and `drainTelemetryQueue()` static helper (shared cleanup in `stopAsynchronousEngine()`).
+- **Example destructor safety**: 9 Device subclasses replaced `= default` destructors with proper `stopAsynchronousEngine()` calls to ensure the engine stops before member destruction.
+
+**Benefits**:
+- Critical alerts bypass routine telemetry queue, reducing latency from queue depth to near-zero
+- Bounded queue prevents flooding while allowing burst of up to 4 simultaneous alerts
+- `"priority": "high"` envelope field enables edge-side routing without transport-level changes
+- Diagnostics track dropped alerts and queue pressure for fleet monitoring
+
+**Source**: `src/Device.h`, `src/Device.cpp`, `src/TelemetryPackage.h`
