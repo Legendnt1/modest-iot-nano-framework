@@ -48,6 +48,46 @@ public:
     }
 };
 
+// Telemetry packages from HomeSecurityDevice example (W32 high-priority lane)
+class SecurityStatusTelemetryPackage : public TelemetryPackage {
+private:
+    bool doorOpen;
+    bool motionDetected;
+    bool waterLeak;
+
+public:
+    SecurityStatusTelemetryPackage(bool door, bool motion, bool leak)
+        : doorOpen(door),
+          motionDetected(motion),
+          waterLeak(leak) {}
+
+    ~SecurityStatusTelemetryPackage() override = default;
+
+    void write(TelemetryWriter& writer) const override {
+        writer.field("doorOpen", this->doorOpen);
+        writer.field("motionDetected", this->motionDetected);
+        writer.field("waterLeak", this->waterLeak);
+    }
+};
+
+class SecurityAlertTelemetryPackage : public TelemetryPackage {
+private:
+    const char* alertType;
+    bool alertState;
+
+public:
+    SecurityAlertTelemetryPackage(const char* type, bool state)
+        : alertType(type),
+          alertState(state) {}
+
+    ~SecurityAlertTelemetryPackage() override = default;
+
+    void write(TelemetryWriter& writer) const override {
+        writer.field("alertType", this->alertType);
+        writer.field("waterLeak", this->alertState);
+    }
+};
+
 } // anonymous namespace
 
 [[nodiscard]] int main() {
@@ -270,6 +310,51 @@ public:
         assert(std::string(json).find("\"skinTemperatureInCelsius\"") != std::string::npos);
         assert(std::string(json).find("\"relativeHumidityPercentage\"") != std::string::npos);
         std::printf("  Version metadata field count: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 16: SecurityStatusTelemetryPackage (routine, standard queue)
+    // =========================================================================
+    {
+        SecurityStatusTelemetryPackage packet(true, false, false);
+        packet.setEnvelopeMetadata(100, 1);
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"doorOpen\":true,\"motionDetected\":false,\"waterLeak\":false}";
+        assert(json == expected);
+        assert(!packet.isHighPriority());
+        std::printf("  SecurityStatus routine telemetry: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 17: SecurityAlertTelemetryPackage with high priority
+    // =========================================================================
+    {
+        SecurityAlertTelemetryPackage packet("water_leak", true);
+        packet.setEnvelopeMetadata(200, 2);
+        packet.markAsHighPriority();
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":200,\"sequence\":2,\"priority\":\"high\",\"alertType\":\"water_leak\",\"waterLeak\":true}";
+        assert(json == expected);
+        assert(packet.isHighPriority());
+        std::printf("  SecurityAlert high-priority telemetry: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 18: SecurityAlertTelemetryPackage without high priority
+    // =========================================================================
+    {
+        SecurityAlertTelemetryPackage packet("door_opened", true);
+        packet.setEnvelopeMetadata(300, 3);
+        // markAsHighPriority() not called — no priority field
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":300,\"sequence\":3,\"alertType\":\"door_opened\",\"waterLeak\":true}";
+        assert(json == expected);
+        assert(!packet.isHighPriority());
+        assert(std::string(json).find("priority") == std::string::npos);
+        std::printf("  SecurityAlert without priority: PASS\n");
     }
 
     std::printf("All telemetry serialization tests passed.\n");
