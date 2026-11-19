@@ -37,7 +37,7 @@
 
 class SmartBandTelemetryPackage : public TelemetryPackage {
     private:
-    int heartBeatsPerMinute;
+    int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
     float relativeHumidityInPercentage;
 
