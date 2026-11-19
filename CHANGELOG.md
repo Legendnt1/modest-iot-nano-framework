@@ -6,6 +6,10 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 ### Added
 
+#### HomeSecurityDevice Example — High-Priority Lane Demonstration
+- **examples/HomeSecurityDevice/HomeSecurityDevice.ino**: Extended with MQTT gateway integration and two TelemetryPackage subclasses to demonstrate the high-priority telemetry lane (W32). `SecurityStatusTelemetryPackage` uses `enqueueTelemetryPayload()` for routine status updates (door closed, motion stopped, leak cleared). `SecurityAlertTelemetryPackage` uses `enqueueHighPriorityPayload()` for critical alerts (water leak, door opened), with `"priority": "high"` in the JSON envelope. The `on(Event)` handler clearly shows which events go to which queue.
+- **tests/TelemetryPackage/test.cpp**: Added 3 golden tests (tests 16–18) for `SecurityStatusTelemetryPackage` (routine, no priority field), `SecurityAlertTelemetryPackage` with `markAsHighPriority()` (priority field present), and `SecurityAlertTelemetryPackage` without `markAsHighPriority()` (no priority field).
+
 #### High-Priority Telemetry Lane (W32)
 - **Device::enqueueHighPriorityPayload()**: Pushes a high-priority payload into a separate bounded FreeRTOS queue (4 slots). The network task checks this queue first (non-blocking) before polling the standard telemetry queue, ensuring critical alerts are transmitted before routine telemetry.
 - **TelemetryPackage::markAsHighPriority()**: Marks a package as high-priority, adding `"priority": "high"` to the JSON envelope metadata for edge-side routing.
