@@ -7,73 +7,20 @@
  */
 
 #include "MqttGatewayClient.h"
+#include "JsonParser.h"
 #include "ModestLog.h"
 
 // Static pointer for callback access (set by constructor)
 static MqttGatewayClient *gActiveMqttClient = nullptr;
 
-/**
- * @brief Native JSON integer field extractor.
- *
- * Searches for "key": in the JSON string and extracts the following integer value.
- * This replaces ArduinoJson's deserializeJson for the simple 2-field MQTT command format.
- *
- * @param jsonString Null-terminated JSON string.
- * @param key The field name to search for.
- * @param outValue Pointer to store the extracted value.
- * @return True if the field was found and parsed successfully.
- */
-static bool parseJsonInt(const char *jsonString, const char *key, int *outValue) {
-    constexpr auto pattern = "\"";
-    const char *pos = strstr(jsonString, pattern);
-    while (pos != nullptr) {
-        pos = pos + 1; // Skip opening quote
-        const char *keyStart = pos;
-        const char *keyEnd = strchr(pos, '"');
-        if (keyEnd == nullptr) break;
-
-        if (const size_t keyLen = static_cast<size_t>(keyEnd - keyStart);
-            strlen(key) == keyLen && strncmp(keyStart, key, keyLen) == 0) {
-            // Found the key, now find the value after ": "
-            const char *valueStart = keyEnd + 1;
-            while (*valueStart == ' ' || *valueStart == ':') {
-                valueStart++;
-            }
-            char *endPtr;
-            const long val = strtol(valueStart, &endPtr, 10);
-            if (endPtr != valueStart) {
-                *outValue = static_cast<int>(val);
-                return true;
-            }
-        }
-        // Look for the next key
-        pos = strchr(keyEnd, '"');
-    }
-    return false;
-}
-
-/**
- * @brief Native JSON int32_t field extractor.
- *
- * @param json Null-terminated JSON string.
- * @param key The field name to search for.
- * @param outValue Pointer to store the extracted value.
- * @return True if the field was found and parsed successfully.
- */
-static bool parseJsonInt32(const char *json, const char *key, int32_t *outValue) {
-    int intValue;
-    if (!parseJsonInt(json, key, &intValue)) {
-        return false;
-    }
-    *outValue = intValue;
-    return true;
-}
 
 MqttGatewayClient::MqttGatewayClient(ConnectivityDriver &transportDriver, Client &networkClient,
                                      const char *brokerIpAddress, const uint16_t brokerPort,
                                      const char *publishT, const char *subscribeT,
                                      Device *targetDev,
-                                     const char *deviceId)
+                                     const char *deviceId,
+                                     const uint8_t publishQos, const uint8_t subscribeQos,
+                                     const bool retainedFlag)
     : GatewayClient(transportDriver, ""), // We don't use serviceEndpointUrl here, so pass ""
       mqttClient(networkClient),
       clientIdentifier(deviceId),
@@ -86,7 +33,10 @@ MqttGatewayClient::MqttGatewayClient(ConnectivityDriver &transportDriver, Client
       firstFailureLogged(false),
       serializationBuffer{},
       targetDevice(targetDev),
-      subscribePayloadBuffer{} {
+      subscribePayloadBuffer{},
+      publishQoS(publishQos),
+      subscribeQoS(subscribeQos),
+      retained(retainedFlag) {
     mqttClient.begin(brokerIpAddress, brokerPort, networkClient);
 
     // Register the static callback if subscribe is enabled
@@ -98,7 +48,8 @@ MqttGatewayClient::MqttGatewayClient(ConnectivityDriver &transportDriver, Client
 
 MqttGatewayClient::MqttGatewayClient(ConnectivityDriver &transportDriver, Client &networkClient,
                                      const char *brokerIpAddress, const uint16_t brokerPort,
-                                     const char *topic, const char *deviceId)
+                                     const char *topic, const char *deviceId,
+                                     const uint8_t publishQosLevel, const bool retainedFlag)
     : GatewayClient(transportDriver, ""), // We don't use serviceEndpointUrl here, so pass ""
       mqttClient(networkClient),
       clientIdentifier(deviceId),
@@ -111,7 +62,10 @@ MqttGatewayClient::MqttGatewayClient(ConnectivityDriver &transportDriver, Client
       firstFailureLogged(false),
       serializationBuffer{},
       targetDevice(nullptr),
-      subscribePayloadBuffer{} {
+      subscribePayloadBuffer{},
+      publishQoS(publishQosLevel),
+      subscribeQoS(0),
+      retained(retainedFlag) {
     mqttClient.begin(brokerIpAddress, brokerPort, networkClient);
 }
 
@@ -174,6 +128,30 @@ unsigned long MqttGatewayClient::getReconnectInterval() const {
     return reconnectIntervalInMilliseconds;
 }
 
+void MqttGatewayClient::setPublishQoSLevel(const uint8_t qosLevel) {
+    publishQoS = qosLevel;
+}
+
+uint8_t MqttGatewayClient::getPublishQoSLevel() const {
+    return publishQoS;
+}
+
+void MqttGatewayClient::setSubscribeQoSLevel(const uint8_t qosLevel) {
+    subscribeQoS = qosLevel;
+}
+
+uint8_t MqttGatewayClient::getSubscribeQoSLevel() const {
+    return subscribeQoS;
+}
+
+void MqttGatewayClient::setRetainedFlag(const bool retainEnabled) {
+    retained = retainEnabled;
+}
+
+bool MqttGatewayClient::getRetainedFlag() const {
+    return retained;
+}
+
 bool MqttGatewayClient::sendTelemetryRecord(const TelemetryPackage &telemetryPackage) {
     // Check transport capability before processing
     if (!communicationTransportDriver.canTransmit()) {
@@ -211,7 +189,7 @@ bool MqttGatewayClient::sendTelemetryRecord(const TelemetryPackage &telemetryPac
 
     // Publish telemetry payload to the broker topic
     const bool publishSuccessStatus = mqttClient.
-            publish(publishTopic, serializationBuffer, strlen(serializationBuffer));
+            publish(publishTopic, serializationBuffer, strlen(serializationBuffer), retained, publishQoS);
     if (!publishSuccessStatus) {
         sendsFailedCount++;
         if (!firstFailureLogged) {
@@ -253,13 +231,14 @@ void MqttGatewayClient::subscribeToTopic() {
         return;
     }
 
-    if (mqttClient.subscribe(subscribeTopic, DEFAULT_MQTT_QOS)) {
+    if (mqttClient.subscribe(subscribeTopic, subscribeQoS)) {
         MODEST_LOG_I("MQTT", "Subscribed to topic: %s", subscribeTopic);
     } else {
         MODEST_LOG_W("MQTT", "Failed to subscribe to topic: %s", subscribeTopic);
     }
 }
 
+// ReSharper disable once CppParameterMayBeConstPtrOrRef
 void MqttGatewayClient::mqttMessageCallback(String &topic, String &payload) {
     (void) topic; // Used only in MODEST_LOG_D, which may be compiled out
     if (gActiveMqttClient == nullptr || gActiveMqttClient->targetDevice == nullptr) {
@@ -282,15 +261,15 @@ void MqttGatewayClient::mqttMessageCallback(String &topic, String &payload) {
     memcpy(gActiveMqttClient->subscribePayloadBuffer, payload.c_str(), length);
     gActiveMqttClient->subscribePayloadBuffer[length] = '\0';
 
-    // Parse JSON to extract command identifier using native deserializer
+    // Parse JSON to extract command identifier using native parser
     int commandId;
-    if (!parseJsonInt(gActiveMqttClient->subscribePayloadBuffer, JSON_KEY_COMMAND_IDENTIFIER, &commandId)) {
+    if (!JsonParser::parseInt(gActiveMqttClient->subscribePayloadBuffer, JSON_KEY_COMMAND_IDENTIFIER, &commandId)) {
         MODEST_LOG_W("MQTT", "Incoming command missing command identifier field");
         return;
     }
 
     int32_t commandPayload = 0;
-    parseJsonInt32(gActiveMqttClient->subscribePayloadBuffer, JSON_KEY_COMMAND_PAYLOAD, &commandPayload);
+    JsonParser::parseInt32(gActiveMqttClient->subscribePayloadBuffer, JSON_KEY_COMMAND_PAYLOAD, &commandPayload);
     MODEST_LOG_D("MQTT", "Received command %d (payload %ld) on topic: %s", commandId, commandPayload, topic.c_str());
 
     // Marshal the command to the sampler task via Device::enqueueCommand()
