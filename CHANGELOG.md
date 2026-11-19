@@ -31,6 +31,14 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 #### Quick Start Guide Enhancement
 - **docs/quick-start.md**: Added `HomeSecurityDevice` to the Recommended Examples list with a description of the high-priority telemetry lane (`enqueueTelemetryPayload()` vs `enqueueHighPriorityPayload()`), directing users ready for advanced features to this example after completing the StatusIndicator onboarding.
 
+#### JsonParser Framework Utility
+- **src/JsonParser.h/cpp**: Native JSON parser for flat key-value payloads with zero heap allocation. Five static methods: `parseInt()`, `parseInt32()`, `parseFloat()`, `parseBool()`, and `parseString()`. Private `findJsonValue()` helper eliminates duplicated key-finding logic across all parse methods. Replaces file-scope static functions in MqttGatewayClient with a framework-wide utility accessible to developers building custom devices.
+- **tests/JsonParser/test.cpp**: 20 host tests covering all five parse methods, null input handling, missing keys, buffer overflow protection, and the MQTT command format (parseInt + parseInt32).
+
+#### MQTT QoS and Retained Messages (W34)
+- **MqttGatewayClient**: Added configurable Quality of Service (QoS 0, 1, or 2) for both publish and subscribe operations, and retained message support for last-known-good telemetry. New constructor parameters `publishQos`, `subscribeQos`, and `retainedFlag` with backward-compatible defaults (QoS 0, non-retained). New setter/getter methods: `setPublishQoS()`, `getPublishQoS()`, `setSubscribeQoS()`, `getSubscribeQoS()`, `setRetained()`, `getRetained()`.
+- **MqttGatewayClient**: Migrated from file-scope static JSON parser functions to `JsonParser::parseInt()` and `JsonParser::parseInt32()` for incoming MQTT command parsing.
+
 #### TelemetryWriter Abstraction (W46)
 - **src/TelemetryWriter.h**: Abstract interface for telemetry field serialization with pure virtual `field()` overloads for `int32_t`, `float`, `bool`, and `const char*`. Decouples telemetry packages from the JSON serialization format, enabling future format writers (CBOR, MessagePack, binary).
 - **src/JsonTelemetryWriter.h/cpp**: Native `snprintf`-based JSON writer implementation using a 512-byte fixed stack buffer. Zero heap allocation per serialization, automatic comma handling, buffer overflow detection, and string escaping for special characters.
@@ -40,12 +48,9 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **GasSensor::gasTypeName()**: Static method returning human-readable names for all 11 `GasType` enum values (LPG, CH4, CO, Alcohol, Propane, H2, Smoke, NH3, Benzene, Toluene, Acetone).
 - **GasSensor::operatingModeName()**: Static method returning display names for all 3 `OperatingMode` enum values (RAW, CALIBRATING, ACCURATE).
 
-#### Native JSON Parser
-- **MqttGatewayClient**: Minimal `parseJsonInt()` and `parseJsonInt32()` functions (~30 lines) replace ArduinoJson's `deserializeJson()` for MQTT command parsing. Handles only the two required fields (`commandIdentifier`, `commandPayload`) with malformed JSON detection and error logging.
-
 #### ArduinoJson Dependency Removed (W46)
 - **TelemetryPackage.h**: Replaced `serialize(JsonDocument&)` with `write(TelemetryWriter&)` pure virtual method. Removed `toDocument()` method, simplified `toJsonString()` to use `JsonTelemetryWriter`. Eliminated `JsonDocument` type from the public API.
-- **MqttGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Replaced `deserializeJson()` with native `parseJsonInt()`/`parseJsonInt32()` JSON parser for command extraction. Removed `#include <ArduinoJson.h>`.
+- **MqttGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Replaced `deserializeJson()` with `JsonParser::parseInt()`/`JsonParser::parseInt32()` for command extraction. Removed `#include <ArduinoJson.h>`.
 - **BleGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Removed `#include <ArduinoJson.h>`.
 - **HttpGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Removed `#include <ArduinoJson.h>`.
 - **library.properties**: Removed `ArduinoJson >=7.0.0` from `depends=`. Only MQTT >=2.5.3 remains as an external dependency.
