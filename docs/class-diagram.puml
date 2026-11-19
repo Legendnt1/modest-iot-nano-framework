@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.2.0, 53 headers, W32 + example)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 54 headers, W32 + JsonParser)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -237,6 +237,14 @@ package "Core" #FAFAFA {
     +field(name : const char*, value : float) : void
     +field(name : const char*, value : bool) : void
     +field(name : const char*, value : const char*) : void
+  }
+
+  class JsonParser {
+    +parseInt(json : const char*, key : const char*, outValue : int*) : bool
+    +parseInt32(json : const char*, key : const char*, outValue : int32_t*) : bool
+    +parseFloat(json : const char*, key : const char*, outValue : float*) : bool
+    +parseBool(json : const char*, key : const char*, outValue : bool*) : bool
+    +parseString(json : const char*, key : const char*, outBuffer : char*, bufferSize : size_t) : bool
   }
 
   class JsonTelemetryWriter {
@@ -807,6 +815,9 @@ package "Gateway" #FFF8EE {
     -publishTopic : const char*
     -subscribeTopic : const char*
     -targetDevice : Device*
+    -publishQoS : uint8_t
+    -subscribeQoS : uint8_t
+    -retained : bool
     +MqttGatewayClient(transportDriver : ConnectivityDriver&, networkClient : Client&, brokerIpAddress : const char*, brokerPort : uint16_t, publishTopic : const char*, subscribeTopic : const char*, targetDevice : Device*, deviceId : const char* = "ModestIotNode")
     +sendTelemetryRecord(telemetryPackage : const TelemetryPackage&) : bool
     +service() : void
@@ -815,6 +826,12 @@ package "Gateway" #FFF8EE {
     +getClientState() : int
     +setReconnectInterval(intervalMilliseconds : unsigned long) : void
     +getReconnectInterval() const : unsigned long
+    +setPublishQoS(qos : uint8_t) : void
+    +getPublishQoS() const : uint8_t
+    +setSubscribeQoS(qos : uint8_t) : void
+    +getSubscribeQoS() const : uint8_t
+    +setRetained(retain : bool) : void
+    +getRetained() const : bool
     +getStatistics() const : GatewayStatistics
     +getSubscribeTopic() const : const char*
   }
@@ -894,6 +911,7 @@ TelemetryWriter   <|.. JsonTelemetryWriter : implements
 MqttGatewayClient *-- MQTTClient : owns
 MqttGatewayClient --> Client       : uses socket
 MqttGatewayClient --> Device       : enqueueCommand
+MqttGatewayClient ..> JsonParser   : parses commands
 
 WiFiConnectivityDriver ..> WiFiClient : allocates
 WiFiConnectivityDriver ..> Client     : exposes
