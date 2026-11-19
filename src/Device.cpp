@@ -35,10 +35,15 @@ Device::Device(const unsigned long samplingIntervalInMilliseconds, const uint8_t
       hardwareSamplingTaskHandle(nullptr),
       networkDispatcherTaskHandle(nullptr),
       telemetryQueueHandle(nullptr),
+      highPriorityQueueHandle(nullptr),
       packetsEnqueuedCount(0),
       packetsDroppedCount(0),
       packetsDroppedOldestCount(0),
       queueHighWaterMarkCount(0),
+      highPriorityEnqueuedCount(0),
+      highPriorityDroppedCount(0),
+      highPriorityQueueHighWaterMarkCount(0),
+      firstHighPriorityDropLogged(false),
       missedTickCount(0),
       firstDropLogged(false),
       nextSequenceNumber(0),
@@ -87,6 +92,7 @@ void Device::initializeAsynchronousEngine(const EngineConfiguration &engineConfi
     engineStarted = true;
 
     telemetryQueueHandle = xQueueCreate(engineConfiguration.queueLength, sizeof(TelemetryPackage*));
+    highPriorityQueueHandle = xQueueCreate(4, sizeof(TelemetryPackage*));
     commandQueueHandle = xQueueCreate(engineConfiguration.queueLength, sizeof(CommandEntry));
 
     xTaskCreatePinnedToCore(
@@ -194,16 +200,30 @@ bool Device::enqueueTelemetryPayload(TelemetryPackage **telemetryPackagePointerA
     return false;
 }
 
+void Device::assignEnvelopeMetadata(TelemetryPackage* package) const {
+#if defined(ARDUINO_ARCH_ESP32)
+    package->setEnvelopeMetadata(TimeSynchronizationDriver::getCurrentTimestamp(), nextSequenceNumber++);
+#else
+    package->setEnvelopeMetadata(static_cast<uint32_t>(millis()), nextSequenceNumber++);
+#endif
+    package->setVersionMetadata(telemetrySchemaVersion, firmwareVersion);
+}
+
+void Device::drainTelemetryQueue(QueueHandle_t& queueHandle) {
+    if (queueHandle == nullptr) return;
+    TelemetryPackage* pending = nullptr;
+    while (xQueueReceive(queueHandle, &pending, 0) == pdPASS) {
+        delete pending;
+    }
+    vQueueDelete(queueHandle);
+    queueHandle = nullptr;
+}
+
 bool Device::enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetryPackageStandardUniquePointer) const {
     if (telemetryQueueHandle == nullptr || telemetryPackageStandardUniquePointer == nullptr) return false;
 
     // Assign envelope metadata before enqueue attempt so drops are visible as gaps
-#if defined(ARDUINO_ARCH_ESP32)
-    telemetryPackageStandardUniquePointer->setEnvelopeMetadata(TimeSynchronizationDriver::getCurrentTimestamp(), nextSequenceNumber++);
-#else
-    telemetryPackageStandardUniquePointer->setEnvelopeMetadata(static_cast<uint32_t>(millis()), nextSequenceNumber++);
-#endif
-    telemetryPackageStandardUniquePointer->setVersionMetadata(telemetrySchemaVersion, firmwareVersion);
+    assignEnvelopeMetadata(telemetryPackageStandardUniquePointer.get());
 
     TelemetryPackage *rawPackagePointer = telemetryPackageStandardUniquePointer.release();
     if (xQueueSend(telemetryQueueHandle, &rawPackagePointer, 0) == pdPASS) {
@@ -235,6 +255,33 @@ bool Device::enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetry
     if (!firstDropLogged) {
         MODEST_LOG_W(DEVICE_COMPONENT_NAME, "First packet dropped: telemetry queue full");
         firstDropLogged = true;
+    }
+    return false;
+}
+
+bool Device::enqueueHighPriorityPayload(std::unique_ptr<TelemetryPackage> highPriorityPayload) const {
+    if (highPriorityQueueHandle == nullptr || highPriorityPayload == nullptr) return false;
+
+    // Assign envelope metadata and high priority before enqueue
+    assignEnvelopeMetadata(highPriorityPayload.get());
+    highPriorityPayload->markAsHighPriority();
+
+    TelemetryPackage *rawHighPriorityPointer = highPriorityPayload.release();
+    if (xQueueSend(highPriorityQueueHandle, &rawHighPriorityPointer, 0) == pdPASS) {
+        // Ownership transferred to the high-priority queue.
+        highPriorityEnqueuedCount++;
+        if (const auto currentQueueSize = static_cast<uint8_t>(uxQueueMessagesWaiting(highPriorityQueueHandle));
+            currentQueueSize > highPriorityQueueHighWaterMarkCount) {
+            highPriorityQueueHighWaterMarkCount = currentQueueSize;
+        }
+        return true;
+    }
+    // High-priority queue is full: drop the new packet (high-priority data is too critical to evict)
+    delete rawHighPriorityPointer;
+    highPriorityDroppedCount++;
+    if (!firstHighPriorityDropLogged) {
+        MODEST_LOG_W(DEVICE_COMPONENT_NAME, "First high-priority packet dropped: high-priority queue full");
+        firstHighPriorityDropLogged = true;
     }
     return false;
 }
@@ -300,7 +347,16 @@ void Device::executeNetworkDispatchContext(void *taskParameters) {
             }
         }
 
-        // Poll queue with a timeout so network maintenance (MQTT keep-alive, connection checks) executes regularly
+        // Check high-priority queue first (non-blocking) — high-priority packets are processed before standard telemetry
+        if (xQueueReceive(self->highPriorityQueueHandle, &incomingPolymorphicPacketPointer, 0) == pdPASS) {
+            if (incomingPolymorphicPacketPointer != nullptr) {
+                self->processQueuedTelemetryData(incomingPolymorphicPacketPointer);
+                delete incomingPolymorphicPacketPointer;
+                incomingPolymorphicPacketPointer = nullptr;
+            }
+        }
+
+        // Poll standard telemetry queue with a timeout so network maintenance executes regularly
         if (xQueueReceive(self->telemetryQueueHandle, &incomingPolymorphicPacketPointer,
                           pdMS_TO_TICKS(NETWORK_QUEUE_RECEIVE_TIMEOUT_IN_MILLISECONDS)) ==
             pdPASS) {
@@ -553,6 +609,9 @@ DiagnosticsSnapshot Device::diagnostics() const {
     snapshot.packetsDropped = packetsDroppedCount;
     snapshot.packetsDroppedOldest = packetsDroppedOldestCount;
     snapshot.queueHighWaterMark = queueHighWaterMarkCount;
+    snapshot.highPriorityEnqueued = highPriorityEnqueuedCount;
+    snapshot.highPriorityDropped = highPriorityDroppedCount;
+    snapshot.highPriorityQueueHighWaterMark = highPriorityQueueHighWaterMarkCount;
 
     // Aggregate gateway send statistics if a gateway is registered
     if (telemetryGateway != nullptr) {
@@ -753,15 +812,9 @@ void Device::stopAsynchronousEngine() {
     hardwareSamplingTaskHandle = nullptr;
     networkDispatcherTaskHandle = nullptr;
 
-    // Drain and delete any pending telemetry packets in the queue
-    if (telemetryQueueHandle != nullptr) {
-        TelemetryPackage *pendingPacket = nullptr;
-        while (xQueueReceive(telemetryQueueHandle, &pendingPacket, 0) == pdPASS) {
-            delete pendingPacket;
-        }
-        vQueueDelete(telemetryQueueHandle);
-        telemetryQueueHandle = nullptr;
-    }
+    // Drain and delete any pending packets in all queues
+    Device::drainTelemetryQueue(highPriorityQueueHandle);
+    Device::drainTelemetryQueue(telemetryQueueHandle);
 
     // Drain and delete the command queue
     if (commandQueueHandle != nullptr) {
