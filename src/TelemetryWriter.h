@@ -28,7 +28,7 @@ public:
     virtual ~TelemetryWriter() = default;
 
     /**
-     * @brief Writes an integer field.
+     * @brief Writes an integer field (32-bit).
      * @param name The field name.
      * @param value The field value.
      */
