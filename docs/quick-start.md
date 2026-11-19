@@ -245,9 +245,10 @@ Now that your first device is running, explore the following resources:
 
 ### Recommended Examples to Try Next
 
-1. **MultiSensorMonitor** — Add real sensors (DHT, BH1750) with the framework's sampling scheduler.
-2. **MqttTelemetry** — Connect to an MQTT broker and publish telemetry data.
-3. **BleNotify** — Expose sensor data via BLE notifications to a smartphone.
+1. **HomeSecurityDevice** — Demonstrates the high-priority telemetry lane: routine sensor state uses `enqueueTelemetryPayload()` while critical alerts (water leak, door opened) bypass the standard queue via `enqueueHighPriorityPayload()`. The network task processes high-priority packets first, ensuring alerts reach the MQTT broker before routine telemetry.
+2. **MultiSensorMonitor** — Add real sensors (DHT, BH1750) with the framework's sampling scheduler.
+3. **MqttTelemetry** — Connect to an MQTT broker and publish telemetry data.
+4. **BleNotify** — Expose sensor data via BLE notifications to a smartphone.
 
 ---
 

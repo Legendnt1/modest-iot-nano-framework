@@ -823,7 +823,7 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - **JsonTelemetryWriter** (`src/JsonTelemetryWriter.h/cpp`): `snprintf`-based JSON writer using a 512-byte fixed stack buffer. Zero heap allocation per serialization, automatic comma handling, buffer overflow detection, and string escaping for special characters.
 - **TelemetryPackage migration**: Replaced `serialize(JsonDocument&)` with `write(TelemetryWriter&)` pure virtual method. Removed `toDocument()` method, simplified `toJsonString()` to use `JsonTelemetryWriter`. Added `serializeToBuffer()` single-call pipeline that encapsulates envelope metadata, data fields, finalization, overflow check, and memcpy.
 - **Gateway client migration**: `MqttGatewayClient`, `BleGatewayClient`, and `HttpGatewayClient` now use `serializeToBuffer()` instead of manual `JsonTelemetryWriter` sequences. Removed `#include <ArduinoJson.h>` from all three.
-- **Native JSON deserializer**: `MqttGatewayClient` uses `parseJsonInt()` and `parseJsonInt32()` (~30 lines) instead of `deserializeJson()` for MQTT command parsing. Handles `commandIdentifier` and `commandPayload` fields with malformed JSON detection.
+- **Native JSON parser**: `MqttGatewayClient` uses `parseJsonInt()` and `parseJsonInt32()` (~30 lines) instead of `deserializeJson()` for MQTT command parsing. Handles `commandIdentifier` and `commandPayload` fields with malformed JSON detection.
 - **Example migration**: 6 examples with TelemetryPackage subclasses migrated from `serialize(JsonDocument&)` to `write(TelemetryWriter&)`.
 - **Test migration**: 7 TelemetryPackage test subclasses migrated, 15 golden tests rewritten for insertion-order JSON output. `tests/fakes/ArduinoJson.h` (253 lines) deleted, replaced with `tests/fakes/TelemetryWriter.h` simple mock.
 - **GasSensor utilities**: Added `gasTypeName()` and `operatingModeName()` static methods for enum-to-string conversion, removing custom implementations from examples.
@@ -837,3 +837,51 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - Format-neutral telemetry enables future compact binary protocols
 
 **Source**: `src/TelemetryWriter.h`, `src/JsonTelemetryWriter.h`, `src/JsonTelemetryWriter.cpp`, `src/TelemetryPackage.h`, `src/MqttGatewayClient.cpp`, `src/BleGatewayClient.cpp`, `src/HttpGatewayClient.cpp`, `src/GasSensor.h`, `src/GasSensor.cpp`, `tests/fakes/TelemetryWriter.h`
+
+---
+
+### W32: High-Priority Telemetry Lane — **Complete** ✓
+
+**Problem**: Critical alerts (water leak, fire, security breach) were enqueued in the standard telemetry queue alongside routine data. The network task processed packets in FIFO order, so alerts could be delayed behind routine telemetry.
+
+**Resolution**: Added a separate high-priority queue (4 slots) that the network task checks first (non-blocking) before polling the standard queue. High-priority packets include `"priority": "high"` in the JSON envelope for edge-side routing.
+
+**Implementation**:
+
+- **Device::enqueueHighPriorityPayload()**: Enqueues to the high-priority queue with envelope metadata and priority marker. Bounded queue (4 slots) drops new alerts when full (no eviction, as alerts are too critical to replace).
+- **TelemetryPackage::markAsHighPriority()**: Sets the high-priority flag, adding `"priority": "high"` to the envelope during serialization.
+- **TelemetryPackage::isHighPriority()**: Accessor for the high-priority flag.
+- **Network task modification**: Checks high-priority queue first (non-blocking `xQueueReceive`), then standard queue (100ms timeout). One alert per loop iteration prevents starvation of routine telemetry.
+- **DiagnosticsSnapshot extension**: New fields `highPriorityEnqueued`, `highPriorityDropped`, `highPriorityQueueHighWaterMark` for monitoring queue pressure.
+- **Device refactoring**: Extracted `assignEnvelopeMetadata()` helper (shared by both enqueue methods) and `drainTelemetryQueue()` static helper (shared cleanup in `stopAsynchronousEngine()`).
+- **Example destructor safety**: 9 Device subclasses replaced `= default` destructors with proper `stopAsynchronousEngine()` calls to ensure the engine stops before member destruction.
+
+**Benefits**:
+- Critical alerts bypass routine telemetry queue, reducing latency from queue depth to near-zero
+- Bounded queue prevents flooding while allowing burst of up to 4 simultaneous alerts
+- `"priority": "high"` envelope field enables edge-side routing without transport-level changes
+- Diagnostics track dropped alerts and queue pressure for fleet monitoring
+
+**Source**: `src/Device.h`, `src/Device.cpp`, `src/TelemetryPackage.h`
+
+---
+
+### W32 Example: HomeSecurityDevice High-Priority Lane Demonstration — **Complete** ✓
+
+**Problem**: The high-priority telemetry lane (W32) was implemented but had no example demonstrating both `enqueueTelemetryPayload()` and `enqueueHighPriorityPayload()` side-by-side.
+
+**Resolution**: Extended `HomeSecurityDevice` with MQTT gateway integration and two TelemetryPackage subclasses. Routine status updates (door closed, motion stopped, leak cleared) use the standard queue via `enqueueTelemetryPayload()`. Critical alerts (water leak detected, door opened) use the high-priority queue via `enqueueHighPriorityPayload()`, with `"priority": "high"` in the JSON envelope.
+
+**Implementation**:
+
+- **SecurityStatusTelemetryPackage**: Routine telemetry with `doorOpen`, `motionDetected`, and `waterLeak` boolean fields. Enqueued via `enqueueTelemetryPayload()` for non-critical status updates.
+- **SecurityAlertTelemetryPackage**: Critical alert telemetry with `alertType` (string) and `alertState` (boolean) fields. Enqueued via `enqueueHighPriorityPayload()` for time-sensitive alerts.
+- **on(Event) handler**: Clearly comments which events go to which queue — water leak and door opened are CRITICAL (high-priority lane), while door closed, motion detected/stopped, and leak cleared are ROUTINE (standard queue).
+- **3 golden tests**: SecurityStatus routine telemetry (no priority field), SecurityAlert with `markAsHighPriority()` (priority field present), SecurityAlert without `markAsHighPriority()` (no priority field).
+
+**Benefits**:
+- Developers can see both enqueue paths side-by-side in a realistic security monitoring scenario
+- The example serves as a template for any application that needs to distinguish between routine telemetry and critical alerts
+- Clear comments in the `on(Event)` handler explain the rationale for each enqueue decision
+
+**Source**: `examples/HomeSecurityDevice/HomeSecurityDevice.ino`, `tests/TelemetryPackage/test.cpp`

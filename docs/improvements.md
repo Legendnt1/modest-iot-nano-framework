@@ -62,14 +62,14 @@ ESP-NOW or MQTT-based device-to-device messaging for relay nodes and distributed
 
 ### Telemetry Enhancements (W32–W34, W41–W43)
 
-- **Alarm Lane** (W32): High-priority queue for critical alerts.
+- **High-Priority Lane** (W32) ✓ Implemented: Separate bounded queue (4 slots) for critical alerts. Network task checks high-priority queue first (non-blocking), ensuring alerts bypass routine telemetry. Envelope includes `"priority": "high"` for edge-side routing.
 - **Schema Registry** (W33): Telemetry schema versioning with validation.
 - **MQTT QoS** (W34): Configurable QoS and retained message support.
 - **Remote Diagnostics** (W41): On-demand diagnostics telemetry.
 - **Statistical Aggregation** (W42): Min/max/average over time windows.
 - **Change-Only Mode** (W43): Suppress telemetry when values are stable.
 
-**Target**: v1.2.0–v1.3.0
+**Target**: v1.2.0–v1.3.0 (W32 complete)
 
 ### Power & Battery (W37–W38)
 

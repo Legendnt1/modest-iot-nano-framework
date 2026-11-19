@@ -602,14 +602,22 @@ class StatusIndicator : public Device {
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
         }
     }
+
+    void start() {
+        Device::setFirmwareVersion("STI-909 FW 1.0.0");
+    }
+
+    ~StatusIndicator() override {
+        stopAsynchronousEngine();
+    }
 };
 
 StatusIndicator* indicator;
 
 void setup() {
     Serial.begin(115200);
-    Device::setFirmwareVersion("STI-909 FW 1.0.0");
     indicator = new StatusIndicator();
+    indicator->start();
 }
 
 void loop() {

@@ -6,6 +6,31 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 ### Added
 
+#### HomeSecurityDevice Example — High-Priority Lane Demonstration
+- **examples/HomeSecurityDevice/HomeSecurityDevice.ino**: Extended with MQTT gateway integration and two TelemetryPackage subclasses to demonstrate the high-priority telemetry lane (W32). `SecurityStatusTelemetryPackage` uses `enqueueTelemetryPayload()` for routine status updates (door closed, motion stopped, leak cleared). `SecurityAlertTelemetryPackage` uses `enqueueHighPriorityPayload()` for critical alerts (water leak, door opened), with `"priority": "high"` in the JSON envelope. The `on(Event)` handler clearly shows which events go to which queue.
+- **tests/TelemetryPackage/test.cpp**: Added 3 golden tests (tests 16–18) for `SecurityStatusTelemetryPackage` (routine, no priority field), `SecurityAlertTelemetryPackage` with `markAsHighPriority()` (priority field present), and `SecurityAlertTelemetryPackage` without `markAsHighPriority()` (no priority field).
+
+#### High-Priority Telemetry Lane (W32)
+- **Device::enqueueHighPriorityPayload()**: Pushes a high-priority payload into a separate bounded FreeRTOS queue (4 slots). The network task checks this queue first (non-blocking) before polling the standard telemetry queue, ensuring critical alerts are transmitted before routine telemetry.
+- **TelemetryPackage::markAsHighPriority()**: Marks a package as high-priority, adding `"priority": "high"` to the JSON envelope metadata for edge-side routing.
+- **TelemetryPackage::isHighPriority()**: Accessor returning whether the high-priority flag is set.
+- **DiagnosticsSnapshot extension**: New fields `highPriorityEnqueued`, `highPriorityDropped`, and `highPriorityQueueHighWaterMark` to monitor high-priority queue pressure and dropped alerts.
+
+### Changed
+
+#### Device Queue Management Refactoring
+- **Device::assignEnvelopeMetadata()**: Extracted shared helper for timestamp, sequence, and version assignment, used by both `enqueueTelemetryPayload()` and `enqueueHighPriorityPayload()`.
+- **Device::drainTelemetryQueue()**: Extracted static helper for queue drain-delete-null pattern in `stopAsynchronousEngine()`. Made `static` since it operates only on its parameter.
+
+#### Examples — Destructor Safety
+- **9 Device subclasses** replaced `= default` destructors with proper `stopAsynchronousEngine()` calls: BleVitalsTransmitter, ClimateDataUploader, EquipmentHealthMonitor, IndoorAirQualityDisplay, MqttTlsDevice, OtaUpdateDevice, PipeTemperatureMonitor, RemoteLedController, SmartBandMqtt. Ensures the engine stops before sensor/actuator member destruction.
+
+#### StatusIndicator Example Refinement
+- **examples/StatusIndicator/StatusIndicator.ino**: Added `start()` method for post-construction initialization (firmware version), replacing inline `Device::setFirmwareVersion()` in `setup()`. Added proper destructor calling `stopAsynchronousEngine()` before member destruction. Reorganized constants into Doxygen groups (Engine Configuration, Device Configuration, Serial Output Configuration, Hardware Configuration) and extracted firmware version as named constant. Simplified `setup()` to: serial init → construct → `start()` → log.
+
+#### Quick Start Guide Enhancement
+- **docs/quick-start.md**: Added `HomeSecurityDevice` to the Recommended Examples list with a description of the high-priority telemetry lane (`enqueueTelemetryPayload()` vs `enqueueHighPriorityPayload()`), directing users ready for advanced features to this example after completing the StatusIndicator onboarding.
+
 #### TelemetryWriter Abstraction (W46)
 - **src/TelemetryWriter.h**: Abstract interface for telemetry field serialization with pure virtual `field()` overloads for `int32_t`, `float`, `bool`, and `const char*`. Decouples telemetry packages from the JSON serialization format, enabling future format writers (CBOR, MessagePack, binary).
 - **src/JsonTelemetryWriter.h/cpp**: Native `snprintf`-based JSON writer implementation using a 512-byte fixed stack buffer. Zero heap allocation per serialization, automatic comma handling, buffer overflow detection, and string escaping for special characters.
@@ -15,14 +40,12 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **GasSensor::gasTypeName()**: Static method returning human-readable names for all 11 `GasType` enum values (LPG, CH4, CO, Alcohol, Propane, H2, Smoke, NH3, Benzene, Toluene, Acetone).
 - **GasSensor::operatingModeName()**: Static method returning display names for all 3 `OperatingMode` enum values (RAW, CALIBRATING, ACCURATE).
 
-#### Native JSON Deserializer
+#### Native JSON Parser
 - **MqttGatewayClient**: Minimal `parseJsonInt()` and `parseJsonInt32()` functions (~30 lines) replace ArduinoJson's `deserializeJson()` for MQTT command parsing. Handles only the two required fields (`commandIdentifier`, `commandPayload`) with malformed JSON detection and error logging.
-
-### Changed
 
 #### ArduinoJson Dependency Removed (W46)
 - **TelemetryPackage.h**: Replaced `serialize(JsonDocument&)` with `write(TelemetryWriter&)` pure virtual method. Removed `toDocument()` method, simplified `toJsonString()` to use `JsonTelemetryWriter`. Eliminated `JsonDocument` type from the public API.
-- **MqttGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Replaced `deserializeJson()` with native `parseJsonInt()`/`parseJsonInt32()` for command deserialization. Removed `#include <ArduinoJson.h>`.
+- **MqttGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Replaced `deserializeJson()` with native `parseJsonInt()`/`parseJsonInt32()` JSON parser for command extraction. Removed `#include <ArduinoJson.h>`.
 - **BleGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Removed `#include <ArduinoJson.h>`.
 - **HttpGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Removed `#include <ArduinoJson.h>`.
 - **library.properties**: Removed `ArduinoJson >=7.0.0` from `depends=`. Only MQTT >=2.5.3 remains as an external dependency.

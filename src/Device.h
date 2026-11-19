@@ -51,6 +51,9 @@ struct DiagnosticsSnapshot {
     uint32_t    packetsDropped          = 0; ///< Total telemetry packets dropped due to full queue.
     uint32_t    packetsDroppedOldest    = 0; ///< Total oldest packets dropped to make room for new ones.
     uint8_t     queueHighWaterMark      = 0; ///< Maximum queue depth observed.
+    uint32_t    highPriorityEnqueued        = 0; ///< Total high-priority packets successfully enqueued.
+    uint32_t    highPriorityDropped         = 0; ///< Total high-priority packets dropped due to full high-priority queue.
+    uint8_t     highPriorityQueueHighWaterMark = 0; ///< Maximum high-priority queue depth observed.
     uint32_t    sendsSucceeded          = 0; ///< Successful gateway transmissions.
     uint32_t    sendsFailed             = 0; ///< Failed gateway transmissions.
     uint32_t    freeHeapBytes           = 0; ///< Current free heap in bytes.
@@ -93,12 +96,17 @@ private:
     TaskHandle_t hardwareSamplingTaskHandle; ///< Handle for the hardware sampling task.
     TaskHandle_t networkDispatcherTaskHandle; ///< Handle for the network dispatcher task.
     QueueHandle_t telemetryQueueHandle; ///< Handle for the telemetry queue.
+    QueueHandle_t highPriorityQueueHandle; ///< Handle for the high-priority telemetry queue.
 
     // Shared diagnostic counters (single-writer rule: each counter written by one task)
     mutable uint32_t packetsEnqueuedCount; ///< Total packets successfully enqueued.
     mutable uint32_t packetsDroppedCount; ///< Total packets dropped due to full queue.
     mutable uint32_t packetsDroppedOldestCount; ///< Total oldest packets dropped to make room for new ones.
     mutable uint8_t queueHighWaterMarkCount; ///< Maximum queue depth observed.
+    mutable uint32_t highPriorityEnqueuedCount; ///< Total high-priority packets successfully enqueued.
+    mutable uint32_t highPriorityDroppedCount; ///< Total high-priority packets dropped due to full high-priority queue.
+    mutable uint8_t highPriorityQueueHighWaterMarkCount; ///< Maximum high-priority queue depth observed.
+    mutable bool firstHighPriorityDropLogged; ///< Tracks whether the first high-priority drop warning was emitted.
     mutable uint32_t missedTickCount; ///< Ticks missed by the sampler.
     mutable bool firstDropLogged; ///< Tracks whether the first drop warning was emitted.
     mutable uint32_t nextSequenceNumber; ///< Monotonically increasing sequence for telemetry envelope.
@@ -170,6 +178,24 @@ private:
      * @runs_on{sampler}
      */
     void enterDeepSleep() const;
+
+    /**
+     * @brief Assigns envelope metadata to a telemetry package.
+     * @param package The telemetry package to populate.
+     *
+     * Sets timestamp, sequence number, schema version, and firmware version.
+     * Shared by both enqueueTelemetryPayload() and enqueueHighPriorityPayload().
+     */
+    void assignEnvelopeMetadata(TelemetryPackage* package) const;
+
+    /**
+     * @brief Drains and deletes a telemetry queue.
+     * @param queueHandle Reference to the queue handle (set to nullptr after delete).
+     *
+     * Deletes all pending TelemetryPackage pointers in the queue, then deletes
+     * the FreeRTOS queue itself. Used in stopAsynchronousEngine() for cleanup.
+     */
+    static void drainTelemetryQueue(QueueHandle_t& queueHandle);
 
 public:
     /**
@@ -299,6 +325,18 @@ protected:
      * retains ownership and the payload is deleted automatically — no manual cleanup needed.
      */
     bool enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetryPackageStandardUniquePointer) const;
+
+    /**
+     * @brief Pushes a high-priority payload into the high-priority queue.
+     * @param highPriorityPayload Unique pointer to the high-priority payload to enqueue.
+     * @return `true` when enqueued successfully, otherwise `false`.
+     *
+     * High-priority packets bypass the standard telemetry queue and are processed first by the
+     * network task. The high-priority queue is bounded (4 slots); when full, new packets
+     * are dropped (not evicted) because high-priority data is too critical to replace.
+     * The packet receives envelope metadata and a `"priority": "high"` field.
+     */
+    bool enqueueHighPriorityPayload(std::unique_ptr<TelemetryPackage> highPriorityPayload) const;
 
     /**
      * @brief Registers a sensor/event pair in the scheduler (two-argument fallback form).

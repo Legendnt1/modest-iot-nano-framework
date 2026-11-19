@@ -222,14 +222,14 @@ class CropMonitoringStation : public Device {
         // enters light sleep between sensor samples
         setPowerMode(PowerMode::Tickless);
 
-        // Launch internal background task workers with a small queue for battery operation
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
         // Set sampling intervals before registration so the scheduler uses the correct periods
         soilSensor.setSamplingIntervalInMilliseconds(soilSamplingIntervalInMilliseconds);
         airSensor.setSamplingIntervalInMilliseconds(airSamplingIntervalInMilliseconds);
         lightSensor.setSamplingIntervalInMilliseconds(lightSamplingIntervalInMilliseconds);
 
+        // Register sensors
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         // Register the soil moisture sensor (most frequent: every 30s)
         appendSensorToScheduler(&soilSensor, SOIL_MOISTURE_EVENT_IDENTIFIER, soilSamplingIntervalInMilliseconds, 0);
 
@@ -238,6 +238,9 @@ class CropMonitoringStation : public Device {
 
         // Register the light intensity sensor (least frequent: every 120s)
         appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds, 0);
+
+        // Launch internal background task workers with a small queue for battery operation
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     /**

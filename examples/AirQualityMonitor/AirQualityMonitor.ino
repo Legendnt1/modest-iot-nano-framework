@@ -198,11 +198,13 @@ public:
         // Set handlers for sensors (this device acts as the EventHandler)
         gasSensor.setHandler(this);
 
+        // Append sensors to the scheduler
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
+        appendSensorToScheduler(&gasSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
         // Initialize asynchronous engine
         initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
-        // Append sensors to the scheduler
-        appendSensorToScheduler(&gasSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
     }
 
     /**

@@ -162,12 +162,16 @@ public:
           airQualitySensor(sensorPin, EnvironmentalGasSensor::DEFAULT_I2C_ADDRESS, this),
           statusDisplay(displayI2cAddress, this)
     {
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&airQualitySensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
-    ~IndoorAirQualityDisplay() override = default;
+    ~IndoorAirQualityDisplay() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data events and updates the display.

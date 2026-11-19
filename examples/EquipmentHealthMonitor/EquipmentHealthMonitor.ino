@@ -159,17 +159,22 @@ public:
         config.networkStackBytes = 4096;    ///< Smaller stack (no network)
         config.samplerPriority = 3;
         config.queueLength = SAMPLER_QUEUE_LENGTH;
-        initializeAsynchronousEngine(config);
 
         // Hybrid scheduling: interrupt-driven data-ready detection eliminates the 100 ms busy-wait.
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendToBothSchedulers(&vibrationSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendSensorToScheduler(&tempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        initializeAsynchronousEngine(config);
 
         MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Engine configured: sampler stack %lu bytes, queue length %u",
                    config.samplerStackBytes, config.queueLength);
     }
 
-    ~EquipmentHealthMonitor() override = default;
+    ~EquipmentHealthMonitor() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data events and reports readings with structured logging.
