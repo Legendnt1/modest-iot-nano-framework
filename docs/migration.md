@@ -530,7 +530,7 @@ Use this checklist when migrating a sketch:
 | LCD I2C library | `Hd44780Display` (native I²C protocol) |
 | `PubSubClient` | `MqttGatewayClient` |
 | Blocking Wi-Fi connect | `WiFiConnectivityDriver` (async) |
-| Manual JSON serialization | `TelemetryPackage` + `serialize()` |
+| Manual JSON serialization | `TelemetryPackage` + `write(TelemetryWriter&)` |
 
 ---
 
