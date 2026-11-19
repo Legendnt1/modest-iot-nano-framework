@@ -68,7 +68,7 @@ static const int SAMPLER_QUEUE_LENGTH = 5;
  */
 class CropMonitoringTelemetryPackage : public TelemetryPackage {
     private:
-    int soilMoisture;
+    int32_t soilMoisture;
     float airTemperatureInCelsius;
     float airHumidityInPercentage;
     float lightIntensityInLux;
