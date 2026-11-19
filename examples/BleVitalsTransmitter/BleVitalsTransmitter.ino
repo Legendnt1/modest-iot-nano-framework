@@ -36,7 +36,7 @@ static const int SAMPLER_QUEUE_LENGTH = 10;
 
 class VitalsTelemetryPackage : public TelemetryPackage {
 private:
-    int heartBeatsPerMinute;
+    int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
 
 public:
