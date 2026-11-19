@@ -121,14 +121,16 @@ public:
           totalWeightInGrams(0.0f),
           isCalibrated(false)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Hybrid scheduling: interrupt-driven data-ready detection eliminates the 100 ms busy-wait.
         // Periodic sampling performs the 24-bit read (~1.2 ms) and change detection.
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendToBothSchedulers(&frontLeftLoadCell,     Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendToBothSchedulers(&frontRightLoadCell,    Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendToBothSchedulers(&rearLeftLoadCell,      Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendToBothSchedulers(&rearRightLoadCell,     Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
+
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
 
         updateStatusDisplay();
         calibrate();

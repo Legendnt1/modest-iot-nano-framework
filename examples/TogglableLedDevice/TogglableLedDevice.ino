@@ -51,15 +51,17 @@ class TogglableLedDevice : public Device {
     toggleLedButton(buttonPin, 200, this), // Pass pin, 200ms debounce window, and parent context
     statusLed(ledPin, false, this)              // Pass pin, false initial active state, and parent context
     {
-        // 1. Launch internal background task workers with a safe queue boundary depth of 5
-        initializeAsynchronousEngine(5);
-
-        // 2. Register the button for interrupt-driven operation (FALLING edge).
+        // 1. Register the button for interrupt-driven operation (FALLING edge).
         // The GPIO interrupt fires on button press, and the sampler task handles
         // debouncing via processEvent(). This eliminates polling latency.
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToTriggeringScheduler(&toggleLedButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
+
+        // 2. Launch internal background task workers with a safe queue boundary depth of 5
+        initializeAsynchronousEngine(5);
     }
 
     /**

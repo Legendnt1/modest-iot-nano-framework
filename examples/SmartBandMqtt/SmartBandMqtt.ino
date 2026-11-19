@@ -100,14 +100,16 @@ class SmartBandDevice : public Device {
         ambientClimateSensor.setHandler(this);
         userActionButton.setHandler(this);
 
-        initializeAsynchronousEngine(10);
-
         // Sensors are registered for periodic polling; the button uses interrupt-driven mode
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&heartRateSensor,       Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&ambientClimateSensor,  Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToTriggeringScheduler(&userActionButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
+
+        initializeAsynchronousEngine(10);
     }
 
     ~SmartBandDevice() override {

@@ -87,18 +87,20 @@ class StatusIndicator : public Device {
     : Device(blinkIntervalInMilliseconds, timerChannel),
     statusLed(ledPin, false, this) // Pass pin, initial active state (false), and set parent handler
     {
-        // 1. Launch internal background task workers
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
-        // 2. Register this device context to receive automated clock alarm notifications
+        // 1. Register this device context to receive automated clock alarm notifications
         // mapped directly to our clean event identity token
         // Capture and evaluate scheduler capacity bounds gracefully
         // Note: `this` is a Device, not a Sensor, so the EventHandler* overload is used with
         // an explicit period matching the timer tick interval.
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         bool registered = appendSensorToScheduler(this, StatusIndicator::TIMER_EVENT_IDENTIFIER, blinkIntervalInMilliseconds, 0);
         if (!registered) {
             Serial.println(F("[ERROR] Blinker registration failed: Scheduler capacity full!"));
         }
+
+        // 2. Launch internal background task workers
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**

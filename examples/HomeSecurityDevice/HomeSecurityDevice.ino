@@ -226,16 +226,18 @@ public:
         , pirSensor(pirPin, this)
         , buzzer(buzzerPin, this)
     {
-        // Launch internal background task workers
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Register all sensors with interrupt-driven operation (CHANGE edge)
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToTriggeringScheduler(
             &waterLeakSensor, WaterLeakSensor::WATER_LEAK_DETECTED_EVENT_IDENTIFIER, CHANGE);
         appendSensorToTriggeringScheduler(
             &doorWindowSensor, DoorWindowSensor::DOOR_OPENED_EVENT_IDENTIFIER, CHANGE);
         appendSensorToTriggeringScheduler(
             &pirSensor, PassiveInfraredSensor::MOTION_DETECTED_EVENT_IDENTIFIER, CHANGE);
+
+        // Launch internal background task workers
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**

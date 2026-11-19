@@ -99,9 +99,11 @@ class MqttTlsDevice : public Device {
           environmentalSensor(sensorPin, PthSensor::DEFAULT_I2C_ADDRESS, this),
           gatewayClient(client)
     {
-        initializeAsynchronousEngine(MQTT_TLS_SAMPLER_QUEUE_LENGTH);
-
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&environmentalSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        initializeAsynchronousEngine(MQTT_TLS_SAMPLER_QUEUE_LENGTH);
     }
 
     ~MqttTlsDevice() override {

@@ -131,10 +131,12 @@ public:
           skinTempSensor(tempPin, DhtSensor::SENSOR_MODEL_DHT22, this),
           gatewayClient(client)
     {
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&heartRateSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&skinTempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     ~BleVitalsTransmitter() override {

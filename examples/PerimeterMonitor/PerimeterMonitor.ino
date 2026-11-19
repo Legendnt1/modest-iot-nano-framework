@@ -88,10 +88,10 @@ public:
           westCornerLed(WEST_CORNER_LED_PIN, false, this),
           statusDisplay(LCD_I2C_ADDRESS, LCD_COLUMNS, LCD_ROWS, true, this)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Register PIR sensors for interrupt-driven operation (CHANGE edge)
         // Motion detected (RISING) and motion stopped (FALLING) are both captured
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToTriggeringScheduler(&northCornerPir,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           CHANGE);
@@ -104,7 +104,9 @@ public:
         appendSensorToTriggeringScheduler(&westCornerPir,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           CHANGE);
-        
+
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
+
         static const char* TITLE_MESSAGE = "Perimeter Status";
         static const char* INITIALIZING_MESSAGE = "Initializing...";
         statusDisplay.setLineBuffer(0, TITLE_MESSAGE);
