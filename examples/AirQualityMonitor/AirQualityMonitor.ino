@@ -65,11 +65,11 @@ private:
     /// @brief Flag indicating if gas is detected.
     bool gasDetected;
     /// @brief The operating mode of the sensor, cast from `GasSensor::OperatingMode`.
-    int operatingMode;
+    int32_t operatingMode;
 
 public:
     AirQualityTelemetryPackage(float ppm, bool detected, GasSensor::OperatingMode mode)
-        : gasConcentrationInPpm(ppm), gasDetected(detected), operatingMode(static_cast<int>(mode)) {}
+        : gasConcentrationInPpm(ppm), gasDetected(detected), operatingMode(static_cast<int32_t>(mode)) {}
 
     ~AirQualityTelemetryPackage() override = default;
 
