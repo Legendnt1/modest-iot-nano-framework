@@ -238,6 +238,7 @@ add_executable(test_MqttGatewayClient
         src/SamplingScheduler.cpp
         src/Sensor.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -253,6 +254,7 @@ target_include_directories(test_EngineConfiguration PRIVATE tests/fakes src)
 add_executable(test_DiagnosticsSnapshot
         tests/DiagnosticsSnapshot/test.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -278,10 +280,19 @@ target_include_directories(test_SamplingScheduler PRIVATE tests/fakes src)
 add_executable(test_TelemetryPackage
         tests/TelemetryPackage/test.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
 target_include_directories(test_TelemetryPackage PRIVATE tests/fakes src)
+
+add_executable(test_JsonParser
+        tests/JsonParser/test.cpp
+        src/JsonParser.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_JsonParser PRIVATE tests/fakes src)
 
 add_executable(test_TriggeringScheduler
         tests/TriggeringScheduler/test.cpp
@@ -289,6 +300,7 @@ add_executable(test_TriggeringScheduler
         src/Device.cpp
         src/SamplingScheduler.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -300,6 +312,7 @@ add_executable(test_CommandMarshaling
         src/SamplingScheduler.cpp
         src/Sensor.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -375,6 +388,7 @@ add_executable(test_DeepSleep
         src/SamplingScheduler.cpp
         src/Sensor.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -424,6 +438,7 @@ add_executable(test_BleGatewayClient
         src/BleGatewayClient.cpp
         src/BleConnectivityDriver.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -435,6 +450,7 @@ add_executable(test_HttpGatewayClient
         src/HttpGatewayClient.cpp
         src/WiFiConnectivityDriver.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -598,6 +614,7 @@ add_executable(test_Device
         src/Device.cpp
         src/SamplingScheduler.cpp
         src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
