@@ -45,7 +45,7 @@ public:
 // Mock concrete telemetry package for testing serialization and dispatch
 class SampleTelemetryPackage : public TelemetryPackage {
 private:
-    int sensorId;
+    int32_t sensorId;
     float readingValue;
 
 public:
