@@ -32,6 +32,70 @@
 #include <memory>
 #include "ModestIoT.h"
 
+/** @name Top-Level Declarative Canvas */
+//@{
+
+/** @name Engine Configuration */
+//@{
+/** @brief Sampling interval for security sensors (ms). */
+static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 200;
+/** @brief Sampler event queue length. */
+static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
+//@} // Engine Configuration
+
+/** @name GPIO Pin Assignments */
+//@{
+/** @brief GPIO pin for the water leak sensor. */
+static const int WATER_LEAK_SENSOR_PIN = 4;
+/** @brief GPIO pin for the door/window sensor. */
+static const int DOOR_WINDOW_SENSOR_PIN = 5;
+/** @brief GPIO pin for the PIR motion sensor. */
+static const int PIR_SENSOR_PIN = 18;
+/** @brief GPIO pin for the buzzer actuator. */
+static const int BUZZER_PIN = 25;
+//@} // GPIO Pin Assignments
+
+/** @name Network Configuration */
+//@{
+/** @brief Wi-Fi SSID for the home network. */
+static const char* WIRELESS_SSID = "HomeSecurity_Network";
+/** @brief Wi-Fi password for the home network. */
+static const char* WIRELESS_PASSWORD = "SecureHomePass2026";
+/** @brief MQTT broker IP address. */
+static const char* MQTT_BROKER_IP = "192.168.1.200";
+/** @brief MQTT broker port. */
+static const uint16_t MQTT_BROKER_PORT = 1883;
+/** @brief MQTT topic for publishing security alerts. */
+static const char* MQTT_PUBLISH_TOPIC = "security/home/alerts";
+//@} // Network Configuration
+
+/** @name Device Configuration */
+//@{
+/** @brief Firmware version string for this device. */
+static const char* HOME_SECURITY_FIRMWARE_VERSION = "HSD-700 FW 1.1.0";
+/** @brief MQTT client identifier for this device. */
+static const char* MQTT_CLIENT_ID = "HomeSecurity_Node_01";
+//@} // Device Configuration
+
+/** @name Serial Output Configuration */
+//@{
+/** @brief Serial communication baud rate. */
+static const unsigned long SERIAL_BAUD_RATE = 115200;
+/** @brief Log prefix for all HomeSecurityDevice serial output. */
+static const char* HOME_SECURITY_LOG_PREFIX = "[HomeSecurity]";
+/** @brief Delay in the main loop when no work is pending. */
+static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
+//@} // Serial Output Configuration
+
+/** @name Alert Type Identifiers */
+//@{
+/** @brief Alert type string for water leak events. */
+static const char* ALERT_TYPE_WATER_LEAK = "water_leak";
+/** @brief Alert type string for door/window opened events. */
+static const char* ALERT_TYPE_DOOR_OPENED = "door_opened";
+//@} // Alert Type Identifiers
+//@} // Top-Level Declarative Canvas
+
 /** @name Telemetry JSON Keys */
 //@{
 /** @brief JSON key for the alert type (e.g., "water_leak", "door_opened"). */
@@ -258,70 +322,6 @@ public:
     }
 };
 //@} // Application Mediator Implementation
-
-/** @name Top-Level Declarative Canvas */
-//@{
-
-/** @name Engine Configuration */
-//@{
-/** @brief Sampling interval for security sensors (ms). */
-static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 200;
-/** @brief Sampler event queue length. */
-static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
-//@} // Engine Configuration
-
-/** @name GPIO Pin Assignments */
-//@{
-/** @brief GPIO pin for the water leak sensor. */
-static const int WATER_LEAK_SENSOR_PIN = 4;
-/** @brief GPIO pin for the door/window sensor. */
-static const int DOOR_WINDOW_SENSOR_PIN = 5;
-/** @brief GPIO pin for the PIR motion sensor. */
-static const int PIR_SENSOR_PIN = 18;
-/** @brief GPIO pin for the buzzer actuator. */
-static const int BUZZER_PIN = 25;
-//@} // GPIO Pin Assignments
-
-/** @name Network Configuration */
-//@{
-/** @brief Wi-Fi SSID for the home network. */
-static const char* WIRELESS_SSID = "HomeSecurity_Network";
-/** @brief Wi-Fi password for the home network. */
-static const char* WIRELESS_PASSWORD = "SecureHomePass2026";
-/** @brief MQTT broker IP address. */
-static const char* MQTT_BROKER_IP = "192.168.1.200";
-/** @brief MQTT broker port. */
-static const uint16_t MQTT_BROKER_PORT = 1883;
-/** @brief MQTT topic for publishing security alerts. */
-static const char* MQTT_PUBLISH_TOPIC = "security/home/alerts";
-//@} // Network Configuration
-
-/** @name Device Configuration */
-//@{
-/** @brief Firmware version string for this device. */
-static const char* HOME_SECURITY_FIRMWARE_VERSION = "HSD-700 FW 1.1.0";
-/** @brief MQTT client identifier for this device. */
-static const char* MQTT_CLIENT_ID = "HomeSecurity_Node_01";
-//@} // Device Configuration
-
-/** @name Serial Output Configuration */
-//@{
-/** @brief Serial communication baud rate. */
-static const unsigned long SERIAL_BAUD_RATE = 115200;
-/** @brief Log prefix for all HomeSecurityDevice serial output. */
-static const char* HOME_SECURITY_LOG_PREFIX = "[HomeSecurity]";
-/** @brief Delay in the main loop when no work is pending. */
-static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
-//@} // Serial Output Configuration
-
-/** @name Alert Type Identifiers */
-//@{
-/** @brief Alert type string for water leak events. */
-static const char* ALERT_TYPE_WATER_LEAK = "water_leak";
-/** @brief Alert type string for door/window opened events. */
-static const char* ALERT_TYPE_DOOR_OPENED = "door_opened";
-//@} // Alert Type Identifiers
-//@} // Top-Level Declarative Canvas
 
 static WiFiConnectivityDriver* transportDriver = nullptr;
 static HomeSecurityDevice* homeSecurityApplication = nullptr;
