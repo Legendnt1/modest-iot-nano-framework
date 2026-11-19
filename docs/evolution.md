@@ -806,3 +806,34 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 `OtaUpdateHandler` with hostname, password, progress/error/start/end callbacks, 21 host tests.
 
 **Source**: `src/OtaUpdateHandler.h`, `src/OtaUpdateHandler.cpp`, `tests/OtaUpdateHandler/test.cpp`
+
+---
+
+## Post-Release Improvements (Complete, v1.2.0)
+
+### W46: Remove ArduinoJson via TelemetryWriter — **Complete** ✓
+
+**Problem**: ArduinoJson consumed ~30-40 KB of Flash and allocated a `JsonDocument` on the heap for every telemetry serialization. The `JsonDocument` type appeared in the public API (`TelemetryPackage::serialize`), coupling all telemetry packages to an external library.
+
+**Resolution**: Introduced `TelemetryWriter` abstract interface and `JsonTelemetryWriter` native implementation to eliminate ArduinoJson entirely.
+
+**Implementation**:
+
+- **TelemetryWriter interface** (`src/TelemetryWriter.h`): Abstract class with pure virtual `field()` overloads for `int32_t`, `float`, `bool`, and `const char*`. Decouples telemetry packages from the serialization format, enabling future format writers (CBOR, MessagePack, binary).
+- **JsonTelemetryWriter** (`src/JsonTelemetryWriter.h/cpp`): `snprintf`-based JSON writer using a 512-byte fixed stack buffer. Zero heap allocation per serialization, automatic comma handling, buffer overflow detection, and string escaping for special characters.
+- **TelemetryPackage migration**: Replaced `serialize(JsonDocument&)` with `write(TelemetryWriter&)` pure virtual method. Removed `toDocument()` method, simplified `toJsonString()` to use `JsonTelemetryWriter`. Added `serializeToBuffer()` single-call pipeline that encapsulates envelope metadata, data fields, finalization, overflow check, and memcpy.
+- **Gateway client migration**: `MqttGatewayClient`, `BleGatewayClient`, and `HttpGatewayClient` now use `serializeToBuffer()` instead of manual `JsonTelemetryWriter` sequences. Removed `#include <ArduinoJson.h>` from all three.
+- **Native JSON deserializer**: `MqttGatewayClient` uses `parseJsonInt()` and `parseJsonInt32()` (~30 lines) instead of `deserializeJson()` for MQTT command parsing. Handles `commandIdentifier` and `commandPayload` fields with malformed JSON detection.
+- **Example migration**: 6 examples with TelemetryPackage subclasses migrated from `serialize(JsonDocument&)` to `write(TelemetryWriter&)`.
+- **Test migration**: 7 TelemetryPackage test subclasses migrated, 15 golden tests rewritten for insertion-order JSON output. `tests/fakes/ArduinoJson.h` (253 lines) deleted, replaced with `tests/fakes/TelemetryWriter.h` simple mock.
+- **GasSensor utilities**: Added `gasTypeName()` and `operatingModeName()` static methods for enum-to-string conversion, removing custom implementations from examples.
+
+**Benefits**:
+- ~30-40 KB Flash saved (2.5-5% of usable Flash on small MCUs)
+- Zero heap allocation per serialization on the network task
+- 253 lines of test mock code eliminated
+- Dependency count reduced from 2 to 1 (only MQTT >=2.5.3 remains)
+- No external types in the public API
+- Format-neutral telemetry enables future compact binary protocols
+
+**Source**: `src/TelemetryWriter.h`, `src/JsonTelemetryWriter.h`, `src/JsonTelemetryWriter.cpp`, `src/TelemetryPackage.h`, `src/MqttGatewayClient.cpp`, `src/BleGatewayClient.cpp`, `src/HttpGatewayClient.cpp`, `src/GasSensor.h`, `src/GasSensor.cpp`, `tests/fakes/TelemetryWriter.h`
