@@ -100,6 +100,7 @@ run_test "test_MqttGatewayClient" \
     src/Device.cpp \
     src/SamplingScheduler.cpp \
     src/Sensor.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/MqttGatewayClient/test.cpp
 
 # 7. EngineConfiguration and Device Configuration Suite
@@ -111,6 +112,7 @@ run_test "test_EngineConfiguration" \
 run_test "test_DiagnosticsSnapshot" \
     -DTEST_MOCK_DEVICE \
     tests/fakes/ArduinoFake.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/DiagnosticsSnapshot/test.cpp
 
 # 9. Sensor Fault and Recovery Events Suite
@@ -128,6 +130,7 @@ run_test "test_SamplingScheduler" \
 # 11. Telemetry Serialization Golden Tests Suite
 run_test "test_TelemetryPackage" \
     tests/fakes/ArduinoFake.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/TelemetryPackage/test.cpp
 
 # 12. Triggering Scheduler Suite
@@ -136,6 +139,7 @@ run_test "test_TriggeringScheduler" \
     src/Sensor.cpp \
     src/Device.cpp \
     src/SamplingScheduler.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/TriggeringScheduler/test.cpp
 
 # 13. Command Marshaling Suite
@@ -144,6 +148,7 @@ run_test "test_CommandMarshaling" \
     src/Device.cpp \
     src/SamplingScheduler.cpp \
     src/Sensor.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/CommandMarshaling/test.cpp
 
 # 14. WaterFlowSensor Suite
@@ -173,6 +178,7 @@ run_test "test_DeepSleep" \
     src/Device.cpp \
     src/SamplingScheduler.cpp \
     src/Sensor.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/DeepSleep/test.cpp
 
 # 18. ServoMotor Suite
@@ -248,6 +254,7 @@ run_test "test_BleGatewayClient" \
     tests/fakes/ArduinoFake.cpp \
     src/BleGatewayClient.cpp \
     src/BleConnectivityDriver.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/BleGatewayClient/test.cpp
 
 # 28. HttpGatewayClient Suite
@@ -255,6 +262,7 @@ run_test "test_HttpGatewayClient" \
     tests/fakes/ArduinoFake.cpp \
     src/HttpGatewayClient.cpp \
     src/WiFiConnectivityDriver.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/HttpGatewayClient/test.cpp
 
 # 29. Buzzer Suite
@@ -383,6 +391,7 @@ run_test "test_Device" \
     src/Actuator.cpp \
     src/Device.cpp \
     src/SamplingScheduler.cpp \
+    src/JsonTelemetryWriter.cpp \
     tests/Device/test.cpp
 
 echo "=========================================================="
