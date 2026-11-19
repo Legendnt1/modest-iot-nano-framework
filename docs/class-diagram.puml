@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.2.0, 53 headers)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 53 headers, W32)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -66,6 +66,9 @@ package "Core" #FAFAFA {
     +packetsDropped : uint32_t
     +packetsDroppedOldest : uint32_t
     +queueHighWaterMark : uint8_t
+    +highPriorityEnqueued : uint32_t
+    +highPriorityDropped : uint32_t
+    +highPriorityQueueHighWaterMark : uint8_t
     +sendsSucceeded : uint32_t
     +sendsFailed : uint32_t
     +freeHeapBytes : uint32_t
@@ -171,6 +174,7 @@ package "Core" #FAFAFA {
     +activeDevice : Device*
     +triggerTable[MAX_TRIGGERED_SENSORS] : TriggerEntry
     +commandQueueHandle : QueueHandle_t
+    +highPriorityQueueHandle : QueueHandle_t
     +onSensorTrigger(handle : uint32_t) : void
     +onSensorTriggerWrapper() : void
     +processTriggeredSensors() : void
@@ -188,6 +192,7 @@ package "Core" #FAFAFA {
     #initializeAsynchronousEngine(engineConfiguration : const EngineConfiguration&) : void
     #enqueueTelemetryPayload(telemetryPackagePointerAddress : TelemetryPackage**) : bool
     #enqueueTelemetryPayload(telemetryPackageStandardUniquePointer : unique_ptr<TelemetryPackage>) : bool
+    #enqueueHighPriorityPayload(highPriorityPayload : unique_ptr<TelemetryPackage>) : bool
     #appendSensorToScheduler(targetSensorInstance : EventHandler*, requestedEventIdentifier : int) : bool
     #appendSensorToScheduler(targetSensorInstance : Sensor*, requestedEventIdentifier : int) : bool
     #appendSensorToScheduler(targetSensorInstance : EventHandler*, requestedEventIdentifier : int, periodInMilliseconds : uint32_t) : bool
@@ -249,6 +254,8 @@ package "Core" #FAFAFA {
     +write(writer : TelemetryWriter&) const : void
     +toJsonString() const : String
     +serializeToBuffer(buffer : char*, bufferSize : size_t) const : size_t
+    +markAsHighPriority() : void
+    +isHighPriority() const : bool
   }
 }
 
