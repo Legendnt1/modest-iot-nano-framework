@@ -823,7 +823,7 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - **JsonTelemetryWriter** (`src/JsonTelemetryWriter.h/cpp`): `snprintf`-based JSON writer using a 512-byte fixed stack buffer. Zero heap allocation per serialization, automatic comma handling, buffer overflow detection, and string escaping for special characters.
 - **TelemetryPackage migration**: Replaced `serialize(JsonDocument&)` with `write(TelemetryWriter&)` pure virtual method. Removed `toDocument()` method, simplified `toJsonString()` to use `JsonTelemetryWriter`. Added `serializeToBuffer()` single-call pipeline that encapsulates envelope metadata, data fields, finalization, overflow check, and memcpy.
 - **Gateway client migration**: `MqttGatewayClient`, `BleGatewayClient`, and `HttpGatewayClient` now use `serializeToBuffer()` instead of manual `JsonTelemetryWriter` sequences. Removed `#include <ArduinoJson.h>` from all three.
-- **Native JSON parser**: `MqttGatewayClient` uses `parseJsonInt()` and `parseJsonInt32()` (~30 lines) instead of `deserializeJson()` for MQTT command parsing. Handles `commandIdentifier` and `commandPayload` fields with malformed JSON detection.
+- **Native JSON parser**: `MqttGatewayClient` uses `JsonParser::parseInt()` and `JsonParser::parseInt32()` for MQTT command parsing. The `JsonParser` static class provides framework-wide JSON parsing (int, int32, float, bool, string) with zero heap allocation, replacing the file-scope static functions.
 - **Example migration**: 6 examples with TelemetryPackage subclasses migrated from `serialize(JsonDocument&)` to `write(TelemetryWriter&)`.
 - **Test migration**: 7 TelemetryPackage test subclasses migrated, 15 golden tests rewritten for insertion-order JSON output. `tests/fakes/ArduinoJson.h` (253 lines) deleted, replaced with `tests/fakes/TelemetryWriter.h` simple mock.
 - **GasSensor utilities**: Added `gasTypeName()` and `operatingModeName()` static methods for enum-to-string conversion, removing custom implementations from examples.
@@ -885,3 +885,53 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - Clear comments in the `on(Event)` handler explain the rationale for each enqueue decision
 
 **Source**: `examples/HomeSecurityDevice/HomeSecurityDevice.ino`, `tests/TelemetryPackage/test.cpp`
+
+---
+
+### W34: MQTT QoS and Retained Messages — **Complete** ✓
+
+**Problem**: MqttGatewayClient hardcoded QoS 0 for all MQTT operations and had no retained message support. Production deployments often require QoS 1 (at least once delivery) for critical telemetry, and retained messages for last-known-good state that new subscribers can receive immediately.
+
+**Resolution**: Added configurable QoS (0/1/2) for both publish and subscribe operations, and retained message support for last-known-good telemetry. All changes are backward-compatible with defaults matching previous behavior (QoS 0, non-retained).
+
+**Implementation**:
+
+- **Constructor parameters**: Both constructors accept optional `publishQos`, `subscribeQos`, and `retainedFlag` parameters with backward-compatible defaults.
+- **Setter/getter methods**: `setPublishQoS()`, `getPublishQoS()`, `setSubscribeQoS()`, `getSubscribeQoS()`, `setRetained()`, `getRetained()` for runtime configuration.
+- **publish() call**: Updated to pass `retained` and `publishQoS` to `mqttClient.publish()`.
+- **subscribe() call**: Updated to use `subscribeQoS` member instead of hardcoded `DEFAULT_MQTT_QOS` constant.
+- **Test mock**: Updated `tests/fakes/MQTT.h` to track `lastPublishQos` and `lastPublishRetained` values.
+- **5 new host tests**: Default values, setter/getter round-trip, publish with QoS 1, publish with retained flag, subscribe with QoS 1.
+
+**Benefits**:
+- QoS 1 ensures at-least-once delivery for critical telemetry without code changes
+- Retained messages allow new subscribers to receive the last-known-good state immediately
+- Per-operation QoS configuration (publish vs subscribe) enables fine-grained control
+- Backward-compatible defaults ensure existing code continues to work without modification
+
+**Source**: `src/MqttGatewayClient.h`, `src/MqttGatewayClient.cpp`, `tests/fakes/MQTT.h`, `tests/MqttGatewayClient/test.cpp`
+
+---
+
+### JsonParser: Native JSON Parser — **Complete** ✓
+
+**Problem**: The native JSON parser in MqttGatewayClient consisted of two static functions (`parseJsonInt`/`parseJsonInt32`) that were file-scope only. Developers building custom devices needed JSON parsing for custom MQTT commands, HTTP response extraction, and BLE notification parsing, but had to either copy the parser code or use ArduinoJson (defeating W46's purpose).
+
+**Resolution**: Extracted the parser into a framework-wide `JsonParser` static class with 5 methods (int, int32, float, bool, string). Zero heap allocation, all operations use stack buffers and C string functions. Migrated MqttGatewayClient to use `JsonParser::parseInt()` and `JsonParser::parseInt32()`.
+
+**Implementation**:
+
+- **src/JsonParser.h**: Static class with `parseInt()`, `parseInt32()`, `parseFloat()`, `parseBool()`, `parseString()` methods. All methods return `bool` for error handling.
+- **src/JsonParser.cpp**: Implementation using `strstr`, `strtol`, `strtod` for key-value extraction from flat JSON.
+- **MqttGatewayClient.cpp**: Replaced static `parseJsonInt()`/`parseJsonInt32()` with `JsonParser::parseInt()`/`JsonParser::parseInt32()`.
+- **ModestIoT.h**: Added `JsonParser.h` to umbrella header for framework-wide access.
+- **20 host tests**: Covering all 5 methods with edge cases (null inputs, missing keys, buffer overflow, complex JSON).
+
+**Benefits**:
+- Developers can parse JSON in custom MQTT commands, HTTP responses, and BLE notifications without ArduinoJson
+- Symmetric naming with `JsonTelemetryWriter` (output) ↔ `JsonParser` (input)
+- Extensible: adding new types (e.g., uint64_t) is trivial
+- Zero heap allocation matches the framework's philosophy
+- Framework-wide visibility eliminates code duplication across examples
+
+**Source**: `src/JsonParser.h`, `src/JsonParser.cpp`, `src/MqttGatewayClient.cpp`, `src/ModestIoT.h`, `tests/JsonParser/test.cpp`
