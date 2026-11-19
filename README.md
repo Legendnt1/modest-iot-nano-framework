@@ -496,7 +496,7 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
 | [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
 | [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
-| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 51 source headers. |
+| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 53 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 
 ### Project Standards
@@ -533,7 +533,7 @@ Then open `docs/build/html/index.html` in your browser.
 2. Go to **Tools > Manage Libraries...** (or press `Ctrl+Shift+I` / `Cmd+Shift+I`).
 3. Search for **Modest IoT Nano Framework**.
 4. Click **Install** to install the latest version.
-5. The required dependencies (`ArduinoJson` and `MQTT`) will be installed automatically.
+5. The required dependency (`MQTT`) will be installed automatically.
 
 **Option 2: Manual Installation**
 
@@ -541,8 +541,7 @@ Then open `docs/build/html/index.html` in your browser.
 2. **Install as Library**:
    - Copy the repository to your Arduino libraries directory (e.g., `~/Arduino/libraries/ModestIoT/` on macOS/Linux or `Documents\Arduino\libraries\ModestIoT\` on Windows).
    - Alternatively, in the Arduino IDE: Sketch > Include Library > Add .ZIP Library.
-3. **Install Dependencies**: The framework requires the following Arduino libraries (install via Library Manager):
-   - `ArduinoJson (>=7.0.0)` (for telemetry serialization)
+3. **Install Dependencies**: The framework requires the following Arduino library (install via Library Manager):
    - `MQTT (>=2.5.3)` (for `MqttGatewayClient`)
 4. **Verify Structure**: The library should be organized as:
    ```plaintext
@@ -645,8 +644,8 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.2.0**: Event aggregation for composite sensor rules (W29).
-- **PlatformIO Registry**: Manual submission for professional IoT developer discoverability.
+- **v1.2.0**: MQTT QoS configuration, event aggregation for composite sensor rules (W29).
+- **PlatformIO Registry**: Library published for `lib_deps` installation.
 - **Benchmark Publication**: Hardware-measured performance comparison table.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **Edge Framework Phase 2.5**: Matter Bridge to expose Nano devices via Matter ecosystem.
