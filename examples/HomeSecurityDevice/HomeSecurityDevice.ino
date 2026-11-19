@@ -168,6 +168,9 @@ public:
 /** @name Application Mediator Implementation */
 //@{
 
+/// @brief Forward declaration of the Wi-Fi transport driver (defined below).
+static WiFiConnectivityDriver* transportDriver;
+
 class HomeSecurityDevice : public Device {
 private:
     WaterLeakSensor waterLeakSensor;
@@ -323,7 +326,7 @@ public:
 };
 //@} // Application Mediator Implementation
 
-static WiFiConnectivityDriver* transportDriver = nullptr;
+WiFiConnectivityDriver* transportDriver = nullptr;
 static HomeSecurityDevice* homeSecurityApplication = nullptr;
 
 void setup() {
