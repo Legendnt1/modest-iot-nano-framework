@@ -243,13 +243,13 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** `JsonTelemetryWriter` uses a fixed stack buffer, **when** serialization occurs, **then** no heap allocation is made (zero `JsonDocument` usage).
 - **Status**: ✓ Implemented (v1.2.0). See `TelemetryWriter.h`, `JsonTelemetryWriter.h`, `JsonTelemetryWriter.cpp`, and `TelemetryPackage.h`.
 
-### TS23: Native JSON Deserialization for MQTT Commands
+### TS23: Native JSON Parsing for MQTT Commands
 
-- **As an** IoT Developer, **I want** incoming MQTT commands to be deserialized without ArduinoJson, **so that** the framework has zero external dependencies for JSON handling.
+- **As an** IoT Developer, **I want** incoming MQTT commands to be parsed without ArduinoJson, **so that** the framework has zero external dependencies for JSON handling.
 - **Acceptance Criteria**:
-    - **Given** an incoming MQTT message with JSON payload `{"commandIdentifier": N, "commandPayload": V}`, **when** the native deserializer parses it, **then** the command ID and payload are extracted correctly.
-    - **Given** the JSON payload is malformed, **when** the native deserializer parses it, **then** an error is logged and the message is ignored.
-    - **Given** the JSON payload is missing the `commandIdentifier` field, **when** the native deserializer parses it, **then** an error is logged and the message is ignored.
+    - **Given** an incoming MQTT message with JSON payload `{"commandIdentifier": N, "commandPayload": V}`, **when** the native JSON parser extracts values, **then** the command ID and payload are extracted correctly.
+    - **Given** the JSON payload is malformed, **when** the native JSON parser processes it, **then** an error is logged and the message is ignored.
+    - **Given** the JSON payload is missing the `commandIdentifier` field, **when** the native JSON parser processes it, **then** an error is logged and the message is ignored.
 - **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp` (`parseJsonInt()`, `parseJsonInt32()`).
 
 ### TS24: ArduinoJson Dependency Removal
@@ -282,15 +282,34 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** the old `serialize(JsonDocument&)` method is removed, **when** the codebase is searched for `serialize(JsonDocument&)`, **then** no matches are found.
 - **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h`.
 
-### TS27: Migrate Gateway Clients and Add Native Deserializer
+### TS27: Migrate Gateway Clients and Add Native JSON Parser
 
-- **As an** IoT Developer, **I want** gateway clients to use `JsonTelemetryWriter` and a native JSON deserializer, **so that** no ArduinoJson is used in the network task.
+- **As an** IoT Developer, **I want** gateway clients to use `JsonTelemetryWriter` and a native JSON parser, **so that** no ArduinoJson is used in the network task.
 - **Acceptance Criteria**:
     - **Given** `MqttGatewayClient::sendTelemetryRecord()` uses `serializeToBuffer()`, **when** telemetry is sent, **then** the JSON payload is serialized to a fixed buffer without heap allocation.
     - **Given** `BleGatewayClient::sendTelemetryRecord()` uses `serializeToBuffer()`, **when** telemetry is sent, **then** the JSON payload is serialized to a fixed buffer without heap allocation.
-    - **Given** `mqttMessageCallback()` uses a native JSON deserializer, **when** a command arrives, **then** `commandIdentifier` and `commandPayload` are extracted without ArduinoJson.
-    - **Given** the native deserializer handles malformed JSON, **when** invalid JSON arrives, **then** an error is logged and the message is ignored.
+    - **Given** `mqttMessageCallback()` uses a native JSON parser, **when** a command arrives, **then** `commandIdentifier` and `commandPayload` are extracted without ArduinoJson.
+    - **Given** the native JSON parser handles malformed JSON, **when** invalid JSON arrives, **then** an error is logged and the message is ignored.
 - **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp`, `BleGatewayClient.cpp`, `HttpGatewayClient.cpp`.
+
+### TS28: Enqueue Critical Alerts via High-Priority Lane
+
+- **As an** IoT Developer, **I want** to enqueue critical alerts via a high-priority lane, **so that** alarms bypass the standard telemetry queue and are transmitted immediately.
+- **Acceptance Criteria**:
+    - **Given** a Device has a high-priority queue, **when** `enqueueHighPriorityPayload()` is called with a TelemetryPackage, **then** the package is placed in the high-priority queue instead of the standard queue.
+    - **Given** the high-priority queue is bounded (4 slots), **when** `enqueueHighPriorityPayload()` is called and the queue is full, **then** the alert is dropped and a warning is logged.
+    - **Given** a high-priority alert is enqueued, **when** the network task processes the high-priority lane, **then** the alert packet gets envelope field `"priority": "high"` for edge-side routing.
+    - **Given** a high-priority alert is enqueued while the standard queue has pending packets, **when** the network task runs, **then** the alert is processed before standard telemetry packets.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h`, `Device.cpp`, `TelemetryPackage.h`.
+
+### TS29: High-Priority Lane Diagnostics
+
+- **As an** IoT Developer, **I want** to monitor high-priority lane statistics via DiagnosticsSnapshot, **so that** I can detect dropped alerts and high-priority queue pressure.
+- **Acceptance Criteria**:
+    - **Given** high-priority alerts have been enqueued, **when** `diagnostics()` is called, **then** `highPriorityEnqueued` reflects the total count of alerts successfully enqueued.
+    - **Given** high-priority alerts have been dropped due to a full queue, **when** `diagnostics()` is called, **then** `highPriorityDropped` reflects the total count of dropped alerts.
+    - **Given** the high-priority queue has reached a certain depth, **when** `diagnostics()` is called, **then** `highPriorityQueueHighWaterMark` reflects the maximum depth observed.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h` (DiagnosticsSnapshot extension), `Device.cpp`.
 
 ---
 
