@@ -23,7 +23,7 @@
 class TestTelemetryPackage : public TelemetryPackage {
 public:
     void write(TelemetryWriter& writer) const override {
-        writer.field("test", 1);
+        writer.field("test", static_cast<int32_t>(1));
     }
 };
 
@@ -83,7 +83,7 @@ public:
 class TestTelemetryPackage : public TelemetryPackage {
 public:
     void write(TelemetryWriter& writer) const override {
-        writer.field("test", 1);
+        writer.field("test", static_cast<int32_t>(1));
     }
 };
 
