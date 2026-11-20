@@ -514,6 +514,7 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 56 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 | [`docs/benchmarks.md`](docs/benchmarks.md) | Performance comparison table with 9 metrics: Flash, RAM, latency, throughput, queue depth, stack, heap, serialization, and power. |
+| [`docs/coverage.md`](docs/coverage.md) | Code coverage guide: local execution with gcov/lcov, CI integration, threshold configuration, and report interpretation. |
 
 ### Project Standards
 
