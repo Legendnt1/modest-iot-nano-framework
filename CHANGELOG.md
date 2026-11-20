@@ -13,6 +13,10 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **.gitignore**: Added `*.gcov`, `*.gcda`, `*.gcno` to prevent accidental commits of gcov coverage artifacts.
 - **docs/coverage.md**: Documentation covering local execution, CI integration, coverage threshold configuration, tool selection rationale, report interpretation, expected gaps, platform-specific file exclusions, and limitations.
 
+#### Dependency Update Monitoring
+- **.github/dependabot.yml**: Dependabot configuration for automated GitHub Actions version monitoring. Checks monthly for updates to `actions/checkout`, `actions/upload-artifact`, `arduino/arduino-lint-action`, and `arduino/setup-arduino-cli`. Opens pull requests with conventional commit prefix (`ci`) and labels (`dependencies`, `ci`) when new versions are available.
+- **docs/dependencies.md**: Documentation listing all external dependencies (MQTT library, ESP32 Arduino core, GitHub Actions) with update processes. Dependabot handles GitHub Actions automatically; Arduino libraries and ESP32 core are monitored manually with step-by-step update instructions.
+
 #### Benchmark Table
 - **docs/benchmarks.md**: Performance comparison table with 9 metrics comparing traditional `loop()`, Modest IoT v1.1.2, and v1.2.0. Covers Flash, RAM, latency, throughput, queue depth, stack usage, heap, serialization time, and power consumption. Values derived from source code analysis (exact constants and configuration) with a validation methodology for future hardware-measured measurements. Key findings: ~220-230 KB Flash (v1.2.0), ~40-50 KB RAM, zero heap allocation in critical path, ~30-40 KB Flash saved by ArduinoJson removal (W46), and ESP-IDF variant planned at ~180 KB (~73% reduction).
 - **README.md**: Added benchmarks.md to Documentation Map and updated Future Directions to link to the published document.
