@@ -97,9 +97,11 @@ struct EventPattern {
  * @ingroup core_module
  *
  * Implements EventHandler to intercept events from sensors. Captures each event
- * with its timestamp, then checks all registered patterns. When a pattern
- * matches (all required events occurred within the time window), emits a
- * composite event via the output handler.
+ * with its timestamp and sourceId, then checks all registered patterns using AND
+ * or OR logic. When a pattern matches, an optional condition function can further
+ * filter based on sensor values. Composite events carry DEVICE_SOURCE_ID as their
+ * sourceId, enabling nested aggregator chains where downstream aggregators
+ * distinguish composite events from raw sensor events.
  *
  * @par Zero Heap Allocation
  * Uses fixed-size circular buffer (32 captured events) and pattern array (4 patterns).
