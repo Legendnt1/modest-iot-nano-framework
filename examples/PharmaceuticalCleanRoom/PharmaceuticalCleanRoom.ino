@@ -317,7 +317,7 @@ public:
         : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, 0)
         , pressureSensor(pthPin, PthSensor::DEFAULT_I2C_ADDRESS, &aggregatorLevel1)
         , tempSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT11, &aggregatorLevel1)
-        , gasSensor(gasPin, &aggregatorLevel1)
+        , gasSensor(gasPin, -1, &aggregatorLevel1)
         , doorSensor(doorPin, &aggregatorLevel1)
         , hvacRelay(relayPin, this)
         , buzzer(buzzerPin, this)
