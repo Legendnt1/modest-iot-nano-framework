@@ -367,7 +367,44 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** a missing key, **when** any `JsonParser` method is called, **then** false is returned and the output value is unchanged.
 - **Status**: ✓ Implemented (v1.2.0). See `JsonParser.h`, `JsonParser.cpp`, `tests/JsonParser/test.cpp`.
 
+### TS36: Request On-Demand Diagnostics via MQTT Command
+
+- **As an** IoT Developer, **I want** to request diagnostics from a device via an MQTT command, **so that** I can monitor fleet health without continuous telemetry overhead.
+- **Acceptance Criteria**:
+    - **Given** a device is connected to an MQTT broker, **when** a command with `commandId` equal to 300 is published, **then** the device creates a `DiagnosticsTelemetryPackage` from `Device::collectDiagnostics()`.
+    - **Given** a diagnostics command is received, **when** the device serializes the diagnostics snapshot, **then** the JSON output contains all 14 DiagnosticsSnapshot fields (missedTicks, packetsEnqueued, highPriorityEnqueued, sendsSucceeded, freeHeapBytes, etc.).
+    - **Given** a diagnostics command is received, **when** the device sends the diagnostics telemetry, **then** it uses `enqueueTelemetryPayload()` (standard queue) to avoid blocking the sampler task.
+    - **Given** a diagnostics command is received but no gateway client is registered, **when** the device processes the command, **then** a warning is logged and no telemetry is sent.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h`, `Device.cpp`, `DiagnosticsTelemetryPackage.h`.
+
+### TS37: Diagnostics Command Integration with JsonParser
+
+- **As an** IoT Developer, **I want** the diagnostics command to be parsed using `JsonParser`, **so that** the framework maintains zero external dependencies for JSON handling.
+- **Acceptance Criteria**:
+    - **Given** an incoming MQTT message with JSON payload `{"commandId": 300}`, **when** `JsonParser::parseInt()` extracts the command ID, **then** the diagnostics command is recognized and processed.
+    - **Given** the JSON payload is malformed or missing `commandId`, **when** the MQTT callback processes it, **then** an error is logged and the message is ignored.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp` (uses `JsonParser::parseInt()`), `Device.cpp` (handle diagnostics command).
+
+### TS38: Implement DiagnosticsTelemetryPackage
+
+- **As an** IoT Developer, **I want** a `DiagnosticsTelemetryPackage` that wraps `DiagnosticsSnapshot` fields, **so that** diagnostics data is serialized as JSON via `TelemetryWriter`.
+- **Acceptance Criteria**:
+    - **Given** `DiagnosticsTelemetryPackage` exists, **when** it is constructed with a `DiagnosticsSnapshot`, **then** all 14 fields are stored as member variables.
+    - **Given** `DiagnosticsTelemetryPackage::write()` is called, **when** a `TelemetryWriter` serializes it, **then** the JSON output contains all 14 fields with correct key names.
+    - **Given** a golden test for `DiagnosticsTelemetryPackage`, **when** `toJsonString()` is called, **then** the output matches the expected JSON format with envelope metadata and all 14 data fields.
+- **Status**: ✓ Implemented (v1.2.0). See `DiagnosticsTelemetryPackage.h`, `DiagnosticsTelemetryPackage.cpp`, `tests/TelemetryPackage/test.cpp`.
+
+### TS39: Implement Diagnostics Command Handler in Device
+
+- **As an** IoT Developer, **I want** Device to handle the diagnostics command internally, **so that** my `handle()` override receives only custom commands without framework-internal logic.
+- **Acceptance Criteria**:
+    - **Given** Device has a diagnostics command ID constant (300), **when** `handleInternalCommand(Command)` receives a command with that ID, **then** `Device::collectDiagnostics()` is called and the result is wrapped in a `DiagnosticsTelemetryPackage`.
+    - **Given** a gateway client is registered, **when** the diagnostics command is processed, **then** the `DiagnosticsTelemetryPackage` is enqueued via `enqueueTelemetryPayload()`.
+    - **Given** no gateway client is registered, **when** the diagnostics command is processed, **then** a warning is logged and no telemetry is sent.
+    - **Given** `handleInternalCommand()` returns true for framework commands, **when** `processPendingCommands()` runs, **then** `handle()` is not called for framework commands — only for developer-defined custom commands.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h`, `Device.cpp`.
+
 ---
 
 *Created: March 23, 2025.*
-*Last Updated: November 18, 2026.*
+*Last Updated: November 19, 2026.*
