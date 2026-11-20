@@ -211,10 +211,10 @@ Set `MODEST_LOG_LEVEL` in your build flags or sketch to control verbosity. At le
 
 ## Diagnostics
 
-Call `device.diagnostics()` to get a `DiagnosticsSnapshot` with 12 runtime health fields:
+Call `device.collectDiagnostics()` to get a `DiagnosticsSnapshot` with 12 runtime health fields:
 
 ```cpp
-DiagnosticsSnapshot health = device.diagnostics();
+DiagnosticsSnapshot health = device.collectDiagnostics();
 Serial.printf("Free heap: %u bytes\n", health.freeHeapBytes);
 Serial.printf("Packets dropped: %u\n", health.packetsDropped);
 Serial.printf("Sampler stack free: %u words\n", health.samplerStackFreeWords);
@@ -400,7 +400,7 @@ The framework ships with 23 example sketches demonstrating various use cases:
 | `RemoteLedController` | MQTT-connected RGB smart lamp controlled by cloud commands; demonstrates `enqueueCommand()`, `RgbLed`, and cloud-to-device CQRS flow. |
 | `IndoorAirQualityDisplay` | Desktop BME680 air quality monitor with OLED display; demonstrates `EnvironmentalGasSensor`, `OledDisplay`, and drawing primitives. |
 | `PipeTemperatureMonitor` | DS18B20 pipe freeze alarm with RGB LED and buzzer; demonstrates `OneWireTemperatureSensor` and fault detection. |
-| `EquipmentHealthMonitor` | Industrial equipment health dashboard; demonstrates `ModestLog`, `Device::diagnostics()`, and `EngineConfiguration`. |
+| `EquipmentHealthMonitor` | Industrial equipment health dashboard; demonstrates `ModestLog`, `Device::collectDiagnostics()`, and `EngineConfiguration`. |
 | `SmartBandMqtt` | Wearable device with pulse, DHT temperature/humidity, and button; publishes via MQTT. |
 | `AirConditioningDevice` | HVAC monitor with DHT sensor, buttons, and LCD display; demonstrates I²C actuator on sampler task. |
 | `AirQualityMonitor` | Gas sensor with MQTT telemetry; demonstrates keep-alive and reconnection. |
