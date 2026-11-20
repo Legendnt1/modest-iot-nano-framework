@@ -29,6 +29,7 @@
 #include "PowerManager.h"
 #include "TelemetryBuffer.h"
 #include "OtaUpdateHandler.h"
+#include "EventAggregator.h"
 //@} // Core Asynchronous Engine & Signaling Primitives
 
 /** @name Layer-Isolated Network Comprehension */

@@ -1,10 +1,19 @@
-<p align="center">
-  <img src="assets/branding/logo.png" alt="Modest IoT Nano Framework logo" height="100" />
-</p>
+<div style="text-align: center;">
+
+![Modest IoT Nano Framework logo](assets/branding/logo.png)
+
+</div>
 
 # Modest IoT Nano Framework (C++ Edition)
 
-[![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
+[![Host Unit Tests](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/host-tests.yml/badge.svg)](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/host-tests.yml)
+[![Compile Examples](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/compile-examples.yml/badge.svg)](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/compile-examples.yml)
+[![Lint](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/lint.yml/badge.svg)](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/lint.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](https://espressif.com/en/products/socs/esp32)
+[![Version](https://img.shields.io/github/v/tag/modest-iot/modest-iot-nano-framework?sort=semver)](https://github.com/modest-iot/modest-iot-nano-framework/releases)
+[![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://librarymanager/all#Modest-IoT-Nano-Framework)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/modest-iot/library/Modest-IoT-Nano-Framework.svg)](https://registry.platformio.org/libraries/modest-iot/Modest-IoT-Nano-Framework)
 
 **Version**: 1.1.2  
 **Author**: Angel Velasquez  
@@ -21,7 +30,7 @@ Modest IoT Nano Framework (C++ Edition) is a lightweight, object-oriented, event
 
 The framework uses a **Mediator pattern** where a `Device` subclass owns and coordinates its sensors and actuators. Sensors emit events that propagate synchronously through the mediator, which issues commands to actuators. Telemetry flows through a queue-based pipeline from the sampler task to the network task, keeping sensor polling and network transmission isolated.
 
-This repository contains the C++ edition of the framework. A MicroPython edition is planned as a separate distribution. The [`examples/`](examples/) folder includes 23 grounded real-world devices; start with [`StatusIndicator`](examples/StatusIndicator/) for the simplest usage demonstration.
+This repository contains the C++ edition of the framework. A MicroPython edition is planned as a separate distribution. The [`examples/`](examples/) folder includes 26 grounded real-world devices; start with [`StatusIndicator`](examples/StatusIndicator/) for the simplest usage demonstration.
 
 ## Key Characteristics
 
@@ -55,6 +64,7 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `TelemetryBuffer` | Persistent telemetry buffer using LittleFS with monotonic indices for offline storage and FIFO replay — no file shifting overhead. |
 | `PowerManager` | Battery voltage sensing via ADC with configurable voltage divider, level calculation, and low-battery alerts. |
 | `OtaUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
+| `EventAggregator` | Composite event pattern matching with AND/OR logic, source-aware matching, conditional patterns, nested aggregators, and dynamic pattern management. |
 
 ### Sensors
 
@@ -391,7 +401,7 @@ HttpGatewayClient httpGateway(wifiDriver, "https://api.example.com/device/teleme
 
 ## Examples
 
-The framework ships with 23 example sketches demonstrating various use cases:
+The framework ships with 26 example sketches demonstrating various use cases:
 
 | Example | Description |
 |---|---|
@@ -418,10 +428,13 @@ The framework ships with 23 example sketches demonstrating various use cases:
 | `MqttTlsDevice` | Secure environmental monitor with encrypted MQTT (TLS); demonstrates `WiFiConnectivityDriver::createSecureSocket()` builder method for TLS socket creation. |
 | `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor; demonstrates `PowerManager` for battery voltage sensing, adaptive power mode switching (Periodic → DeepSleep on low battery), and RTC-persisted low-battery state. |
 | `OtaUpdateDevice` | Minimal device with DHT22 and OTA firmware updates; demonstrates `OtaUpdateHandler` with hostname configuration, password protection, progress/error/start/end callbacks, and `service()` in `maintainNetworkServices()`. |
+| `IntrusionDetector` | Motion, door, and water leak sensors with composite event patterns; demonstrates `EventAggregator` standard AND patterns for home security. |
+| `ColdChainMonitor` | Refrigerated truck cargo bay monitoring; demonstrates `EventAggregator` conditional patterns with `PatternCondition` callbacks for IIoT cold chain logistics. |
+| `PharmaceuticalCleanRoom` | Clean room environmental monitoring; demonstrates `EventAggregator` nested 3-level aggregator chains, OR patterns, and `DEVICE_SOURCE_ID` for IIoT pharmaceutical manufacturing. |
 
 ## Testing
 
-The framework includes 47 host unit test suites that run natively without hardware:
+The framework includes 49 host unit test suites that run natively without hardware:
 
 | Suite | What It Tests |
 |---|---|
@@ -472,6 +485,8 @@ The framework includes 47 host unit test suites that run natively without hardwa
 | `tests/LoadCellAmplifier/` | HX711 load cell amplifier, weight calculation, tare, power down/up cycle |
 | `tests/GeolocationSensor/` | GPS NMEA parsing, GGA/RMC sentences, coordinate conversion, location change detection |
 | `tests/Device/` | Device base class, engine initialization, scheduler integration, telemetry pipeline |
+| `tests/EventAggregator/` | Composite event patterns, AND/OR logic, source-aware matching, condition functions, nested aggregators, dynamic pattern management |
+| `tests/JsonParser/` | JSON parsing utilities, token extraction, Bearer token parsing |
 
 Run all tests locally:
 
@@ -496,7 +511,7 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
 | [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
 | [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
-| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 53 source headers. |
+| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 56 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 
 ### Project Standards
@@ -626,7 +641,7 @@ void loop() {
 }
 ```
 
-For complete, grounded examples with connectivity, telemetry, and cloud integration, see the [Examples](#examples) section (23 sketches covering MQTT, HTTP, BLE, TLS, deep sleep, battery monitoring, offline buffering, and OTA updates).
+For complete, grounded examples with connectivity, telemetry, and cloud integration, see the [Examples](#examples) section (26 sketches covering MQTT, HTTP, BLE, TLS, deep sleep, battery monitoring, offline buffering, OTA updates, and composite event patterns).
 
 ## Notes
 
@@ -652,8 +667,7 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.2.0**: MQTT QoS configuration, event aggregation for composite sensor rules (W29).
-- **PlatformIO Registry**: Library published for `lib_deps` installation.
+- **v1.3.0**: Rules Engine for dynamic rule management on top of EventAggregator (W29).
 - **Benchmark Publication**: Hardware-measured performance comparison table.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **Edge Framework Phase 2.5**: Matter Bridge to expose Nano devices via Matter ecosystem.

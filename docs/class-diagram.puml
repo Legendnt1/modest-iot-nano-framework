@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.2.0, 55 headers, W41 + W33)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 56 headers, W41 + W33 + W31)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -85,6 +85,29 @@ package "Core" #FAFAFA {
   }
   TelemetryPackage <|-- DiagnosticsTelemetryPackage
   DiagnosticsTelemetryPackage ..> DiagnosticsSnapshot : wraps
+
+  class EventAggregator {
+    +{static} EVENT_AGGREGATOR_MAX_CAPTURED_EVENTS : uint8_t = 32
+    +{static} EVENT_AGGREGATOR_MAX_PATTERNS : uint8_t = 4
+    +{static} ANY_SOURCE : int = -1
+    +{static} DEVICE_SOURCE_ID : int = 0
+    +PatternCondition : type alias (bool (*)(int compositeEventId))
+    +PatternLogic : enum {And, Or}
+    +EventPattern : struct {identifiers, sourceIds, compositeEventId, timeWindowSeconds, condition, logic}
+    +CapturedEvent : struct {identifier, sourceId, timestampSeconds}
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int, condition : PatternCondition) : bool
+    +addAnyMatchPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAnyMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +removePattern(compositeEventId : int) : bool
+    +cleanupPatterns() : void
+    +setOutputHandler(handler : EventHandler*) : void
+    +on(event : Event) : void
+  }
+  EventHandler <|.. EventAggregator : implements
+  EventAggregator ..> Event : captures and emits
+  EventAggregator --> EventHandler : emits composite events
 
   class ConfigurationStore {
     +begin(namespaceName : const char*, readOnly : bool) : bool

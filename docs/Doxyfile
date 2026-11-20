@@ -34,6 +34,14 @@ HTML_OUTPUT            = html
 GENERATE_LATEX         = NO
 GENERATE_XML           = NO
 
+# Doxygen Awesome theme
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_EXTRA_STYLESHEET  = assets/themes/doxygen-awesome/doxygen-awesome.css
+HTML_EXTRA_FILES       = assets/themes/doxygen-awesome/doxygen-awesome-darkmode-toggle.js
+
 # Source browsing
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO

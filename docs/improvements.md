@@ -50,7 +50,8 @@ Latency-critical on-device ML inference using emlearn (~2 KB Flash, ~50 bytes RA
 
 ### Event Aggregation & Rules Engine (W29, W31)
 
-`EventAggregator` for composite event patterns (e.g., "motion AND door opened within 5 seconds"). Application-layer feature; can be implemented by users using the event handler pattern.
+- **Event Aggregator** (W31) ✓ Implemented: `EventAggregator` component for composite event pattern matching with time-windowed detection. Implements `EventHandler` to intercept sensor events. Fixed-size circular buffer (32 captured events) and pattern array (4 patterns) — zero heap allocation. Supports AND patterns via `addAllMatchPattern()` (all required events within time window) and OR patterns via `addAnyMatchPattern()` (any single event triggers). Source-aware matching distinguishes sensors sharing the same event identifier (e.g., 9+ sensors share `DATA_READ_EVENT_IDENTIFIER = 20`) using per-position source filters with `EventAggregator::ANY_SOURCE` wildcards. Conditional patterns via `PatternCondition` callback (`bool (*)(int compositeEventId)`) suppress composite events based on sensor values at match time. Dynamic pattern management with `removePattern()` and `cleanupPatterns()`. Nested aggregator chains enabled by `EventAggregator::DEVICE_SOURCE_ID` — composite events carry sourceId 0, allowing downstream aggregators to filter composite events from raw sensor events. Three grounded examples: IntrusionDetector (standard patterns), ColdChainMonitor (conditional patterns), and PharmaceuticalCleanRoom (nested chains with OR patterns). 43 host tests.
+- **Rules Engine** (W29): Application-layer rules triggered by composite events. Can be implemented by users using the event handler pattern and `EventAggregator`.
 
 **Target**: v1.2.0–v1.3.0
 

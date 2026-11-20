@@ -984,3 +984,48 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - Command ID 300 in the reserved 300+ range avoids collision with component-specific IDs (100-253)
 
 **Source**: `src/DiagnosticsTelemetryPackage.h`, `src/DiagnosticsTelemetryPackage.cpp`, `src/Device.h`, `src/Device.cpp`, `tests/TelemetryPackage/test.cpp`
+
+---
+
+### W31: Event Aggregator — **Complete** ✓
+
+**Problem**: The framework's event system supported single-event handling via `EventHandler::on(Event)`, but had no way to detect composite event patterns (e.g., "motion AND door opened within 5 seconds"). Complex automation rules required the application to track event timing manually, leading to error-prone state machines in every Device subclass. Additionally, 9+ sensors share the same `DATA_READ_EVENT_IDENTIFIER = 20`, making it impossible to distinguish which sensor triggered a pattern without source-aware matching.
+
+**Resolution**: Added `EventAggregator` as a framework component for composite event pattern matching with time-windowed detection. It implements `EventHandler` to intercept sensor events, captures each event with its timestamp and sourceId, and checks all registered patterns using AND or OR logic. When a pattern matches, an optional condition function can further filter based on sensor values. Composite events carry `DEVICE_SOURCE_ID` as their sourceId, enabling nested aggregator chains where downstream aggregators distinguish composite events from raw sensor events.
+
+**Implementation**:
+
+- **EventAggregator class** (`src/EventAggregator.h/cpp`): Implements `EventHandler` interface. Fixed-size circular buffer (32 captured events) for event history and fixed-size pattern array (4 patterns) — zero heap allocation.
+- **`addAllMatchPattern()` (3 overloads)**: Registers AND-patterns where all required event identifiers must occur within the time window. Overloads support: basic (any source), source-aware (per-position source filtering with `EventAggregator::ANY_SOURCE` wildcards), and conditional (with `PatternCondition` callback receiving `compositeEventId` context).
+- **`addAnyMatchPattern()` (2 overloads)**: Registers OR-patterns where any single event identifier triggers the composite event. Overloads support: basic (any source) and source-aware.
+- **`PatternCondition` callback**: `bool (*)(int compositeEventId)` — allows the Device descendant to suppress composite events based on sensor values at the moment of the match (e.g., "only turn off cooler if cargo bay is empty").
+- **`PatternLogic` enum**: Internal `And`/`Or` discriminator in `EventPattern` struct guiding the matching strategy in `checkForEventPatternMatch()`.
+- **`EventAggregator::ANY_SOURCE`** (value -1): Public constant for wildcard source matching in source-aware patterns.
+- **`EventAggregator::DEVICE_SOURCE_ID`** (value 0): Public constant used as the sourceId of every composite event, enabling nested aggregators to filter composite events from raw sensor events.
+- **`removePattern(compositeEventId)`**: Dynamically removes a pattern by composite event ID, keeping the array compact. Enables dynamic rule management for W29 (Rules Engine).
+- **`cleanupPatterns()`**: Removes all registered patterns in one call for proper housekeeping in destructors.
+- **`setOutputHandler()`**: Sets the `EventHandler` that receives composite events when patterns match. For nested aggregators, the output handler is another `EventAggregator` instance.
+- **`on(Event)`**: Captures the event with timestamp and sourceId, checks all registered patterns using the appropriate logic (AND/OR), evaluates condition functions, and emits composite events via the output handler.
+- **Private `checkForEventPatternMatch()` helper**: Iterates all patterns, branches on `PatternLogic` (And/Or), checks both identifier and sourceId per position, and evaluates condition functions before emitting.
+- **Private `removeExpiredCapturedEvents()` helper**: Removes captured events older than the maximum pattern time window to prevent buffer growth.
+- **43 host tests**: Covering single event patterns, two-event AND patterns within/outside time windows, three-event patterns, multiple patterns, captured event cleanup, circular buffer overflow, no patterns registered, pattern array full, invalid parameters, no output handler, reverse event order, time window boundary conditions, duplicate event identifiers, repeated pattern matches, shared events across patterns, source-aware exact match, source-aware wrong source rejection, source-aware wildcard, mixed exact and wildcard sources, two patterns with different sources on the same identifier, backward compatibility with the original API, condition function receives compositeEventId (emits), condition function returns false (suppresses), nullptr condition (always emits), condition-based sensor value check, shared condition function handling multiple patterns via compositeEventId, remove existing pattern, remove non-existent pattern, remove and re-add pattern (slot reuse), remove middle pattern (array compaction), cleanup all patterns, OR pattern single event triggers, OR pattern neither event fires, OR pattern with source filtering, OR pattern time window expiry, mixed AND and OR patterns coexisting, OR pattern array full, OR pattern remove and cleanup, nested aggregators basic chain, nested aggregators source filtering by DEVICE_SOURCE_ID, and nested aggregators three-level chain.
+
+**Examples**:
+
+- **IntrusionDetector** (`examples/IntrusionDetector/IntrusionDetector.ino`): Standard AND patterns that always emit. Two composite patterns: intrusion alert (motion AND door opened within 10 seconds) and leak near entry (water leak AND door opened within 30 seconds). Demonstrates named pattern setup methods and `cleanupPatterns()` housekeeping.
+- **ColdChainMonitor** (`examples/ColdChainMonitor/ColdChainMonitor.ino`): Conditional patterns with source-aware matching. Three composite patterns: energy save (door AND weight change, **only if** cargo bay is empty — uses `PatternCondition`), unauthorized access (door AND motion stopped), and loading/unloading active (weight AND door AND motion). Demonstrates `PatternCondition` with `compositeEventId` context, source-aware patterns, and the static pointer pattern for condition functions.
+- **PharmaceuticalCleanRoom** (`examples/PharmaceuticalCleanRoom/PharmaceuticalCleanRoom.ino`): Nested EventAggregator chains with OR patterns. Three aggregator levels: Level 1 detects environmental deviations (AND + OR patterns), Level 2 correlates contamination risks, Level 3 triggers batch quarantine. Demonstrates `addAnyMatchPattern()` (OR logic), `EventAggregator::DEVICE_SOURCE_ID` for source filtering between levels, `removePattern()` for dynamic removal, and `cleanupPatterns()` on all aggregator levels.
+
+**Benefits**:
+- Composite event patterns enable complex automation rules on-device without manual state machines
+- Source-aware matching resolves the shared `DATA_READ_EVENT_IDENTIFIER` problem (9+ sensors share ID 20)
+- OR patterns complement AND logic, covering the two fundamental boolean combinations
+- Condition functions bridge event correlation and value-based decisions without coupling the aggregator to sensor internals
+- `DEVICE_SOURCE_ID` enables nested aggregator chains for multi-level pattern detection (faults → situations → escalation)
+- Dynamic pattern management (`removePattern`, `cleanupPatterns`) unblocks W29 (Rules Engine) for v1.3.0
+- Zero heap allocation matches the framework's philosophy
+- The three examples provide clear, non-overlapping demonstrations: standard patterns, conditional patterns, and nested chains
+
+**Source**: `src/EventAggregator.h`, `src/EventAggregator.cpp`, `tests/EventAggregator/test.cpp`, `examples/IntrusionDetector/IntrusionDetector.ino`, `examples/ColdChainMonitor/ColdChainMonitor.ino`, `examples/PharmaceuticalCleanRoom/PharmaceuticalCleanRoom.ino`
+
+---
