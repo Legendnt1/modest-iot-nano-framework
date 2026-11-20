@@ -439,6 +439,44 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** golden tests are updated, **when** tests run, **then** all tests pass with the new schema version in the output.
 - **Status**: ✓ Implemented (v1.2.0). See `DiagnosticsTelemetryPackage.h`, `SmartBandMqtt.ino`, `HomeSecurityDevice.ino`, `tests/TelemetryPackage/test.cpp`.
 
+### TS44: Define Composite Event Patterns
+
+- **As an** IoT Developer, **I want** to define composite event patterns (e.g., "motion AND door opened within 5 seconds"), **so that** the device can detect complex automation triggers on-device.
+- **Acceptance Criteria**:
+    - **Given** an EventAggregator exists, **when** `addPattern()` is called with two event identifiers and a time window, **then** the pattern is registered for matching.
+    - **Given** a pattern is registered, **when** both event identifiers occur within the time window, **then** a composite event is emitted via the registered handler.
+    - **Given** a pattern is registered, **when** only one event identifier occurs within the time window, **then** no composite event is emitted.
+    - **Given** a pattern is registered, **when** both event identifiers occur but outside the time window, **then** no composite event is emitted.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.h`, `EventAggregator.cpp`.
+
+### TS45: Event Aggregator as EventHandler
+
+- **As an** IoT Developer, **I want** the EventAggregator to implement EventHandler, **so that** it can be registered as a sensor's handler to intercept events.
+- **Acceptance Criteria**:
+    - **Given** an EventAggregator implements EventHandler, **when** a sensor's `setHandler()` is called with the aggregator, **then** events from the sensor are passed to the aggregator's `on(Event)` method.
+    - **Given** the EventAggregator receives an event, **when** the event matches a registered pattern, **then** the composite event is emitted via the output handler.
+    - **Given** the EventAggregator receives an event, **when** no pattern matches, **then** the event is recorded but no composite event is emitted.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.h` (implements `EventHandler`).
+
+### TS46: Implement EventAggregator Core
+
+- **As an** IoT Developer, **I want** EventAggregator to record events and match patterns, **so that** composite events are emitted when patterns match.
+- **Acceptance Criteria**:
+    - **Given** EventAggregator has a fixed-size circular buffer (32 records), **when** `on(Event)` is called, **then** the event is recorded with its timestamp.
+    - **Given** EventAggregator has a fixed-size pattern array (4 patterns), **when** `addPattern()` is called, **then** the pattern is stored.
+    - **Given** an event is recorded, **when** `checkPatterns()` runs, **then** all registered patterns are checked for a match.
+    - **Given** a pattern matches, **when** the composite event is emitted, **then** the output handler's `on(Event)` is called with the composite event identifier.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.cpp`.
+
+### TS47: Event Record Cleanup and Buffer Management
+
+- **As an** IoT Developer, **I want** EventAggregator to clean up expired event records, **so that** the circular buffer doesn't grow unbounded.
+- **Acceptance Criteria**:
+    - **Given** event records are older than the maximum pattern time window, **when** `cleanupExpiredRecords()` runs, **then** the expired records are removed.
+    - **Given** the circular buffer is full, **when** a new event is recorded, **then** the oldest record is evicted.
+    - **Given** the pattern array is full, **when** `addPattern()` is called, **then** the new pattern is rejected and false is returned.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.cpp`, `tests/EventAggregator/test.cpp`.
+
 ---
 
 *Created: March 23, 2025.*

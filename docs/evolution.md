@@ -984,3 +984,32 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - Command ID 300 in the reserved 300+ range avoids collision with component-specific IDs (100-253)
 
 **Source**: `src/DiagnosticsTelemetryPackage.h`, `src/DiagnosticsTelemetryPackage.cpp`, `src/Device.h`, `src/Device.cpp`, `tests/TelemetryPackage/test.cpp`
+
+---
+
+### W31: Event Aggregator — **Complete** ✓
+
+**Problem**: The framework's event system supported single-event handling via `EventHandler::on(Event)`, but had no way to detect composite event patterns (e.g., "motion AND door opened within 5 seconds"). Complex automation rules required the application to track event timing manually, leading to error-prone state machines in every Device subclass.
+
+**Resolution**: Added `EventAggregator` as a framework component for composite event pattern matching with time-windowed detection. It implements `EventHandler` to intercept sensor events, records each event with its timestamp, and checks all registered patterns. When a pattern matches (all required events within the time window), it emits a composite event via the output handler.
+
+**Implementation**:
+
+- **EventAggregator class** (`src/EventAggregator.h/cpp`): Implements `EventHandler` interface. Fixed-size circular buffer (32 records) for event history and fixed-size pattern array (4 patterns) — zero heap allocation.
+- **`addPattern()`**: Registers a composite event pattern with event identifiers, time window in seconds, and composite event identifier. Returns false if the pattern array is full.
+- **`setOutputHandler()`**: Sets the `EventHandler` that receives composite events when patterns match.
+- **`on(Event)`**: Records the event with timestamp, checks all registered patterns, and emits composite events when patterns match.
+- **Private `checkPatterns()` helper**: Iterates all patterns, checking if all required event identifiers are present in the event records within the time window.
+- **Private `cleanupExpiredRecords()` helper**: Removes event records older than the maximum pattern time window to prevent buffer growth.
+- **11 host tests**: Covering single event patterns, two-event AND patterns within/outside time windows, three-event patterns, multiple patterns, event record cleanup, circular buffer overflow, no patterns registered, pattern array full, invalid parameters, and no output handler.
+
+**Benefits**:
+- Composite event patterns enable complex automation rules on-device without manual state machines
+- Unblocks W29 (Rules Engine) for v1.3.0 — the Rules Engine can use `EventAggregator` as its pattern matching foundation
+- Zero heap allocation matches the framework's philosophy
+- AND patterns with time windows are a unique capability in the Arduino ecosystem
+- The `EventAggregator` can be chained: multiple aggregators can feed into each other for nested patterns
+
+**Source**: `src/EventAggregator.h`, `src/EventAggregator.cpp`, `tests/EventAggregator/test.cpp`
+
+---

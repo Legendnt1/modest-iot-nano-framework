@@ -50,7 +50,8 @@ Latency-critical on-device ML inference using emlearn (~2 KB Flash, ~50 bytes RA
 
 ### Event Aggregation & Rules Engine (W29, W31)
 
-`EventAggregator` for composite event patterns (e.g., "motion AND door opened within 5 seconds"). Application-layer feature; can be implemented by users using the event handler pattern.
+- **Event Aggregator** (W31) ✓ Implemented: `EventAggregator` component for composite event pattern matching with time-windowed detection. Implements `EventHandler` to intercept sensor events. Fixed-size circular buffer (32 records) and pattern array (4 patterns) — zero heap allocation. Supports AND patterns (all required events within time window). Emits composite events via output handler when patterns match. 11 host tests.
+- **Rules Engine** (W29): Application-layer rules triggered by composite events. Can be implemented by users using the event handler pattern and `EventAggregator`.
 
 **Target**: v1.2.0–v1.3.0
 

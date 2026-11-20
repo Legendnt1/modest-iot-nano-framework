@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.2.0, 55 headers, W41 + W33)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 56 headers, W41 + W33 + W31)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -85,6 +85,17 @@ package "Core" #FAFAFA {
   }
   TelemetryPackage <|-- DiagnosticsTelemetryPackage
   DiagnosticsTelemetryPackage ..> DiagnosticsSnapshot : wraps
+
+  class EventAggregator {
+    +{static} MAX_EVENT_RECORDS : uint8_t = 32
+    +{static} MAX_PATTERNS : uint8_t = 4
+    +addPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +setOutputHandler(handler : EventHandler*) : void
+    +on(event : Event) : void
+  }
+  EventHandler <|.. EventAggregator : implements
+  EventAggregator ..> Event : records
+  EventAggregator --> EventHandler : emits composite events
 
   class ConfigurationStore {
     +begin(namespaceName : const char*, readOnly : bool) : bool
