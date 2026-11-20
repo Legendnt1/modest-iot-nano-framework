@@ -65,7 +65,7 @@ ESP-NOW or MQTT-based device-to-device messaging for relay nodes and distributed
 - **High-Priority Lane** (W32) ✓ Implemented: Separate bounded queue (4 slots) for critical alerts. Network task checks high-priority queue first (non-blocking), ensuring alerts bypass routine telemetry. Envelope includes `"priority": "high"` for edge-side routing.
 - **Schema Registry** (W33): Telemetry schema versioning with validation.
 - **MQTT QoS** (W34) ✓ Implemented: Configurable QoS (0/1/2) for publish and subscribe, retained message support for last-known-good telemetry. Backward-compatible defaults (QoS 0, non-retained).
-- **Remote Diagnostics** (W41): On-demand diagnostics telemetry.
+- **Remote Diagnostics** (W41) ✓ Implemented: On-demand diagnostics via MQTT command (commandId = 300). Device responds with `DiagnosticsTelemetryPackage` containing all 14 health metrics. Framework-internal command handled by `handleInternalCommand()` before developer's `handle()`.
 - **Statistical Aggregation** (W42): Min/max/average over time windows.
 - **Change-Only Mode** (W43): Suppress telemetry when values are stable.
 
