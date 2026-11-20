@@ -535,7 +535,6 @@ fi
 echo "Filtering out test code and platform-specific files..."
 lcov --remove "${INFO_FILE}" \
     '*/tests/*' \
-    '*/Test*' \
     '*/OneWireTemperatureSensor.cpp' \
     '*/DhtSensor.cpp' \
     '*/UltrasonicSensor.cpp' \
@@ -544,17 +543,38 @@ lcov --remove "${INFO_FILE}" \
     '*/PowerManager.cpp' \
     '*/GatewayClient.h' \
     --output-file "${INFO_FILE}.clean" \
+    --ignore-errors inconsistent,mismatch,unused \
     2>/dev/null || cp "${INFO_FILE}" "${INFO_FILE}.clean"
 mv "${INFO_FILE}.clean" "${INFO_FILE}"
 
-# Generate HTML report
+# Delete .gcda and .gcno files for platform-specific sources so that genhtml
+# does not re-discover them from the build directory. Without this step, genhtml
+# ignores the lcov --remove filtering and shows the excluded files with their
+# raw (low) coverage anyway. File names use the pattern: test_*-SourceName.gcda
+PLATFORM_EXCLUDED=(
+    "OneWireTemperatureSensor"
+    "DhtSensor"
+    "UltrasonicSensor"
+    "LoadCellAmplifier"
+    "TelemetryBuffer"
+    "PowerManager"
+    "GatewayClient"
+)
+for base in "${PLATFORM_EXCLUDED[@]}"; do
+    find "${COVERAGE_DIR}" -name "*-${base}.gcda" -delete 2>/dev/null || true
+    find "${COVERAGE_DIR}" -name "*-${base}.gcno" -delete 2>/dev/null || true
+done
+
+# Generate HTML report using only the filtered .info file.
+# The --ignore-errors source flag prevents genhtml from failing if it cannot
+# find the original source files for entries in the .info file.
 REPORT_DIR="${COVERAGE_DIR}/html"
 mkdir -p "${REPORT_DIR}"
 echo "Generating HTML report..."
 GENHTML_OUTPUT=$(genhtml \
     --output-directory "${REPORT_DIR}" \
     --title "Modest IoT Nano Framework - Code Coverage" \
-    --ignore-errors inconsistent \
+    --ignore-errors inconsistent,source \
     "${INFO_FILE}" 2>&1)
 
 # Extract coverage from genhtml output
