@@ -36,6 +36,10 @@
 //@{
 
 class SmartBandTelemetryPackage : public TelemetryPackage {
+public:
+    /** @brief Schema version for this telemetry format. */
+    static constexpr const char* SCHEMA_VERSION = "1.0";
+
     private:
     int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
@@ -45,7 +49,10 @@ class SmartBandTelemetryPackage : public TelemetryPackage {
     SmartBandTelemetryPackage(int heartRate, float temperature, float humidity)
         : heartBeatsPerMinute(heartRate),
         skinTemperatureInCelsius(temperature),
-        relativeHumidityInPercentage(humidity) {}
+        relativeHumidityInPercentage(humidity)
+    {
+        schemaVersionValue = SCHEMA_VERSION;
+    }
 
     ~SmartBandTelemetryPackage() override = default;
 
