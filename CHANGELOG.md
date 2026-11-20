@@ -16,6 +16,12 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **Examples updated**: `SmartBandTelemetryPackage` (SmartBandMqtt), `SecurityStatusTelemetryPackage` and `SecurityAlertTelemetryPackage` (HomeSecurityDevice) now declare per-package schema versions.
 - **tests/TelemetryPackage/test.cpp**: Added 2 new tests (tests 20–21): per-package schema version priority over global schema, and fallback to global schema when per-package is not set. Updated DiagnosticsTelemetryPackage golden test (test 19) to include schema version in expected JSON output.
 
+#### Event Aggregator (W31)
+- **src/EventAggregator.h/cpp**: New component for composite event pattern matching with time-windowed detection. Implements `EventHandler` to intercept events from sensors. Records each event with its timestamp in a fixed-size circular buffer (32 records, zero heap allocation). Supports up to 4 composite patterns with AND logic (all required events must occur within the time window). When a pattern matches, emits a composite event via the output handler.
+- **EventAggregator::addPattern()**: Registers a composite event pattern with event identifiers, time window in seconds, and composite event identifier. Returns false if the pattern array is full.
+- **EventAggregator::setOutputHandler()**: Sets the `EventHandler` that receives composite events when patterns match.
+- **tests/EventAggregator/test.cpp**: 11 host tests covering single event patterns, two-event AND patterns within/outside time windows, three-event patterns, multiple patterns, event record cleanup, circular buffer overflow, no patterns registered, pattern array full, invalid parameters, and no output handler.
+
 #### Remote Diagnostics (W41)
 - **src/DiagnosticsTelemetryPackage.h/cpp**: New TelemetryPackage subclass that wraps `DiagnosticsSnapshot` for on-demand diagnostics telemetry. When the cloud sends a diagnostics command (commandId = 300), the device creates this package from `Device::collectDiagnostics()` and enqueues it via the standard telemetry queue. The JSON output contains all 14 health metrics (missedTicks, packetsEnqueued, highPriorityEnqueued, sendsSucceeded, freeHeapBytes, etc.) plus envelope metadata.
 - **Device::handleInternalCommand(Command)**: New private method that handles framework-internal commands (diagnostics, commandId = 300) before dispatching to `handle()`. Returns `true` if consumed, `false` otherwise. This keeps `handle()` purely for developer-defined custom commands.
