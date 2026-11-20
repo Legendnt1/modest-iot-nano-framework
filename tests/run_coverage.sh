@@ -21,9 +21,11 @@ CXX="${CXX:-g++}"
 MIN_COVERAGE="${MIN_COVERAGE:-80}"
 
 # Check for GCC (gcov does not work with Clang)
-if ! ${CXX} --version | grep -qi "gcc\|GNU"; then
-    echo "ERROR: gcov requires GCC. Detected: ${CXX}"
-    echo "Set CXX=g++ to use GCC (e.g., CXX=g++-16 on macOS with Homebrew GCC)."
+CXX_VERSION=$(${CXX} --version 2>&1 || true)
+if echo "${CXX_VERSION}" | grep -qi "clang"; then
+    echo "ERROR: gcov requires GCC, not Clang. Detected: ${CXX}"
+    echo "Version: ${CXX_VERSION}"
+    echo "Set CXX=g++-XX to use GCC (e.g., CXX=g++-16 on macOS with Homebrew GCC)."
     exit 1
 fi
 
