@@ -21,6 +21,7 @@ DiagnosticsTelemetryPackage::DiagnosticsTelemetryPackage(const struct Diagnostic
       networkStackFreeWords(snapshot.networkStackFreeWords),
       uptimeSeconds(snapshot.uptimeSeconds)
 {
+    schemaVersionValue = SCHEMA_VERSION;
 }
 
 // --- TelemetryPackage Implementation ---

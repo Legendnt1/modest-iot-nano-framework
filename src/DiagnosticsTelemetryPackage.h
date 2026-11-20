@@ -40,6 +40,10 @@
  * plus envelope metadata (timestamp, sequence, schema version, firmware version).
  */
 class DiagnosticsTelemetryPackage : public TelemetryPackage {
+public:
+    /** @brief Schema version for this diagnostics telemetry format. */
+    static constexpr const char* SCHEMA_VERSION = "1.0";
+
 private:
     uint32_t    missedTicks;
     uint32_t    worstCaseWakeMicros;
