@@ -1,4 +1,4 @@
-<div align="center">
+<div style="text-align: center;">
 
 ![Modest IoT Nano Framework logo](assets/branding/logo.png)
 
