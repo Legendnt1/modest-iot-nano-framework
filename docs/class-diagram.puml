@@ -89,12 +89,24 @@ package "Core" #FAFAFA {
   class EventAggregator {
     +{static} EVENT_AGGREGATOR_MAX_CAPTURED_EVENTS : uint8_t = 32
     +{static} EVENT_AGGREGATOR_MAX_PATTERNS : uint8_t = 4
-    +addPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +{static} ANY_SOURCE : int = -1
+    +{static} DEVICE_SOURCE_ID : int = 0
+    +PatternCondition : type alias (bool (*)(int compositeEventId))
+    +PatternLogic : enum {And, Or}
+    +EventPattern : struct {identifiers, sourceIds, compositeEventId, timeWindowSeconds, condition, logic}
+    +CapturedEvent : struct {identifier, sourceId, timestampSeconds}
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int, condition : PatternCondition) : bool
+    +addAnyMatchPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAnyMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +removePattern(compositeEventId : int) : bool
+    +cleanupPatterns() : void
     +setOutputHandler(handler : EventHandler*) : void
     +on(event : Event) : void
   }
   EventHandler <|.. EventAggregator : implements
-  EventAggregator ..> Event : captures
+  EventAggregator ..> Event : captures and emits
   EventAggregator --> EventHandler : emits composite events
 
   class ConfigurationStore {
