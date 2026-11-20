@@ -26,10 +26,13 @@ sudo apt-get install -y g++ lcov bc
 
 Install on macOS:
 ```bash
-brew install lcov bc
+brew install gcc lcov bc
 ```
 
-> **Note**: gcov behavior differs between Linux and macOS. For consistent results, run coverage on Linux (Ubuntu). The CI pipeline runs coverage on Ubuntu only.
+On macOS, specify the GCC compiler explicitly:
+```bash
+CXX=g++-16 ./tests/run_coverage.sh
+```
 
 ### Execution
 
@@ -137,6 +140,31 @@ Some unexecuted lines are expected and acceptable:
 - **Error paths**: Rare error conditions that require specific hardware states.
 - **Mock-dependent code**: Code that only executes with real hardware peripherals.
 
+### Platform-Specific File Exclusions
+
+The coverage report excludes files that use Arduino.h, FreeRTOS, or LittleFS APIs that cannot execute in host tests. These files are filtered out by the coverage script so the reported number reflects only testable code:
+
+| File | Reason |
+|------|--------|
+| OneWireTemperatureSensor.cpp | 1-Wire bit-banging protocol (GPIO timing) |
+| DhtSensor.cpp | DHT sensor protocol (GPIO timing) |
+| UltrasonicSensor.cpp | Ultrasonic timing (GPIO, delays) |
+| LoadCellAmplifier.cpp | ADC calibration (hardware-specific) |
+| TelemetryBuffer.cpp | LittleFS file operations |
+| PowerManager.cpp | ESP32 deep sleep API |
+| GatewayClient.h | Abstract interface (pure-virtual methods) |
+
+Additionally, `LCOV_EXCL_START/END` markers in `Device.cpp` exclude FreeRTOS-specific functions (ISR, task creation, queue operations, power management) that cannot run in host tests.
+
+### Current Coverage Numbers
+
+| Scope | Line Coverage | Functions |
+|-------|---------------|-----------|
+| **Overall (src/ only)** | **84.2%** | **86.1%** |
+| **Overall (all files)** | **92.9%** | **86.1%** |
+
+The src/ directory coverage (84.2%) is the most meaningful metric, as it excludes test code and standard library headers.
+
 ## Adding Coverage to New Tests
 
 When adding new source files, ensure they are included in the coverage script:
@@ -150,7 +178,7 @@ When adding new source files, ensure they are included in the coverage script:
 1. **Host-only**: Coverage measures only the host test suites, not the ESP32 firmware behavior.
 2. **No branch coverage**: Only line coverage is measured; branch coverage would require additional configuration.
 3. **Mock influence**: Tests use fakes and mocks, so some production code paths may not be exercised identically to hardware.
-4. **Linux-only**: Consistent gcov output requires Linux; macOS results may differ.
+4. **Platform exclusions**: Platform-specific files are excluded from the report. The reported coverage reflects only testable code, not the full source base.
 
 ## Future Improvements
 
