@@ -30,3 +30,40 @@ jobs:
         run: |
           chmod +x tests/run_all.sh
           ./tests/run_all.sh
+
+  coverage:
+    name: Code Coverage (Ubuntu)
+    runs-on: ubuntu-latest
+    env:
+      ACTIONS_RUNNER_NODE_VERSION: 24
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools and lcov
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ lcov bc
+
+      - name: Run Coverage Report
+        run: |
+          chmod +x tests/run_coverage.sh
+          ./tests/run_coverage.sh
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/coverage/
+          retention-days: 14
+
+      - name: Print Coverage Summary
+        if: always()
+        run: |
+          if [ -f build/coverage/coverage.summary ]; then
+            echo "## Coverage Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            cat build/coverage/coverage.summary >> "$GITHUB_STEP_SUMMARY"
+          fi

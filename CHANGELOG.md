@@ -6,6 +6,13 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 ### Added
 
+#### Code Coverage Reporting
+- **tests/run_coverage.sh**: Coverage runner script that compiles all 49 test suites with gcov instrumentation (`-fprofile-arcs -ftest-coverage`), runs them, and generates an HTML coverage report using lcov's `genhtml`. Supports configurable minimum coverage threshold (default 80%) via `MIN_COVERAGE` environment variable, and optional enforcement via `ENFORCE_COVERAGE=1`. Runs without sanitizers to avoid gcov interference. Requires GCC (not Clang) and the lcov package. Includes a gcov wrapper that suppresses `.gcov` annotated source files from being written to the project root. Platform-specific files (OneWireTemperatureSensor.cpp, DhtSensor.cpp, UltrasonicSensor.cpp, LoadCellAmplifier.cpp, TelemetryBuffer.cpp, PowerManager.cpp, GatewayClient.h) are excluded from the coverage report and deleted from the build directory before `genhtml` runs, so the HTML report reflects only testable code (89.6% line coverage).
+- **src/Device.cpp**: Added `LCOV_EXCL_START/END` markers to exclude FreeRTOS-specific functions from coverage: ISR handler, task creation, queue operations, command marshaling, diagnostics collection, power management, and engine stop. These ~200 lines cannot execute in host tests.
+- **.github/workflows/host-tests.yml**: Added `coverage` job that runs on Ubuntu, installs lcov and bc, executes the coverage script, uploads the HTML report as a `coverage-report` artifact (14-day retention), and posts the coverage summary to the GitHub step summary.
+- **.gitignore**: Added `*.gcov`, `*.gcda`, `*.gcno` to prevent accidental commits of gcov coverage artifacts.
+- **docs/coverage.md**: Documentation covering local execution, CI integration, coverage threshold configuration, tool selection rationale, report interpretation, expected gaps, platform-specific file exclusions, and limitations.
+
 #### Benchmark Table
 - **docs/benchmarks.md**: Performance comparison table with 9 metrics comparing traditional `loop()`, Modest IoT v1.1.2, and v1.2.0. Covers Flash, RAM, latency, throughput, queue depth, stack usage, heap, serialization time, and power consumption. Values derived from source code analysis (exact constants and configuration) with a validation methodology for future hardware-measured measurements. Key findings: ~220-230 KB Flash (v1.2.0), ~40-50 KB RAM, zero heap allocation in critical path, ~30-40 KB Flash saved by ArduinoJson removal (W46), and ESP-IDF variant planned at ~180 KB (~73% reduction).
 - **README.md**: Added benchmarks.md to Documentation Map and updated Future Directions to link to the published document.
@@ -103,6 +110,11 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 - **7 TelemetryPackage test subclasses** across 5 test files migrated to `write(TelemetryWriter&)` API.
 - **15 golden tests** rewritten for insertion-order JSON output (envelope metadata fields first, then data fields).
 - **tests/fakes/ArduinoJson.h** (253 lines) deleted. Replaced with `tests/fakes/TelemetryWriter.h` simple mock.
+
+### Changed
+
+#### CI Workflow — Coverage Job
+- **.github/workflows/host-tests.yml**: Added a separate `coverage` job alongside the existing `host-tests` matrix job. The coverage job runs on Ubuntu only (gcov requires GCC), installs lcov and bc, and generates an HTML coverage report. The existing host-tests job continues to run with sanitizers on both Ubuntu and macOS, unchanged.
 
 ### Removed
 

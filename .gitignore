@@ -10,3 +10,6 @@
 *.so
 *.dylib
 *.log
+*.gcov
+*.gcda
+*.gcno

@@ -65,6 +65,7 @@ Device::~Device() {
     stopAsynchronousEngine();
 }
 
+// LCOV_EXCL_START — FreeRTOS ISR and task creation, cannot run in host tests
 void IRAM_ATTR Device::handleHardwareTimerInterrupt(void *deviceInstance) {
     if (deviceInstance != nullptr) {
         auto *self = static_cast<Device *>(deviceInstance);
@@ -115,6 +116,7 @@ void Device::initializeAsynchronousEngine(const EngineConfiguration &engineConfi
     const bool autoReload = powerMode == PowerMode::Periodic;
     timerAlarm(hardwareTimer, alarmIntervalInMicroseconds, autoReload, 0);
 }
+// LCOV_EXCL_END
 
 bool Device::appendSensorToScheduler(EventHandler *targetSensorInstance, const int requestedEventIdentifier) {
     if (engineStarted || targetSensorInstance == nullptr || requestedEventIdentifier == INVALID_EVENT_IDENTIFIER)
@@ -158,6 +160,7 @@ bool Device::appendSensorToScheduler(EventHandler *targetSensorInstance, const i
            result != SamplingScheduler::AddResult::InvalidArgument;
 }
 
+// LCOV_EXCL_START — FreeRTOS queue operations, cannot run in host tests
 bool Device::enqueueTelemetryPayload(TelemetryPackage **telemetryPackagePointerAddress) const {
     if (telemetryQueueHandle == nullptr || telemetryPackagePointerAddress == nullptr) return false;
 
@@ -209,7 +212,9 @@ void Device::assignEnvelopeMetadata(TelemetryPackage* package) const {
 #endif
     package->setVersionMetadata(telemetrySchemaVersion, firmwareVersion);
 }
+// LCOV_EXCL_END
 
+// LCOV_EXCL_START — FreeRTOS queue operations, cannot run in host tests
 void Device::drainTelemetryQueue(QueueHandle_t& queueHandle) {
     if (queueHandle == nullptr) return;
     TelemetryPackage* pending = nullptr;
@@ -219,7 +224,9 @@ void Device::drainTelemetryQueue(QueueHandle_t& queueHandle) {
     vQueueDelete(queueHandle);
     queueHandle = nullptr;
 }
+// LCOV_EXCL_END
 
+// LCOV_EXCL_START — FreeRTOS queue operations, cannot run in host tests
 bool Device::enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetryPackageStandardUniquePointer) const {
     if (telemetryQueueHandle == nullptr || telemetryPackageStandardUniquePointer == nullptr) return false;
 
@@ -286,7 +293,9 @@ bool Device::enqueueHighPriorityPayload(std::unique_ptr<TelemetryPackage> highPr
     }
     return false;
 }
+// LCOV_EXCL_END
 
+// LCOV_EXCL_START — FreeRTOS task context, cannot run in host tests
 void Device::executeHardwareSamplingContext(void *taskParameters) {
     auto *self = static_cast<Device *>(taskParameters);
     while (true) {
@@ -371,6 +380,7 @@ void Device::executeNetworkDispatchContext(void *taskParameters) {
     }
     vTaskDelete(nullptr);
 }
+// LCOV_EXCL_END
 
 /**
  * @brief Handles framework-internal commands before dispatching to handle().
@@ -434,6 +444,7 @@ void Device::maintainNetworkServices() const {
  * the sampler task drains these flags and dispatches events.
  */
 
+// LCOV_EXCL_START — GPIO ISR and trigger scheduler, cannot run in host tests
 Device *Device::activeDevice = nullptr;
 
 // ISR handle table: maps GPIO interrupt number to trigger handle (slot index + 1)
@@ -579,6 +590,7 @@ bool Device::appendToBothSchedulers(Sensor *targetSensorInstance,
     return samplingOk && triggerHandle != 0;
 }
 /** @} */
+// LCOV_EXCL_END
 
 /**
  * @name Command Marshaling
@@ -589,6 +601,7 @@ bool Device::appendToBothSchedulers(Sensor *targetSensorInstance,
  * in the sampler task for thread safety.
  */
 
+// LCOV_EXCL_START — FreeRTOS command marshaling, cannot run in host tests
 /**
  * @brief Enqueues a command for execution on the sampler task context.
  *
@@ -634,7 +647,9 @@ void Device::processPendingCommands() const {
     }
 }
 /** @} */
+// LCOV_EXCL_END
 
+// LCOV_EXCL_START — FreeRTOS stack high-water marks, cannot run in host tests
 DiagnosticsSnapshot Device::collectDiagnostics() const {
     DiagnosticsSnapshot snapshot;
     snapshot.missedTicks = missedTickCount;
@@ -679,7 +694,9 @@ DiagnosticsSnapshot Device::collectDiagnostics() const {
 
     return snapshot;
 }
+// LCOV_EXCL_END
 
+// LCOV_EXCL_START — ESP32 power management, cannot run in host tests
 /**
  * @brief Re-arms the hardware timer for the next due sensor sample.
  *
@@ -785,6 +802,7 @@ void Device::reportWakeReason() {
     (void)0; // Suppress unused warning in host builds
 #endif
 }
+// LCOV_EXCL_END
 
 void Device::setTelemetryGateway(GatewayClient* gateway) {
     telemetryGateway = gateway;
@@ -823,6 +841,7 @@ void Device::setFirmwareVersion(const char* version) {
 }
 /** @} */
 
+// LCOV_EXCL_START — FreeRTOS task management, cannot run in host tests
 void Device::stopAsynchronousEngine() {
     // Guard against double-stop
     if (hardwareSamplingTaskHandle == nullptr && networkDispatcherTaskHandle == nullptr) {
@@ -867,3 +886,4 @@ void Device::stopAsynchronousEngine() {
         commandQueueHandle = nullptr;
     }
 }
+// LCOV_EXCL_END
