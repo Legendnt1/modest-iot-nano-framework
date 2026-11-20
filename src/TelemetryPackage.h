@@ -29,7 +29,7 @@ class TelemetryPackage {
 protected:
     uint32_t captureTimestamp = 0; ///< Capture time in milliseconds from device boot.
     uint32_t sequenceNumber = 0; ///< Monotonically increasing sequence assigned before enqueue.
-    const char* schemaVersionValue = nullptr; ///< Optional schema version string for telemetry format tracking.
+    const char* schemaVersionValue = nullptr; ///< Per-package schema version (set by subclass); falls back to global if nullptr.
     const char* firmwareVersionValue = nullptr; ///< Optional firmware version string for fleet management.
     bool highPriority = false; ///< True when this package is high-priority (set by Device::enqueueHighPriorityPayload).
 
@@ -51,9 +51,14 @@ public:
      * @param firmwareVersion Optional firmware version identifier (e.g., "1.0.0").
      * @note Pass nullptr to omit a field from the output. Called by Device
      *   before enqueueing when firmware version tracking is enabled.
+     *   If the subclass already set a per-package schema version, this global
+     *   value is ignored for schema but still sets the firmware version.
      */
     void setVersionMetadata(const char* schemaVersion, const char* firmwareVersion) {
-        schemaVersionValue = schemaVersion;
+        // Per-package schema version takes priority; set global only if not already set
+        if (schemaVersionValue == nullptr) {
+            schemaVersionValue = schemaVersion;
+        }
         firmwareVersionValue = firmwareVersion;
     }
 
@@ -76,6 +81,7 @@ public:
      * @brief Adds envelope metadata fields to the writer.
      * @param writer The telemetry writer to populate.
      * @note Optionally includes schemaVersion and firmwareVersion when set.
+     *   Schema version priority: per-package (set by subclass) > global (Device::setTelemetrySchemaVersion).
      */
     void addEnvelopeMetadata(TelemetryWriter& writer) const {
         writer.field("timestamp", static_cast<int32_t>(captureTimestamp));
