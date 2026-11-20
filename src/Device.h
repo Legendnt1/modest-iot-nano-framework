@@ -86,6 +86,7 @@ private:
     static constexpr uint32_t   TASK_TERMINATION_WAIT_IN_MILLISECONDS           = 100; ///< Wait time for task termination.
     static constexpr int        INVALID_EVENT_IDENTIFIER                        = -1; ///< Sentinel for invalid event identifier.
     static constexpr int        INVALID_COMMAND_IDENTIFIER                      = -1; ///< Sentinel for invalid command identifier.
+    static constexpr int        DIAGNOSTICS_COMMAND_IDENTIFIER                  = 300; ///< Framework diagnostics command (300+ range reserved).
     static constexpr auto       SAMPLER_TASK_NAME                               = "HardwareWorker"; ///< FreeRTOS sampler task name.
     static constexpr auto       NETWORK_TASK_NAME                               = "NetworkWorker"; ///< FreeRTOS network task name.
     static constexpr auto       DEVICE_COMPONENT_NAME                           = "Device"; ///< Log component name.
@@ -212,9 +213,10 @@ public:
     /**
      * @brief Reports the wake reason from the last sleep cycle.
      *
-     * Uses `esp_sleep_get_wakeup_cause()` to determine how the device woke up
-     * (timer, GPIO, touchpad, ULP, or reset) and prints the result to Serial.
-     * Call early in setup() to diagnose unexpected wake cycles.
+     * Uses `esp_sleep_get_wakeup_causes()` (ESP-IDF 6.0+) to determine how the
+     * device woke up. Multiple wakeup sources may trigger simultaneously; each
+     * is reported on a separate line. Call early in setup() to diagnose
+     * unexpected wake cycles.
      * @runs_on{any}
      */
     static void reportWakeReason();
@@ -475,7 +477,7 @@ public:
      * @brief Sets the telemetry gateway client for diagnostics aggregation.
      * @param gateway The gateway client to register.
      *
-     * Registers a gateway so that diagnostics() can query send statistics
+     * Registers a gateway so that collectDiagnostics() can query send statistics
      * (sends succeeded/failed). Call this before initializeAsynchronousEngine().
      */
     void setTelemetryGateway(GatewayClient* gateway);
@@ -510,13 +512,13 @@ public:
     static void IRAM_ATTR onSensorTriggerWrapper();
 
     /**
-     * @brief Returns a snapshot of runtime health and diagnostic counters.
+     * @brief Collects a snapshot of runtime health and diagnostic counters.
      *
      * Queries FreeRTOS stack high-water marks, heap statistics, and aggregates
      * the shared counters (packets enqueued/dropped, missed ticks, queue high-water).
      * Safe to call from any task; does not block.
      */
-    [[nodiscard]] DiagnosticsSnapshot diagnostics() const;
+    [[nodiscard]] DiagnosticsSnapshot collectDiagnostics() const;
     /**
      * @brief Enqueues a command for execution on the sampler task context.
      * @param targetHandler The CommandHandler that should process the command.
@@ -534,7 +536,11 @@ public:
 
     /**
      * @brief Concrete fallback command interface fulfillment.
-     * Intercepts framework-wide actions; overrides CommandHandler.
+     * Overrides CommandHandler; derived classes can override for custom commands.
+     *
+     * The default implementation does nothing. Framework-internal commands
+     * (e.g., diagnostics) are handled separately before this method is called,
+     * so the developer's override receives only custom commands.
      */
     void handle(Command command) override;
 
@@ -573,6 +579,19 @@ public:
      * envelope metadata as the `firmwareVersion` field. Pass nullptr to omit.
      */
     static void setFirmwareVersion(const char* version);
+
+private:
+
+    /**
+     * @brief Handles framework-internal commands before dispatching to handle().
+     * @param command The command to check.
+     * @return True if the command was a framework command and was consumed.
+     *
+     * Called by processPendingCommands() before calling handle().
+     * Currently handles the diagnostics command (commandId = 300).
+     * This keeps handle() purely for developer-defined custom commands.
+     */
+    bool handleInternalCommand(Command command) const;
 };
 
 #endif // DEVICE_H
