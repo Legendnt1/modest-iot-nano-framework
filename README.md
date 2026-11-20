@@ -1,10 +1,13 @@
-<p align="center">
-  <img src="assets/branding/logo.png" alt="Modest IoT Nano Framework logo" height="100" />
-</p>
+<div align="center">
+
+![Modest IoT Nano Framework logo](assets/branding/logo.png)
+
+</div>
 
 # Modest IoT Nano Framework (C++ Edition)
 
 [![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/modest-iot/library/Modest-IoT-Nano-Framework.svg)](https://registry.platformio.org/libraries/modest-iot/Modest-IoT-Nano-Framework)
 
 **Version**: 1.1.2  
 **Author**: Angel Velasquez  
