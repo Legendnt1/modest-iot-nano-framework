@@ -74,7 +74,7 @@ public:
         // No-op for tests
     }
 
-    void handle(Command command) override {
+    void handle(const Command command) override {
         lastCommandId = command.identifier;
         handleCallCount++;
     }

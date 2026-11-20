@@ -1,5 +1,6 @@
 #include <time.h>
-#include "TelemetryPackage.h"
+#include "Device.h"
+#include "DiagnosticsTelemetryPackage.h"
 #include "JsonTelemetryWriter.h"
 #include <cassert>
 #include <cstdio>
@@ -355,6 +356,43 @@ public:
         assert(!packet.isHighPriority());
         assert(std::string(json).find("priority") == std::string::npos);
         std::printf("  SecurityAlert without priority: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 19: DiagnosticsTelemetryPackage golden test (W41)
+    // =========================================================================
+    {
+        DiagnosticsSnapshot snapshot;
+        snapshot.missedTicks = 5;
+        snapshot.worstCaseWakeMicros = 1500;
+        snapshot.packetsEnqueued = 100;
+        snapshot.packetsDropped = 2;
+        snapshot.packetsDroppedOldest = 1;
+        snapshot.queueHighWaterMark = 8;
+        snapshot.highPriorityEnqueued = 10;
+        snapshot.highPriorityDropped = 0;
+        snapshot.highPriorityQueueHighWaterMark = 3;
+        snapshot.sendsSucceeded = 95;
+        snapshot.sendsFailed = 5;
+        snapshot.freeHeapBytes = 131072;
+        snapshot.minFreeHeapBytes = 98304;
+        snapshot.samplerStackFreeWords = 512;
+        snapshot.networkStackFreeWords = 1024;
+        snapshot.uptimeSeconds = 3600;
+
+        DiagnosticsTelemetryPackage packet(snapshot);
+        packet.setEnvelopeMetadata(1000, 42);
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":1000,\"sequence\":42,"
+            "\"missedTicks\":5,\"worstCaseWakeMicros\":1500,"
+            "\"packetsEnqueued\":100,\"packetsDropped\":2,\"packetsDroppedOldest\":1,"
+            "\"queueHighWaterMark\":8,\"highPriorityEnqueued\":10,\"highPriorityDropped\":0,"
+            "\"highPriorityQueueHighWaterMark\":3,\"sendsSucceeded\":95,\"sendsFailed\":5,"
+            "\"freeHeapBytes\":131072,\"minFreeHeapBytes\":98304,"
+            "\"samplerStackFreeWords\":512,\"networkStackFreeWords\":1024,\"uptimeSeconds\":3600}";
+        assert(json == expected);
+        std::printf("  DiagnosticsTelemetryPackage golden test: PASS\n");
     }
 
     std::printf("All telemetry serialization tests passed.\n");

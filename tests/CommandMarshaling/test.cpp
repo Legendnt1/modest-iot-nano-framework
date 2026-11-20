@@ -24,7 +24,7 @@ public:
     std::vector<int> deliveredIdentifiers;
     std::vector<int32_t> deliveredPayloads;
 
-    void handle(Command command) override {
+    void handle(const Command command) override {
         deliveredIdentifiers.push_back(command.identifier);
         deliveredPayloads.push_back(command.payload);
     }
@@ -39,7 +39,7 @@ public:
 
     void on(Event) override {}
     void processQueuedTelemetryData(const TelemetryPackage*) const override {}
-    void handle(Command) override {}
+    void handle(const Command) override {}
 
     // Forward public Device methods for test access
     bool enqueueCommand(CommandHandler* h, Command c) override {

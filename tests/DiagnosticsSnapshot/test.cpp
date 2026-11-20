@@ -27,7 +27,7 @@ public:
     }
 };
 
-// Lightweight mock that provides the diagnostics() interface without FreeRTOS
+// Lightweight mock that provides the collectDiagnostics() interface without FreeRTOS
 class MockDeviceDiagnostics {
 private:
     uint32_t packetsEnqueuedCount = 0;
@@ -37,7 +37,7 @@ private:
     uint32_t missedTickCount = 0;
 
 public:
-    DiagnosticsSnapshot diagnostics() const {
+    DiagnosticsSnapshot collectDiagnostics() const {
         DiagnosticsSnapshot snapshot;
         snapshot.missedTicks = missedTickCount;
         snapshot.worstCaseWakeMicros = 0;
@@ -120,7 +120,7 @@ void test_counter_initialization() {
     TestDevice device(1000);
 #endif
     
-    DiagnosticsSnapshot snapshot = device.diagnostics();
+    DiagnosticsSnapshot snapshot = device.collectDiagnostics();
     
     assert(snapshot.packetsEnqueued == 0);
     assert(snapshot.packetsDropped == 0);
@@ -143,7 +143,7 @@ void test_heap_diagnostics() {
     TestDevice device(1000);
 #endif
     
-    DiagnosticsSnapshot snapshot = device.diagnostics();
+    DiagnosticsSnapshot snapshot = device.collectDiagnostics();
     
     // Mock ESP.getFreeHeap() returns 100000
     assert(snapshot.freeHeapBytes == 100000);
@@ -163,21 +163,21 @@ void test_uptime_diagnostics() {
 #endif
     
     {
-        DiagnosticsSnapshot snapshot = device.diagnostics();
+        DiagnosticsSnapshot snapshot = device.collectDiagnostics();
         assert(snapshot.uptimeSeconds == 0);
     }
     
     // Advance mock time by 3500ms -> 3 seconds
     fakeMillis = 3500;
     {
-        DiagnosticsSnapshot snapshot = device.diagnostics();
+        DiagnosticsSnapshot snapshot = device.collectDiagnostics();
         assert(snapshot.uptimeSeconds == 3);
     }
     
     // Advance mock time by 9999ms -> 9 seconds
     fakeMillis = 9999;
     {
-        DiagnosticsSnapshot snapshot = device.diagnostics();
+        DiagnosticsSnapshot snapshot = device.collectDiagnostics();
         assert(snapshot.uptimeSeconds == 9);
     }
     
@@ -199,7 +199,7 @@ void test_enqueue_with_null_queue() {
     
     assert(result == false);
     
-    DiagnosticsSnapshot snapshot = device.diagnostics();
+    DiagnosticsSnapshot snapshot = device.collectDiagnostics();
     assert(snapshot.packetsEnqueued == 0);
     assert(snapshot.packetsDropped == 0);
     
@@ -284,7 +284,7 @@ void test_unique_ptr_enqueue_with_null_queue() {
     // After a failed enqueue, the unique_ptr retains ownership and deletes automatically
     // If we reach here without a crash, the deletion succeeded
 
-    DiagnosticsSnapshot snapshot = device.diagnostics();
+    DiagnosticsSnapshot snapshot = device.collectDiagnostics();
     assert(snapshot.packetsEnqueued == 0);
     assert(snapshot.packetsDropped == 0);
 

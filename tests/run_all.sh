@@ -102,6 +102,7 @@ run_test "test_MqttGatewayClient" \
     src/Sensor.cpp \
     src/JsonTelemetryWriter.cpp \
     src/JsonParser.cpp \
+    src/DiagnosticsTelemetryPackage.cpp \
     tests/MqttGatewayClient/test.cpp
 
 # 7. EngineConfiguration and Device Configuration Suite
@@ -130,8 +131,12 @@ run_test "test_SamplingScheduler" \
 # 11. Telemetry Serialization Golden Tests Suite
 run_test "test_TelemetryPackage" \
     tests/fakes/ArduinoFake.cpp \
+    src/Device.cpp \
+    src/SamplingScheduler.cpp \
+    src/Sensor.cpp \
     src/JsonTelemetryWriter.cpp \
     src/JsonParser.cpp \
+    src/DiagnosticsTelemetryPackage.cpp \
     tests/TelemetryPackage/test.cpp
 
 # 11b. JsonParser Suite
@@ -147,6 +152,7 @@ run_test "test_TriggeringScheduler" \
     src/SamplingScheduler.cpp \
     src/JsonTelemetryWriter.cpp \
     src/JsonParser.cpp \
+    src/DiagnosticsTelemetryPackage.cpp \
     tests/TriggeringScheduler/test.cpp
 
 # 13. Command Marshaling Suite
@@ -157,6 +163,7 @@ run_test "test_CommandMarshaling" \
     src/Sensor.cpp \
     src/JsonTelemetryWriter.cpp \
     src/JsonParser.cpp \
+    src/DiagnosticsTelemetryPackage.cpp \
     tests/CommandMarshaling/test.cpp
 
 # 14. WaterFlowSensor Suite
@@ -188,6 +195,7 @@ run_test "test_DeepSleep" \
     src/Sensor.cpp \
     src/JsonTelemetryWriter.cpp \
     src/JsonParser.cpp \
+    src/DiagnosticsTelemetryPackage.cpp \
     tests/DeepSleep/test.cpp
 
 # 18. ServoMotor Suite
@@ -404,6 +412,7 @@ run_test "test_Device" \
     src/SamplingScheduler.cpp \
     src/JsonTelemetryWriter.cpp \
     src/JsonParser.cpp \
+    src/DiagnosticsTelemetryPackage.cpp \
     tests/Device/test.cpp
 
 echo "=========================================================="
