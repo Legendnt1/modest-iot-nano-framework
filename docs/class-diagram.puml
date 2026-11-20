@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.2.0, 55 headers, W41)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 55 headers, W41 + W33)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -79,6 +79,7 @@ package "Core" #FAFAFA {
   }
 
   class DiagnosticsTelemetryPackage {
+    +{static} SCHEMA_VERSION : const char* = "1.0"
     +DiagnosticsTelemetryPackage(snapshot : const DiagnosticsSnapshot&)
     +write(writer : TelemetryWriter&) : void
   }
