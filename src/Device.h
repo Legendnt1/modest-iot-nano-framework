@@ -41,7 +41,7 @@ struct EngineConfiguration {
  * @brief Runtime health snapshot containing stack, heap, queue, and timing metrics.
  * @ingroup core_module
  *
- * Returned by value from `Device::diagnostics()`. Stack margins are reported in
+ * Returned by value from `Device::collectDiagnostics()`. Stack margins are reported in
  * FreeRTOS `StackType_t` words (4 bytes on ESP32), not raw bytes.
  */
 struct DiagnosticsSnapshot {
