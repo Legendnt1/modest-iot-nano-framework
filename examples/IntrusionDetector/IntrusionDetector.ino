@@ -27,7 +27,7 @@
  *
  * @par Modest IoT Nano Framework aspects illustrated:
  * - `EventAggregator` for composite event pattern matching (W31)
- * - `addPattern()` to register AND-based patterns with time windows
+ * - `addAllMatchPattern()` to register AND-based patterns with time windows
  * - Standard patterns always emit when identifiers match (no condition function)
  * - `setOutputHandler()` to route composite events to the Device
  * - `PassiveInfraredSensor`, `DoorWindowSensor`, `WaterLeakSensor` — all interrupt-driven
