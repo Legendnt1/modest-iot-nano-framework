@@ -415,6 +415,13 @@ run_test "test_Device" \
     src/DiagnosticsTelemetryPackage.cpp \
     tests/Device/test.cpp
 
+# 48. EventAggregator Suite
+run_test "test_EventAggregator" \
+    tests/fakes/ArduinoFake.cpp \
+    src/EventAggregator.cpp \
+    src/TimeSynchronizationDriver.cpp \
+    tests/EventAggregator/test.cpp
+
 echo "=========================================================="
 echo " Test Summary: ${PASSED} passed, ${FAILED} failed"
 echo "=========================================================="
