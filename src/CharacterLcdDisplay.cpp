@@ -65,7 +65,7 @@ void CharacterLcdDisplay::setLineBuffer(const char* multiLineArrayPointer[]) con
     }
 }
 
-void CharacterLcdDisplay::executeCommand(Command command) {
+void CharacterLcdDisplay::executeCommand(const Command command) {
     if (command == UPDATE_TEXT_COMMAND) {
         commitBuffersToPhysicalScreen();
     }

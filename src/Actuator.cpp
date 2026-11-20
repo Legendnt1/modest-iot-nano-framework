@@ -17,8 +17,8 @@
 /**
  * @brief Stores the target GPIO pin and optional command handler for this actuator.
  */
-Actuator::Actuator(int signalGpioPin, CommandHandler* parentHandler)
-    : pin(signalGpioPin), commandHandler(parentHandler) {}
+Actuator::Actuator(const int signalGpioPin, CommandHandler* parentHandler)
+     : pin(signalGpioPin), commandHandler(parentHandler) {}
 
 /**
  * @brief Executes the command locally and then forwards it to the configured handler.

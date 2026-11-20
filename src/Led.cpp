@@ -10,19 +10,19 @@
 #include <Arduino.h>
 
 
-Led::Led(int signalGpioPin, bool initialState, CommandHandler* parentHandler)
+Led::Led(const int signalGpioPin, const bool initialState, CommandHandler* parentHandler)
     : Actuator(signalGpioPin, parentHandler), active(initialState) {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, active ? HIGH : LOW);
 }
 
-void Led::executeCommand(Command command) {
+void Led::executeCommand(const Command command) {
     if (command == TURN_ON_COMMAND) {
         active = true;
-    } 
+    }
     else if (command == TURN_OFF_COMMAND) {
         active = false;
-    } 
+    }
     else if (command == TOGGLE_LED_COMMAND) {
         active = !active;
     }

@@ -67,7 +67,7 @@ void Buzzer::playBufferedTone() {
  *          `PLAY_FREQUENCY_COMMAND` assigns the payload as the buffered frequency,
  *          then plays using the buffered duration via `playBufferedTone()`.
  */
-void Buzzer::executeCommand(Command command) {
+void Buzzer::executeCommand(const Command command) {
     if (command == TURN_ON_COMMAND) {
         playDefaultToneWithoutDuration();
     } else if (command == TURN_OFF_COMMAND) {
