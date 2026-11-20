@@ -384,7 +384,7 @@ public:
         packet.setEnvelopeMetadata(1000, 42);
         String json = packet.toJsonString();
 
-        std::string expected = "{\"timestamp\":1000,\"sequence\":42,"
+        std::string expected = "{\"timestamp\":1000,\"sequence\":42,\"schemaVersion\":\"1.0\","
             "\"missedTicks\":5,\"worstCaseWakeMicros\":1500,"
             "\"packetsEnqueued\":100,\"packetsDropped\":2,\"packetsDroppedOldest\":1,"
             "\"queueHighWaterMark\":8,\"highPriorityEnqueued\":10,\"highPriorityDropped\":0,"
@@ -393,6 +393,49 @@ public:
             "\"samplerStackFreeWords\":512,\"networkStackFreeWords\":1024,\"uptimeSeconds\":3600}";
         assert(json == expected);
         std::printf("  DiagnosticsTelemetryPackage golden test: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 20: Per-package schema version priority over global (W33)
+    // =========================================================================
+    {
+        // DiagnosticsTelemetryPackage has per-package schema "1.0"
+        DiagnosticsSnapshot snapshot;
+        snapshot.missedTicks = 0; snapshot.worstCaseWakeMicros = 0;
+        snapshot.packetsEnqueued = 0; snapshot.packetsDropped = 0;
+        snapshot.packetsDroppedOldest = 0; snapshot.queueHighWaterMark = 0;
+        snapshot.highPriorityEnqueued = 0; snapshot.highPriorityDropped = 0;
+        snapshot.highPriorityQueueHighWaterMark = 0; snapshot.sendsSucceeded = 0;
+        snapshot.sendsFailed = 0; snapshot.freeHeapBytes = 0;
+        snapshot.minFreeHeapBytes = 0; snapshot.samplerStackFreeWords = 0;
+        snapshot.networkStackFreeWords = 0; snapshot.uptimeSeconds = 0;
+
+        DiagnosticsTelemetryPackage packet(snapshot);
+        packet.setEnvelopeMetadata(100, 1);
+        // setVersionMetadata tries to set global schema "9.9", but per-package "1.0" takes priority
+        packet.setVersionMetadata("9.9", "1.0.0");
+        String json = packet.toJsonString();
+
+        // Per-package schema "1.0" should appear, not global "9.9"
+        assert(std::string(json).find("\"schemaVersion\":\"1.0\"") != std::string::npos);
+        assert(std::string(json).find("\"schemaVersion\":\"9.9\"") == std::string::npos);
+        assert(std::string(json).find("\"firmwareVersion\":\"1.0.0\"") != std::string::npos);
+        std::printf("  Per-package schema priority: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 21: Fallback to global schema when per-package not set (W33)
+    // =========================================================================
+    {
+        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
+        packet.setEnvelopeMetadata(100, 1);
+        // No per-package schema set — should fall back to global
+        packet.setVersionMetadata("1.0", "1.0.0");
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"schemaVersion\":\"1.0\",\"firmwareVersion\":\"1.0.0\",\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
+        assert(json == expected);
+        std::printf("  Fallback to global schema: PASS\n");
     }
 
     std::printf("All telemetry serialization tests passed.\n");

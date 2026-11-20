@@ -404,6 +404,41 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
     - **Given** `handleInternalCommand()` returns true for framework commands, **when** `processPendingCommands()` runs, **then** `handle()` is not called for framework commands — only for developer-defined custom commands.
 - **Status**: ✓ Implemented (v1.2.0). See `Device.h`, `Device.cpp`.
 
+### TS40: Declare Per-Package Schema Version
+
+- **As an** IoT Developer, **I want** each TelemetryPackage subclass to declare its own schema version, **so that** different telemetry packages can evolve independently without breaking each other.
+- **Acceptance Criteria**:
+    - **Given** a TelemetryPackage subclass declares a schema version constant, **when** the package is serialized, **then** the schema version is included in the JSON envelope metadata.
+    - **Given** a TelemetryPackage subclass does not declare a schema version, **when** the package is serialized, **then** the schema version falls back to the global `Device::setTelemetrySchemaVersion()` value (if set).
+    - **Given** a TelemetryPackage subclass declares schema version "1.0", **when** `toJsonString()` is called, **then** the JSON output includes `"schemaVersion": "1.0"`.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h`, `DiagnosticsTelemetryPackage.h`, `SmartBandMqtt.ino`, `HomeSecurityDevice.ino`.
+
+### TS41: Maintain Backward Compatibility with Global Schema Version
+
+- **As an** IoT Developer, **I want** the global `Device::setTelemetrySchemaVersion()` to remain functional, **so that** existing code continues to work without modification.
+- **Acceptance Criteria**:
+    - **Given** `Device::setTelemetrySchemaVersion()` is called with a version string, **when** a TelemetryPackage without a per-package schema version is serialized, **then** the global schema version is used.
+    - **Given** `Device::setTelemetrySchemaVersion()` is not called, **when** a TelemetryPackage without a per-package schema version is serialized, **then** no schema version is included in the output.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h` (`setVersionMetadata()` fallback logic).
+
+### TS42: Add Per-Package Schema Version to TelemetryPackage
+
+- **As an** IoT Developer, **I want** TelemetryPackage to support per-package schema versions, **so that** subclasses can declare their own schema version.
+- **Acceptance Criteria**:
+    - **Given** TelemetryPackage has a protected `schemaVersionValue` member, **when** a subclass sets it, **then** the value is used in `addEnvelopeMetadata()`.
+    - **Given** TelemetryPackage's `setVersionMetadata()` checks per-package schema first, **when** the per-package schema is set, **then** it's used instead of the global schema.
+    - **Given** TelemetryPackage's `setVersionMetadata()` falls back to global schema, **when** the per-package schema is not set, **then** the global schema is applied.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h`.
+
+### TS43: Update Examples and Tests for Per-Package Schema Versions
+
+- **As an** IoT Developer, **I want** examples to declare per-package schema versions, **so that** developers see the pattern in practice.
+- **Acceptance Criteria**:
+    - **Given** SmartBandTelemetryPackage declares `static constexpr const char* SCHEMA_VERSION = "1.0"`, **when** the package is serialized, **then** the JSON output includes `"schemaVersion": "1.0"`.
+    - **Given** DiagnosticsTelemetryPackage declares `static constexpr const char* SCHEMA_VERSION = "1.0"`, **when** the package is serialized, **then** the JSON output includes `"schemaVersion": "1.0"`.
+    - **Given** golden tests are updated, **when** tests run, **then** all tests pass with the new schema version in the output.
+- **Status**: ✓ Implemented (v1.2.0). See `DiagnosticsTelemetryPackage.h`, `SmartBandMqtt.ino`, `HomeSecurityDevice.ino`, `tests/TelemetryPackage/test.cpp`.
+
 ---
 
 *Created: March 23, 2025.*

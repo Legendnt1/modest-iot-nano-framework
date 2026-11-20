@@ -119,6 +119,10 @@ static const char* ALERT_TYPE_DOOR_OPENED = "door_opened";
  * pending high-priority alerts.
  */
 class SecurityStatusTelemetryPackage : public TelemetryPackage {
+public:
+    /** @brief Schema version for this telemetry format. */
+    static constexpr const char* SCHEMA_VERSION = "1.0";
+
 private:
     bool doorOpen;
     bool motionDetected;
@@ -128,7 +132,10 @@ public:
     SecurityStatusTelemetryPackage(bool door, bool motion, bool leak)
         : doorOpen(door),
         motionDetected(motion),
-        waterLeak(leak) {}
+        waterLeak(leak)
+    {
+        schemaVersionValue = SCHEMA_VERSION;
+    }
 
     ~SecurityStatusTelemetryPackage() override = default;
 
@@ -147,6 +154,10 @@ public:
  * any pending routine telemetry. The envelope includes `"priority": "high"`.
  */
 class SecurityAlertTelemetryPackage : public TelemetryPackage {
+public:
+    /** @brief Schema version for this telemetry format. */
+    static constexpr const char* SCHEMA_VERSION = "1.0";
+
 private:
     const char* alertType;
     bool alertState;
@@ -154,7 +165,10 @@ private:
 public:
     SecurityAlertTelemetryPackage(const char* type, bool state)
         : alertType(type),
-        alertState(state) {}
+        alertState(state)
+    {
+        schemaVersionValue = SCHEMA_VERSION;
+    }
 
     ~SecurityAlertTelemetryPackage() override = default;
 

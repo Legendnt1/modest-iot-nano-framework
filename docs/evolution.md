@@ -888,6 +888,31 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 
 ---
 
+### W33: Schema Registry — **Complete** ✓
+
+**Problem**: All TelemetryPackage subclasses shared a single global schema version from `Device::setTelemetrySchemaVersion()`. When one telemetry package evolved its schema (adding/removing fields), the global version became ambiguous — the edge framework couldn't distinguish between different package formats.
+
+**Resolution**: Added per-package schema versioning. Each TelemetryPackage subclass declares its own schema version via `schemaVersionValue`. The `setVersionMetadata()` method falls back to the global schema only when the per-package version is not set, enabling safe schema evolution per package type.
+
+**Implementation**:
+
+- **TelemetryPackage::setVersionMetadata()**: Now checks if `schemaVersionValue` is already set before applying the global schema. Per-package version takes priority, global is only a fallback.
+- **DiagnosticsTelemetryPackage**: Declares `static constexpr const char* SCHEMA_VERSION = "1.0"` and sets `schemaVersionValue` in the constructor.
+- **SmartBandTelemetryPackage** (SmartBandMqtt example): Declares per-package schema version "1.0".
+- **SecurityStatusTelemetryPackage** and **SecurityAlertTelemetryPackage** (HomeSecurityDevice example): Both declare per-package schema version "1.0".
+- **2 new host tests**: Per-package schema priority over global, and fallback to global when per-package is not set.
+- **Golden test update**: DiagnosticsTelemetryPackage golden test now includes `"schemaVersion": "1.0"` in expected JSON output.
+
+**Benefits**:
+- Each telemetry package can evolve its schema independently without breaking other packages
+- Edge framework can validate schema versions per package type, rejecting unknown formats
+- Backward compatible: packages without per-package schema use the global value
+- Safe fleet management: old and new devices can coexist with different schema versions
+
+**Source**: `src/TelemetryPackage.h`, `src/DiagnosticsTelemetryPackage.h`, `src/DiagnosticsTelemetryPackage.cpp`, `examples/SmartBandMqtt/SmartBandMqtt.ino`, `examples/HomeSecurityDevice/HomeSecurityDevice.ino`, `tests/TelemetryPackage/test.cpp`
+
+---
+
 ### W34: MQTT QoS and Retained Messages — **Complete** ✓
 
 **Problem**: MqttGatewayClient hardcoded QoS 0 for all MQTT operations and had no retained message support. Production deployments often require QoS 1 (at least once delivery) for critical telemetry, and retained messages for last-known-good state that new subscribers can receive immediately.
