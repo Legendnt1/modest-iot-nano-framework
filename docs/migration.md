@@ -135,7 +135,7 @@ void loop() {
 
 class SensorDevice : public Device {
     Led led;
-    AnalogSensor sensor;
+    SoilMoistureSensor sensor;
 public:
     static constexpr int BLINK_EVENT = 300;
     static constexpr int SENSOR_EVENT = 301;
@@ -157,7 +157,7 @@ public:
             led.handle(Led::TOGGLE_LED_COMMAND);
         }
         else if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
-            Serial.println(sensor.getLatestValue());
+            Serial.println(sensor.getMoistureLevel());
         }
     }
 };
@@ -303,7 +303,7 @@ void loop() {
 
 class MyDevice : public Device {
     Led led;
-    AnalogSensor sensor;
+    SoilMoistureSensor sensor;
     Button button;
 public:
     static constexpr int BLINK_EVENT = 300;
@@ -429,12 +429,12 @@ public:
 };
 
 class SensorDevice : public Device {
-    AnalogSensor sensor;
+    SoilMoistureSensor sensor;
     MqttGatewayClient& gatewayClient;
 
     void packageAndQueueTelemetrySnapshot() {
         auto packet = std::make_unique<SensorTelemetryPackage>(
-            sensor.getLatestValue());
+            sensor.getMoistureLevel());
         enqueueTelemetryPayload(std::move(packet));
     }
 
@@ -505,8 +505,8 @@ Use this checklist when migrating a sketch:
 - [ ] **Remove all `delay()` calls** — replace with hardware timers via `appendSensorToScheduler()`.
 - [ ] **Remove all `millis()` timing flags** — the framework scheduler handles all timing.
 - [ ] **Encapsulate state in a `Device` subclass** — no more globals.
-- [ ] **Replace sensor libraries** with framework sensors (`DhtSensor`, `AnalogSensor`, `PulseSensor`, etc.).
-- [ ] **Replace actuator code** with framework actuators (`Led`, `ServoMotor`, `Hd44780Display`, etc.).
+- [ ] **Replace sensor libraries** with framework sensors (`DhtSensor`, `SoilMoistureSensor`, `PulseSensor`, etc.).
+- [ ] **Replace actuator code** with framework actuators (`Led`, `ServoMotor`, `CharacterLcdDisplay`, etc.).
 - [ ] **Replace blocking network code** with `WiFiConnectivityDriver` and `MqttGatewayClient`.
 - [ ] **Move all logic out of `loop()`** — `loop()` should only contain `vTaskDelay()`.
 - [ ] **Handle events in `on(Event)`** — one handler per event type.
@@ -524,10 +524,10 @@ Use this checklist when migrating a sketch:
 | Global variables | Fields in `Device` subclass |
 | `loop()` body | `on(Event)` handler |
 | `digitalWrite()` | `Led` actuator with commands |
-| `analogRead()` | `AnalogSensor` with scheduled reads |
+| `analogRead()` | `SoilMoistureSensor` with scheduled reads |
 | DHT library | `DhtSensor` (native implementation) |
 | Servo library | `ServoMotor` (native LEDC PWM) |
-| LCD I2C library | `Hd44780Display` (native I²C protocol) |
+| LCD I2C library | `CharacterLcdDisplay` (native I²C protocol) |
 | `PubSubClient` | `MqttGatewayClient` |
 | Blocking Wi-Fi connect | `WiFiConnectivityDriver` (async) |
 | Manual JSON serialization | `TelemetryPackage` + `write(TelemetryWriter&)` |
