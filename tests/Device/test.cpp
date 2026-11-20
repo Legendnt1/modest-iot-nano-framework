@@ -97,7 +97,7 @@ int main() {
     // Test 12: CommandEntry parameterized constructor
     {
         struct FakeHandler : CommandHandler {
-            void handle(Command) override {}
+            void handle(const Command) override {}
         };
         FakeHandler handler;
         Device::CommandEntry entry(&handler, Command{42});

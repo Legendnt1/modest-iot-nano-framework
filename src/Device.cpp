@@ -7,6 +7,7 @@
  */
 
 #include "Device.h"
+#include "DiagnosticsTelemetryPackage.h"
 #include "ModestLog.h"
 
 #ifdef ARDUINO_ARCH_ESP32
@@ -372,8 +373,35 @@ void Device::executeNetworkDispatchContext(void *taskParameters) {
 }
 
 /**
- * @brief Default fallback implementation of CommandHandler interface.
- * Allows derived application controllers to completely omit empty override boilerplate.
+ * @brief Handles framework-internal commands before dispatching to handle().
+ * @param command The command to check.
+ * @return True if the command was a framework command and was consumed.
+ *
+ * Currently handles the diagnostics command (commandId = 300).
+ * This keeps handle() purely for developer-defined custom commands.
+ */
+bool Device::handleInternalCommand(const Command command) const {
+    if (command.identifier == DIAGNOSTICS_COMMAND_IDENTIFIER) {
+        if (telemetryGateway == nullptr) {
+            MODEST_LOG_W(DEVICE_COMPONENT_NAME, "Diagnostics requested but no gateway client registered");
+            return true;
+        }
+        const DiagnosticsSnapshot snapshot = collectDiagnostics();
+        auto diagPackage = std::make_unique<DiagnosticsTelemetryPackage>(snapshot);
+        enqueueTelemetryPayload(std::move(diagPackage));
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Concrete fallback command interface fulfillment.
+ * Overrides CommandHandler; derived classes can override for custom commands.
+ *
+ * The default implementation does nothing. Framework-internal commands
+ * (e.g., diagnostics) are handled separately by handleInternalCommand()
+ * before this method is called, so the developer's override receives
+ * only custom commands.
  */
 void Device::handle(const Command command) {
     (void) command;
@@ -588,12 +616,18 @@ bool Device::enqueueCommand(CommandHandler *targetHandler, const Command command
 /**
  * @brief Processes all pending commands in the sampler task context.
  *
- * Drains the command queue and calls `targetHandler->handle(command)` for
- * each entry on the sampler task's own context.
+ * Drains the command queue and first checks for framework-internal commands
+ * via handleInternalCommand(). If not consumed, dispatches to
+ * `targetHandler->handle(command)` for developer-defined custom commands.
  */
 void Device::processPendingCommands() const {
     CommandEntry entry;
     while (xQueueReceive(commandQueueHandle, &entry, 0) == pdPASS) {
+        // Framework-internal commands (e.g., diagnostics) are handled first
+        if (handleInternalCommand(entry.command)) {
+            continue;
+        }
+        // Custom commands are dispatched to the target handler
         if (entry.targetHandler != nullptr) {
             entry.targetHandler->handle(entry.command);
         }
@@ -601,7 +635,7 @@ void Device::processPendingCommands() const {
 }
 /** @} */
 
-DiagnosticsSnapshot Device::diagnostics() const {
+DiagnosticsSnapshot Device::collectDiagnostics() const {
     DiagnosticsSnapshot snapshot;
     snapshot.missedTicks = missedTickCount;
     snapshot.worstCaseWakeMicros = 0; // Populated when handler timing measurement is added
@@ -714,31 +748,38 @@ void Device::enterDeepSleep() const {
 /**
  * @brief Reports the wake reason from the last sleep cycle.
  *
- * Uses `esp_sleep_get_wakeup_cause()` to determine how the device woke up
- * and prints the result to Serial. Call early in setup() to diagnose
- * unexpected wake cycles.
+ * Uses `esp_sleep_get_wakeup_causes()` (ESP-IDF 6.0+) to determine how the
+ * device woke up and prints the result to Serial. Multiple wakeup sources
+ * may trigger simultaneously; each is reported on a separate line.
+ * Call early in setup() to diagnose unexpected wake cycles.
  */
 void Device::reportWakeReason() {
 #ifdef ARDUINO_ARCH_ESP32
-    switch (esp_sleep_get_wakeup_cause()) {
-        case ESP_SLEEP_WAKEUP_EXT0:
-            Serial.println(F("[Device] Wakeup: External signal (RTC_IO)"));
-            break;
-        case ESP_SLEEP_WAKEUP_EXT1:
-            Serial.println(F("[Device] Wakeup: External signal (RTC_CNTL)"));
-            break;
-        case ESP_SLEEP_WAKEUP_TIMER:
-            Serial.println(F("[Device] Wakeup: Timer"));
-            break;
-        case ESP_SLEEP_WAKEUP_TOUCHPAD:
-            Serial.println(F("[Device] Wakeup: Touchpad"));
-            break;
-        case ESP_SLEEP_WAKEUP_ULP:
-            Serial.println(F("[Device] Wakeup: ULP coprogram"));
-            break;
-        default:
-            Serial.println(F("[Device] Wakeup: Reset or unknown"));
-            break;
+    const uint32_t causes = esp_sleep_get_wakeup_causes();
+    bool reported = false;
+
+    if (causes & BIT(ESP_SLEEP_WAKEUP_EXT0)) {
+        Serial.println(F("[Device] Wakeup: External signal (RTC_IO)"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_EXT1)) {
+        Serial.println(F("[Device] Wakeup: External signal (RTC_CNTL)"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_TIMER)) {
+        Serial.println(F("[Device] Wakeup: Timer"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_TOUCHPAD)) {
+        Serial.println(F("[Device] Wakeup: Touchpad"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_ULP)) {
+        Serial.println(F("[Device] Wakeup: ULP coprogram"));
+        reported = true;
+    }
+    if (!reported) {
+        Serial.println(F("[Device] Wakeup: Reset or unknown"));
     }
 #else
     (void)0; // Suppress unused warning in host builds

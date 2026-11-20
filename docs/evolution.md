@@ -935,3 +935,27 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 - Framework-wide visibility eliminates code duplication across examples
 
 **Source**: `src/JsonParser.h`, `src/JsonParser.cpp`, `src/MqttGatewayClient.cpp`, `src/ModestIoT.h`, `tests/JsonParser/test.cpp`
+
+---
+
+### W41: Remote Diagnostics — **Complete** ✓
+
+**Problem**: Fleet health monitoring required continuous telemetry overhead or manual serial access. There was no way to request on-demand diagnostics from a device via MQTT — developers had to either poll diagnostics continuously (wasting bandwidth) or connect via serial console (impractical for deployed devices).
+
+**Resolution**: Added on-demand diagnostics via MQTT command (commandId = 300). When the cloud sends a diagnostics command, the device creates a `DiagnosticsTelemetryPackage` from `Device::collectDiagnostics()` and enqueues it via the standard telemetry queue. The JSON output contains all 14 health metrics plus envelope metadata.
+
+**Implementation**:
+
+- **DiagnosticsTelemetryPackage** (`src/DiagnosticsTelemetryPackage.h/cpp`): New TelemetryPackage subclass that wraps `DiagnosticsSnapshot`. All 14 fields (missedTicks, worstCaseWakeMicros, packetsEnqueued, packetsDropped, queueHighWaterMark, highPriorityEnqueued, highPriorityDropped, sendsSucceeded, sendsFailed, freeHeapBytes, minFreeHeapBytes, samplerStackFreeWords, networkStackFreeWords, uptimeSeconds) are serialized via `write(TelemetryWriter&)`.
+- **Device::handleInternalCommand(Command)**: Private method that handles framework-internal commands (diagnostics, commandId = 300) before dispatching to `handle()`. Returns `true` if consumed, keeping `handle()` purely for developer-defined custom commands.
+- **Device::handle(Command)**: Restored as a pure no-op override. Derived classes override this for their custom commands without needing to call the base class first.
+- **Device::processPendingCommands()**: Calls `handleInternalCommand()` first for each command. If not consumed, dispatches to `targetHandler->handle()` for developer-defined custom commands.
+- **Golden test**: Verifies all 14 fields are present with correct values in the JSON output.
+
+**Benefits**:
+- Fleet health monitoring without continuous telemetry overhead
+- All 14 DiagnosticsSnapshot fields available on demand via a single MQTT command
+- `handle()` is purely for developer-defined custom commands — no framework-internal logic pollutes the developer's API
+- Command ID 300 in the reserved 300+ range avoids collision with component-specific IDs (100-253)
+
+**Source**: `src/DiagnosticsTelemetryPackage.h`, `src/DiagnosticsTelemetryPackage.cpp`, `src/Device.h`, `src/Device.cpp`, `tests/TelemetryPackage/test.cpp`

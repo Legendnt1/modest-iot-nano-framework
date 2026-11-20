@@ -44,7 +44,7 @@ adapters, gateway clients, and 18 built-in sensors plus 7 actuators.
 - **Interrupt-driven sensors**: GPIO triggers are marshaled to the sampler task for safe execution.
 - **Cross-task commands**: `Device::enqueueCommand()` enables cloud-to-device control via MQTT subscribe.
 - **Fault detection**: Configurable consecutive-failure threshold per sensor instance.
-- **Diagnostics**: `Device::diagnostics()` reports stack, heap, queue, and timing metrics.
+- **Diagnostics**: `Device::collectDiagnostics()` reports stack, heap, queue, and timing metrics.
 - **Host testing**: Platform-independent core compiles natively for unit testing (47 test suites).
 
 ## Documentation Conventions

@@ -16,7 +16,7 @@ RelayActuator::RelayActuator(const int signalGpioPin, const bool initialState, C
     digitalWrite(pin, active ? HIGH : LOW);
 }
 
-void RelayActuator::executeCommand(Command command) {
+void RelayActuator::executeCommand(const Command command) {
     if (command == RELAY_ON_COMMAND) {
         active = true;
     } else if (command == RELAY_OFF_COMMAND) {

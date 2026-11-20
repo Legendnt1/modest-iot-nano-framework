@@ -8,13 +8,13 @@
  * maintenance needs.
  *
  * The primary purpose of this example is to demonstrate the ModestLog zero-overhead
- * compile-time logging system and the Device::diagnostics() runtime health monitoring
+ * compile-time logging system and the Device::collectDiagnostics() runtime health monitoring
  * API, which are essential for production deployments.
  *
  * @par Modest IoT Nano Framework aspects illustrated:
  * - `ModestLog` zero-overhead compile-time logging with `MIOT_LOG_*` macros
  * - Log level filtering: `MIOT_LOG_I` (Info), `MIOT_LOG_W` (Warn), `MIOT_LOG_E` (Error)
- * - `Device::diagnostics()` for runtime health snapshot (`DiagnosticsSnapshot`)
+ * - `Device::collectDiagnostics()` for runtime health snapshot (`DiagnosticsSnapshot`)
  * - `EngineConfiguration` for custom task stack sizes, priorities, and core pinning
  * - `LoadCellAmplifier` for force/vibration measurement (proxy for accelerometer)
  * - `DhtSensor` for ambient temperature monitoring
@@ -89,7 +89,7 @@ static const float VIBRATION_WARNING_THRESHOLD_IN_GRAMS = 5.0f;
  * @brief Industrial equipment health monitoring device.
  *
  * This class extends the `Device` base class to manage vibration and temperature sensors,
- * using ModestLog for structured logging and Device::diagnostics() for runtime health
+ * using ModestLog for structured logging and Device::collectDiagnostics() for runtime health
  * monitoring. Custom EngineConfiguration is used to tune task parameters for industrial
  * monitoring workloads.
  */
@@ -104,7 +104,7 @@ private:
      * @brief Reports the current diagnostics snapshot to Serial.
      */
     void reportDiagnostics() {
-        DiagnosticsSnapshot diag = diagnostics();
+        DiagnosticsSnapshot diag = collectDiagnostics();
 
         MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "=== Diagnostics Report (sample #%lu) ===", sampleCount);
         MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Uptime: %lu seconds", diag.uptimeSeconds);

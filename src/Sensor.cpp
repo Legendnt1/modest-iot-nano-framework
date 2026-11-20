@@ -17,8 +17,8 @@
 /**
  * @brief Stores the target GPIO pin and optional event handler for this sensor.
  */
-Sensor::Sensor(int signalGpioPin, EventHandler* parentHandler)
-    : pin(signalGpioPin), eventHandler(parentHandler), consecutiveFailures(0), faultThreshold(0), isFaulted(false) {}
+Sensor::Sensor(const int signalGpioPin, EventHandler* parentHandler)
+     : pin(signalGpioPin), eventHandler(parentHandler), consecutiveFailures(0), faultThreshold(0), isFaulted(false) {}
 
 /**
  * @brief Processes the event locally and then forwards it to the configured handler.
