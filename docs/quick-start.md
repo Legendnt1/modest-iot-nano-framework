@@ -238,7 +238,7 @@ The device is now running continuously. The `loop()` function is empty — all w
 Now that your first device is running, explore the following resources:
 
 - **Full README** — Overview, architecture, and feature list: [README.md](../README.md)
-- **Examples** — 23 examples covering sensors, actuators, MQTT, BLE, and more: [examples/](../examples/)
+- **Examples** — 26 examples covering sensors, actuators, MQTT, BLE, and more: [examples/](../examples/)
 - **Documentation** — ADRs, user stories, evolution history, and API reference: [docs/](../docs/)
 - **Contributing Guide** — How to contribute to the framework: [CONTRIBUTING.md](../CONTRIBUTING.md)
 - **Improvements Roadmap** — Planned features and comparison tables: [docs/improvements.md](../docs/improvements.md)
@@ -246,9 +246,9 @@ Now that your first device is running, explore the following resources:
 ### Recommended Examples to Try Next
 
 1. **HomeSecurityDevice** — Demonstrates the high-priority telemetry lane: routine sensor state uses `enqueueTelemetryPayload()` while critical alerts (water leak, door opened) bypass the standard queue via `enqueueHighPriorityPayload()`. The network task processes high-priority packets first, ensuring alerts reach the MQTT broker before routine telemetry.
-2. **MultiSensorMonitor** — Add real sensors (DHT, BH1750) with the framework's sampling scheduler.
-3. **MqttTelemetry** — Connect to an MQTT broker and publish telemetry data.
-4. **BleNotify** — Expose sensor data via BLE notifications to a smartphone.
+2. **CropMonitoringStation** — Add real sensors (DHT, BH1750, soil moisture) with the framework's sampling scheduler and MQTT telemetry.
+3. **MqttTelemetryDevice** — Connect to an MQTT broker and publish environmental telemetry data with configurable topics.
+4. **IntrusionDetector** — Composite event pattern matching using `EventAggregator`: motion and door opened within a time window triggers an intrusion alert.
 
 ---
 
