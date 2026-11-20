@@ -30,7 +30,7 @@
  *
  * @par Modest IoT Nano Framework aspects illustrated:
  * - `EventAggregator` for composite event pattern matching (W31)
- * - `addPattern()` with condition functions for value-based pattern filtering
+ * - `addAllMatchPattern()` with condition functions for value-based pattern filtering
  * - `PatternCondition` callback type for triggering conditions
  * - Source-aware patterns distinguish sensors sharing the same event identifier
  *   (e.g., DATA_READ from LoadCellAmplifier vs. DhtSensor)
