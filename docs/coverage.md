@@ -156,14 +156,15 @@ The coverage report excludes files that use Arduino.h, FreeRTOS, or LittleFS API
 
 Additionally, `LCOV_EXCL_START/END` markers in `Device.cpp` exclude FreeRTOS-specific functions (ISR, task creation, queue operations, power management) that cannot run in host tests.
 
+The coverage script ensures these exclusions are visible in the final HTML report by deleting the raw `.gcda`/`.gcno` files for excluded sources before `genhtml` runs, preventing `genhtml` from re-discovering them.
+
 ### Current Coverage Numbers
 
 | Scope | Line Coverage | Functions |
 |-------|---------------|-----------|
-| **Overall (src/ only)** | **84.2%** | **86.1%** |
-| **Overall (all files)** | **92.9%** | **86.1%** |
+| **Testable code (filtered)** | **89.6%** | **86.1%** |
 
-The src/ directory coverage (84.2%) is the most meaningful metric, as it excludes test code and standard library headers.
+The filtered coverage (89.6%) is the most meaningful metric, as it excludes test code, standard library headers, and the 7 platform-specific files listed above. The genhtml report reflects only this filtered set — the excluded files do not appear in the HTML report.
 
 ## Adding Coverage to New Tests
 
