@@ -87,14 +87,14 @@ package "Core" #FAFAFA {
   DiagnosticsTelemetryPackage ..> DiagnosticsSnapshot : wraps
 
   class EventAggregator {
-    +{static} MAX_EVENT_RECORDS : uint8_t = 32
-    +{static} MAX_PATTERNS : uint8_t = 4
+    +{static} EVENT_AGGREGATOR_MAX_CAPTURED_EVENTS : uint8_t = 32
+    +{static} EVENT_AGGREGATOR_MAX_PATTERNS : uint8_t = 4
     +addPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
     +setOutputHandler(handler : EventHandler*) : void
     +on(event : Event) : void
   }
   EventHandler <|.. EventAggregator : implements
-  EventAggregator ..> Event : records
+  EventAggregator ..> Event : captures
   EventAggregator --> EventHandler : emits composite events
 
   class ConfigurationStore {

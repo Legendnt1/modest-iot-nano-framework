@@ -991,17 +991,17 @@ Optional `schemaVersion` and `firmwareVersion` fields in telemetry envelope meta
 
 **Problem**: The framework's event system supported single-event handling via `EventHandler::on(Event)`, but had no way to detect composite event patterns (e.g., "motion AND door opened within 5 seconds"). Complex automation rules required the application to track event timing manually, leading to error-prone state machines in every Device subclass.
 
-**Resolution**: Added `EventAggregator` as a framework component for composite event pattern matching with time-windowed detection. It implements `EventHandler` to intercept sensor events, records each event with its timestamp, and checks all registered patterns. When a pattern matches (all required events within the time window), it emits a composite event via the output handler.
+**Resolution**: Added `EventAggregator` as a framework component for composite event pattern matching with time-windowed detection. It implements `EventHandler` to intercept sensor events, captures each event with its timestamp, and checks all registered patterns. When a pattern matches (all required events within the time window), it emits a composite event via the output handler.
 
 **Implementation**:
 
-- **EventAggregator class** (`src/EventAggregator.h/cpp`): Implements `EventHandler` interface. Fixed-size circular buffer (32 records) for event history and fixed-size pattern array (4 patterns) — zero heap allocation.
+- **EventAggregator class** (`src/EventAggregator.h/cpp`): Implements `EventHandler` interface. Fixed-size circular buffer (32 captured events) for event history and fixed-size pattern array (4 patterns) — zero heap allocation.
 - **`addPattern()`**: Registers a composite event pattern with event identifiers, time window in seconds, and composite event identifier. Returns false if the pattern array is full.
 - **`setOutputHandler()`**: Sets the `EventHandler` that receives composite events when patterns match.
-- **`on(Event)`**: Records the event with timestamp, checks all registered patterns, and emits composite events when patterns match.
-- **Private `checkPatterns()` helper**: Iterates all patterns, checking if all required event identifiers are present in the event records within the time window.
-- **Private `cleanupExpiredRecords()` helper**: Removes event records older than the maximum pattern time window to prevent buffer growth.
-- **11 host tests**: Covering single event patterns, two-event AND patterns within/outside time windows, three-event patterns, multiple patterns, event record cleanup, circular buffer overflow, no patterns registered, pattern array full, invalid parameters, and no output handler.
+- **`on(Event)`**: Captures the event with timestamp, checks all registered patterns, and emits composite events when patterns match.
+- **Private `checkForEventPatternMatch()` helper**: Iterates all patterns, checking if all required event identifiers are present in the captured events within the time window.
+- **Private `removeExpiredCapturedEvents()` helper**: Removes captured events older than the maximum pattern time window to prevent buffer growth.
+- **11 host tests**: Covering single event patterns, two-event AND patterns within/outside time windows, three-event patterns, multiple patterns, captured event cleanup, circular buffer overflow, no patterns registered, pattern array full, invalid parameters, and no output handler.
 
 **Benefits**:
 - Composite event patterns enable complex automation rules on-device without manual state machines
