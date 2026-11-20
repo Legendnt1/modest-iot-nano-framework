@@ -12,7 +12,6 @@ set -euo pipefail
 # Requirements:
 #   - g++ (GCC, not Clang, for gcov support)
 #   - lcov package (provides genhtml)
-#   - Run on Linux (gcov behavior differs on macOS)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -24,7 +23,7 @@ MIN_COVERAGE="${MIN_COVERAGE:-80}"
 # Check for GCC (gcov does not work with Clang)
 if ! ${CXX} --version | grep -qi "gcc\|GNU"; then
     echo "ERROR: gcov requires GCC. Detected: ${CXX}"
-    echo "Set CXX=g++ to use GCC."
+    echo "Set CXX=g++ to use GCC (e.g., CXX=g++-16 on macOS with Homebrew GCC)."
     exit 1
 fi
 
@@ -36,22 +35,34 @@ if ! command -v genhtml &>/dev/null; then
     exit 1
 fi
 
-# Coverage-specific flags: instrument code, suppress line numbers in paths for cleaner reports
+# Check for lcov command (used for capturing/merging)
+if ! command -v lcov &>/dev/null; then
+    echo "ERROR: lcov not found. Install lcov package."
+    exit 1
+fi
+
+# Coverage-specific flags
 COVERAGE_FLAGS="-fprofile-arcs -ftest-coverage --coverage"
 
 # Base flags without sanitizers (sanitizers can interfere with gcov)
 BASE_FLAGS="-std=c++17 -Wall -Wextra -Werror -Itests/fakes -Isrc ${COVERAGE_FLAGS}"
 
 # Build directory for coverage artifacts
-BUILD_DIR="$(mktemp -d /tmp/modest_iot_coverage.XXXXXX)"
 COVERAGE_DIR="${PROJECT_ROOT}/build/coverage"
 rm -rf "${COVERAGE_DIR}"
 mkdir -p "${COVERAGE_DIR}"
 
-cleanup() {
-    rm -rf "${BUILD_DIR}"
-}
-trap cleanup EXIT
+# Create a gcov wrapper that suppresses .gcov file output.
+# lcov --capture calls gcov internally, and gcov writes .gcov files to the
+# current working directory by default. The wrapper passes -n to gcov so that
+# only summary text is printed (which lcov parses), and no .gcov files are
+# created in the project root.
+GCOV_WRAPPER="${COVERAGE_DIR}/gcov-wrapper.sh"
+cat > "${GCOV_WRAPPER}" << 'WRAPPER'
+#!/usr/bin/env bash
+exec gcov -n "$@"
+WRAPPER
+chmod +x "${GCOV_WRAPPER}"
 
 echo "=========================================================="
 echo " Modest IoT Code Coverage Report"
@@ -65,12 +76,11 @@ FAILED=0
 
 run_test() {
     local test_name="$1"
-    local binary="${BUILD_DIR}/${test_name}"
     shift
     local sources=("$@")
 
     echo -n "==> [BUILD] ${test_name} ... "
-    if ${CXX} ${BASE_FLAGS} "${sources[@]}" -o "${binary}" --coverage; then
+    if ${CXX} ${BASE_FLAGS} "${sources[@]}" -o "${COVERAGE_DIR}/${test_name}" --coverage; then
         echo "OK"
     else
         echo "FAILED (compilation)"
@@ -79,7 +89,7 @@ run_test() {
     fi
 
     echo -n "==> [RUN]   ${test_name} ... "
-    if "${binary}"; then
+    if "${COVERAGE_DIR}/${test_name}"; then
         echo "PASS"
         PASSED=$((PASSED + 1))
     else
@@ -465,7 +475,7 @@ if [[ ${FAILED} -ne 0 ]]; then
 fi
 
 # ============================================================================
-# Collect coverage data and generate report
+# Generate coverage report using lcov capture/merge/genhtml
 # ============================================================================
 
 echo ""
@@ -473,78 +483,119 @@ echo "=========================================================="
 echo " Generating Coverage Report"
 echo "=========================================================="
 
-# Collect all .gcda files from the build directory and current directory
-# (gcda files are created next to the corresponding .o files during test execution)
-find "${BUILD_DIR}" -name "*.gcda" -type f -print0 | xargs -0 -r gcov -b 2>/dev/null || true
+# Use lcov to capture coverage data from src/ only (excludes test code and fakes)
+# This avoids the conflicting .gcda issue because lcov reads the .gcda files
+# and merges them into a single .info file.
+INFO_FILE="${COVERAGE_DIR}/coverage.info"
 
-# Find all .gcda files (they may be in the build dir or project root)
-GCDA_FILES=$(find "${BUILD_DIR}" "${PROJECT_ROOT}/src" -name "*.gcda" -type f 2>/dev/null || true)
-
-if [[ -z "${GCDA_FILES}" ]]; then
-    echo "WARNING: No .gcda files found. Coverage data may not be available."
-    echo "This can happen if tests were run in a different environment."
-    exit 0
+echo "Capturing coverage data..."
+# .gcda files are created next to the compiled binaries (in COVERAGE_DIR),
+# not next to the source files. Point lcov at the build directory.
+# Resolve the absolute path to gcov corresponding to the CXX compiler.
+CXX_BASENAME="$(basename "${CXX}")"
+GCOV_VERSION="$(echo "${CXX_BASENAME}" | grep -o '[0-9]*$')"
+GCOV_TOOL="$(command -v "gcov-${GCOV_VERSION}" 2>/dev/null || true)"
+if [[ -z "${GCOV_TOOL}" || ! -x "${GCOV_TOOL}" ]]; then
+    echo "WARNING: Could not find gcov-${GCOV_VERSION}, trying default gcov."
+    GCOV_TOOL=""
 fi
 
-# Generate HTML report using genhtml
-# --prefix ensures clean paths in the report
-# --highlight enables line-by-line highlighting
-# --sort-name sorts by filename
-# --no-function-coverage skips function coverage (we care about lines)
-echo "Generating HTML report in ${COVERAGE_DIR}..."
-genhtml \
-    --output-directory "${COVERAGE_DIR}" \
-    --highlight \
-    --sort-name \
-    --prefix "${PROJECT_ROOT}/" \
+# Use the gcov wrapper to prevent .gcov files from being written to the
+# project root. The wrapper calls "gcov -n" which suppresses .gcov output
+# while still providing the summary text that lcov parses.
+# Try with version-specific gcov first (e.g., gcov-16 on macOS), then fall
+# back to the default gcov.
+if [[ -n "${GCOV_TOOL}" ]]; then
+    # Override the wrapper to use the version-specific gcov
+    cat > "${GCOV_WRAPPER}" << WRAPPER
+#!/usr/bin/env bash
+exec "${GCOV_TOOL}" -n "\$@"
+WRAPPER
+    chmod +x "${GCOV_WRAPPER}"
+fi
+
+lcov --capture \
+    --directory "${COVERAGE_DIR}" \
+    --output-file "${INFO_FILE}" \
+    --gcov-tool "${GCOV_WRAPPER}" \
+    --ignore-errors inconsistent,mismatch \
+    2>/dev/null || true
+
+# Check if coverage.info was created and has data
+if [[ ! -s "${INFO_FILE}" ]]; then
+    echo "ERROR: No coverage data captured. Check that gcov matches the compiler."
+    exit 1
+fi
+
+# Remove test code, fakes, and platform-specific files from coverage.
+# Platform-specific files use Arduino.h, FreeRTOS, or LittleFS APIs that cannot
+# execute in host tests. Excluding them gives an accurate picture of testable code.
+echo "Filtering out test code and platform-specific files..."
+lcov --remove "${INFO_FILE}" \
+    '*/tests/*' \
+    '*/Test*' \
+    '*/OneWireTemperatureSensor.cpp' \
+    '*/DhtSensor.cpp' \
+    '*/UltrasonicSensor.cpp' \
+    '*/LoadCellAmplifier.cpp' \
+    '*/TelemetryBuffer.cpp' \
+    '*/PowerManager.cpp' \
+    '*/GatewayClient.h' \
+    --output-file "${INFO_FILE}.clean" \
+    2>/dev/null || cp "${INFO_FILE}" "${INFO_FILE}.clean"
+mv "${INFO_FILE}.clean" "${INFO_FILE}"
+
+# Generate HTML report
+REPORT_DIR="${COVERAGE_DIR}/html"
+mkdir -p "${REPORT_DIR}"
+echo "Generating HTML report..."
+GENHTML_OUTPUT=$(genhtml \
+    --output-directory "${REPORT_DIR}" \
     --title "Modest IoT Nano Framework - Code Coverage" \
-    --no-function-coverage \
-    --demangle-cpp \
-    ${GCDA_FILES}
+    --ignore-errors inconsistent \
+    "${INFO_FILE}" 2>&1)
+
+# Extract coverage from genhtml output
+echo "${GENHTML_OUTPUT}" | grep -E "lines\.\.\.\.\.\.\." || true
 
 echo ""
 echo "=========================================================="
 echo " Coverage Report Generated"
 echo "=========================================================="
-echo " HTML report: ${COVERAGE_DIR}/index.html"
+echo " HTML report: ${REPORT_DIR}/index.html"
 echo ""
 
-# Extract overall coverage percentage from genhtml summary
-if [[ -f "${COVERAGE_DIR}/coverage.summary" ]]; then
-    echo "Coverage Summary:"
-    grep -E "lines?" "${COVERAGE_DIR}/coverage.summary" | head -5 || true
+# Extract overall coverage percentage from genhtml output
+overall_coverage=$(echo "${GENHTML_OUTPUT}" | grep "lines\.\.\.\.\.\.\." | head -1 | grep -o '[0-9]*\.[0-9]*%' | tr -d '%')
+
+if [[ -n "${overall_coverage}" ]]; then
     echo ""
+    echo "Overall line coverage: ${overall_coverage}%"
+    echo "Minimum threshold:     ${MIN_COVERAGE}%"
 
-    # Extract the overall line coverage percentage
-    overall_coverage=$(grep "^lines" "${COVERAGE_DIR}/coverage.summary" | head -1 | awk '{print $2}' | tr -d '%')
+    if (( $(echo "${overall_coverage} < ${MIN_COVERAGE}" | bc -l 2>/dev/null || echo "0") )); then
+        echo ""
+        echo "WARNING: Coverage (${overall_coverage}%) is below the minimum threshold (${MIN_COVERAGE}%)."
+        echo "The build will fail if running in CI with ENFORCE_COVERAGE=1."
 
-    if [[ -n "${overall_coverage}" ]]; then
-        echo "Overall line coverage: ${overall_coverage}%"
-        echo "Minimum threshold:     ${MIN_COVERAGE}%"
-
-        # Check against threshold
-        if (( $(echo "${overall_coverage} < ${MIN_COVERAGE}" | bc -l 2>/dev/null || echo "0") )); then
-            echo ""
-            echo "WARNING: Coverage (${overall_coverage}%) is below the minimum threshold (${MIN_COVERAGE}%)."
-            echo "The build will fail if running in CI with ENFORCE_COVERAGE=1."
-
-            if [[ "${ENFORCE_COVERAGE:-0}" == "1" ]]; then
-                echo "ERROR: Coverage threshold not met. Failing build."
-                exit 1
-            fi
-        else
-            echo "✓ Coverage threshold met."
+        if [[ "${ENFORCE_COVERAGE:-0}" == "1" ]]; then
+            echo "ERROR: Coverage threshold not met. Failing build."
+            exit 1
         fi
+    else
+        echo "✓ Coverage threshold met."
     fi
 else
-    echo "Note: coverage.summary not found. Check the HTML report for details."
+    echo ""
+    echo "Note: Could not extract coverage percentage. Check the HTML report for details."
 fi
 
 echo ""
-echo "To view the report: open ${COVERAGE_DIR}/index.html in a browser."
+echo "To view the report: open ${REPORT_DIR}/index.html in a browser."
 echo "=========================================================="
 
 # Clean up .gcda and .gcno files from project directory
+# (.gcov files are no longer generated — the gcov wrapper uses -n to suppress them)
 find "${PROJECT_ROOT}/src" -name "*.gcda" -delete 2>/dev/null || true
 find "${PROJECT_ROOT}/src" -name "*.gcno" -delete 2>/dev/null || true
 
