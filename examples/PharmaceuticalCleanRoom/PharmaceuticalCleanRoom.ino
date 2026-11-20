@@ -316,7 +316,7 @@ public:
         int ledPin)
         : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, 0)
         , pressureSensor(pthPin, PthSensor::DEFAULT_I2C_ADDRESS, &aggregatorLevel1)
-        , tempSensor(DhtSensor::DHT_TYPE_11, dhtPin, &aggregatorLevel1)
+        , tempSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT11, &aggregatorLevel1)
         , gasSensor(gasPin, &aggregatorLevel1)
         , doorSensor(doorPin, &aggregatorLevel1)
         , hvacRelay(relayPin, this)

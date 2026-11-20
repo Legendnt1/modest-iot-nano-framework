@@ -314,7 +314,7 @@ public:
                    LOAD_CELL_MIN_WEIGHT_IN_GRAMS, LOAD_CELL_MAX_WEIGHT_IN_GRAMS,
                    LOAD_CELL_MIN_RAW_VALUE, LOAD_CELL_MAX_RAW_VALUE,
                    LOAD_CELL_FILTER_DEPTH, &aggregator)
-        , tempSensor(DhtSensor::DHT_TYPE_11, dhtPin, this)
+        , tempSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT11, this)
         , coolerRelay(relayPin, this)
         , buzzer(buzzerPin, this)
         , statusLed(ledPin, false, this)
