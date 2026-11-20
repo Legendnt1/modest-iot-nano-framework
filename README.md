@@ -513,6 +513,7 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
 | [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 56 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
+| [`docs/benchmarks.md`](docs/benchmarks.md) | Performance comparison table with 9 metrics: Flash, RAM, latency, throughput, queue depth, stack, heap, serialization, and power. |
 
 ### Project Standards
 
@@ -668,7 +669,7 @@ Contributions, improvements, and extensions are welcome under the Apache License
 ## Future Directions
 
 - **v1.3.0**: Rules Engine for dynamic rule management on top of EventAggregator (W29).
-- **Benchmark Publication**: Hardware-measured performance comparison table.
+- **Benchmark Publication**: See [docs/benchmarks.md](docs/benchmarks.md) for the performance comparison table.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **Edge Framework Phase 2.5**: Matter Bridge to expose Nano devices via Matter ecosystem.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.

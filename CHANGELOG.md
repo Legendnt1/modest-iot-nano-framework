@@ -6,6 +6,10 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 ### Added
 
+#### Benchmark Table
+- **docs/benchmarks.md**: Performance comparison table with 9 metrics comparing traditional `loop()`, Modest IoT v1.1.2, and v1.2.0. Covers Flash, RAM, latency, throughput, queue depth, stack usage, heap, serialization time, and power consumption. Values derived from source code analysis (exact constants and configuration) with a validation methodology for future hardware-measured measurements. Key findings: ~220-230 KB Flash (v1.2.0), ~40-50 KB RAM, zero heap allocation in critical path, ~30-40 KB Flash saved by ArduinoJson removal (W46), and ESP-IDF variant planned at ~180 KB (~73% reduction).
+- **README.md**: Added benchmarks.md to Documentation Map and updated Future Directions to link to the published document.
+
 #### HomeSecurityDevice Example — High-Priority Lane Demonstration
 - **examples/HomeSecurityDevice/HomeSecurityDevice.ino**: Extended with MQTT gateway integration and two TelemetryPackage subclasses to demonstrate the high-priority telemetry lane (W32). `SecurityStatusTelemetryPackage` uses `enqueueTelemetryPayload()` for routine status updates (door closed, motion stopped, leak cleared). `SecurityAlertTelemetryPackage` uses `enqueueHighPriorityPayload()` for critical alerts (water leak, door opened), with `"priority": "high"` in the JSON envelope. The `on(Event)` handler clearly shows which events go to which queue.
 - **tests/TelemetryPackage/test.cpp**: Added 3 golden tests (tests 16–18) for `SecurityStatusTelemetryPackage` (routine, no priority field), `SecurityAlertTelemetryPackage` with `markAsHighPriority()` (priority field present), and `SecurityAlertTelemetryPackage` without `markAsHighPriority()` (no priority field).
