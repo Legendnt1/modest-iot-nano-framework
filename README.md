@@ -515,6 +515,7 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 | [`docs/benchmarks.md`](docs/benchmarks.md) | Performance comparison table with 9 metrics: Flash, RAM, latency, throughput, queue depth, stack, heap, serialization, and power. |
 | [`docs/coverage.md`](docs/coverage.md) | Code coverage guide: local execution with gcov/lcov, CI integration, threshold configuration, and report interpretation. |
+| [`docs/dependencies.md`](docs/dependencies.md) | External dependencies list with update processes: Dependabot for GitHub Actions, manual monitoring for MQTT library and ESP32 core. |
 
 ### Project Standards
 
