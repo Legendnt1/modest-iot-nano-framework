@@ -25,7 +25,11 @@ jobs:
           sudo apt-get install -y doxygen graphviz
 
       - name: Generate Doxygen HTML
-        run: doxygen docs/Doxyfile
+        run: |
+          doxygen docs/Doxyfile
+          # Copy assets/branding/ so the README logo path resolves correctly
+          mkdir -p docs/build/html/assets/branding
+          cp assets/branding/logo.png docs/build/html/assets/branding/
 
       - name: Upload Doxygen HTML
         uses: actions/upload-artifact@v4
