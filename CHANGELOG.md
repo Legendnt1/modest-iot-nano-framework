@@ -4,6 +4,12 @@ All notable changes to the Modest IoT Nano Framework will be documented in this 
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-20
+
+### Fixed
+
+- **.github/workflows/release.yml**: Doxygen logo image now displays correctly in the generated HTML. The README.md logo path (`assets/branding/logo.png`) is relative to the project root, but Doxygen outputs HTML to `docs/build/html/`. The release workflow now copies `assets/branding/logo.png` to `docs/build/html/assets/branding/` after Doxygen generation so the relative path resolves correctly.
+
 ### Added
 
 #### Automated Release Workflow
