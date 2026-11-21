@@ -87,11 +87,15 @@ static const char* FIRMWARE_VERSION = "AC-500 FW 1.0.0";
 
 /** @name Pin Definitions */
 //@{
-
+/** @brief GPIO pin connected to the DHT22 data line. */
 static const int HUMIDITY_AND_TEMPERATURE_SENSOR_PIN    = 4;
-static const int TARGET_TEMPERATURE_UP_BUTTON_PIN       = 12;
-static const int TARGET_TEMPERATURE_DOWN_BUTTON_PIN     = 14;
+/** @brief GPIO pin of the "+" button (GPIO 12 is avoided: it is an ESP32 boot strapping pin). */
+static const int TARGET_TEMPERATURE_UP_BUTTON_PIN       = 26;
+/** @brief GPIO pin of the "-" button. */
+static const int TARGET_TEMPERATURE_DOWN_BUTTON_PIN     = 27;
+/** @brief I2C address of the PCF8574 LCD backpack (SDA = GPIO 21, SCL = GPIO 22). */
 static const int STATUS_DISPLAY_ADDRESS                 = 0x27;
+/** @brief GPIO PWM pin driving the vent servo. */
 static const int AIR_HANDLER_PIN                        = 13;
 //@} // Pin Definitions
 
@@ -162,7 +166,7 @@ class AirConditioningDevice : public Device {
      */
     AirConditioningDevice(int dhtPin, int upPin, int downPin, uint8_t lcdAddr, int servoPin)
         : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, TIMER_GROUP_INDEX),
-        humidityAndTemperatureSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT22),
+        humidityAndTemperatureSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT22, this),
         targetTemperatureUpButton(upPin, BUTTON_DEBOUNCE_IN_MILLISECONDS, this),
         targetTemperatureDownButton(downPin, BUTTON_DEBOUNCE_IN_MILLISECONDS, this),
         statusDisplay(lcdAddr, LCD_COLUMNS, LCD_ROWS, this),
@@ -184,12 +188,13 @@ class AirConditioningDevice : public Device {
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
 
-        // 3. Launch FreeRTOS execution background engines
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
-        // 4. Initial rendering pass to populate both display lines
+        // 3. Initial rendering pass to populate both display lines. It runs before the engine
+        // starts so that only the sampler task touches the I2C bus afterwards.
         updateCurrentMeasureDisplay();
         updateTargetMeasureDisplay();
+
+        // 4. Launch FreeRTOS execution background engines
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
