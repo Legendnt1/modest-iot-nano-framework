@@ -52,7 +52,18 @@ static const uint32_t NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS = 0;
  * I2C sensors do not use a dedicated signal GPIO; this value only identifies the event source.
  */
 static const int I2C_LIGHT_SENSOR_SOURCE_ID = 0;
+
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
 //@} // Default Configuration Constants
+
+/** @name Sensor Health Messages */
+//@{
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = "[CropMonitoringStation] DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = "[CropMonitoringStation] DHT22 recovered.";
+//@} // Sensor Health Messages
 
 /** @name Telemetry JSON Keys */
 //@{
@@ -184,21 +195,6 @@ class CropMonitoringStation : public Device {
 
     public:
     /**
-     * @brief A localized event identifier for soil moisture data readings.
-     */
-    static const int SOIL_MOISTURE_EVENT_IDENTIFIER = 100;
-
-    /**
-     * @brief A localized event identifier for air temperature/humidity readings.
-     */
-    static const int AIR_TEMPERATURE_EVENT_IDENTIFIER = 101;
-
-    /**
-     * @brief A localized event identifier for sunlight intensity readings.
-     */
-    static const int LIGHT_INTENSITY_EVENT_IDENTIFIER = 102;
-
-    /**
      * @brief Constructs a new CropMonitoringStation application instance.
      *
      * Initializes the device with multiple sensors at different sampling intervals,
@@ -235,21 +231,23 @@ class CropMonitoringStation : public Device {
         // Set sampling intervals before registration so the scheduler uses the correct periods
         soilSensor.setSamplingIntervalInMilliseconds(soilSamplingIntervalInMilliseconds);
         airSensor.setSamplingIntervalInMilliseconds(airSamplingIntervalInMilliseconds);
+        // Report a fault after consecutive failed DHT22 readings instead of failing silently
+        airSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         lightSensor.setSamplingIntervalInMilliseconds(lightSamplingIntervalInMilliseconds);
 
         // Register sensors
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
         // Register the soil moisture sensor (most frequent: every 30s)
-        appendSensorToScheduler(&soilSensor, SOIL_MOISTURE_EVENT_IDENTIFIER, soilSamplingIntervalInMilliseconds,
+        appendSensorToScheduler(&soilSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, soilSamplingIntervalInMilliseconds,
                                 NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Register the DHT air sensor (every 60s)
-        appendSensorToScheduler(&airSensor, AIR_TEMPERATURE_EVENT_IDENTIFIER, airSamplingIntervalInMilliseconds,
+        appendSensorToScheduler(&airSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, airSamplingIntervalInMilliseconds,
                                 NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Register the light intensity sensor (least frequent: every 120s)
-        appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds,
+        appendSensorToScheduler(&lightSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds,
                                 NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Launch internal background task workers with a small queue for battery operation
@@ -262,6 +260,15 @@ class CropMonitoringStation : public Device {
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT22 health: skip the snapshot while it has no valid reading
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == airSensor.getPin()) {
+            Serial.println(SENSOR_FAULT_MESSAGE);
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == airSensor.getPin()) {
+            Serial.println(SENSOR_RECOVERED_MESSAGE);
+        }
+
         // Package and queue a unified telemetry record for MQTT publishing.
         // The record includes the latest readings from all three sensors,
         // ensuring the MQTT payload always reflects the most current state.
