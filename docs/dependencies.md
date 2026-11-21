@@ -12,7 +12,7 @@ This document lists all external dependencies of the Modest IoT Nano Framework a
 
 ### Status Badges
 
-The README displays two dynamic shields.io badges that are updated weekly by the [Dependency Status](../../.github/workflows/dependency-status.yml) workflow:
+The README displays two dynamic shields.io badges that are updated weekly by the [Dependency Status](../.github/workflows/dependency-status.yml) workflow:
 
 - **MQTT badge**: Shows the current minimum version. Turns orange if a newer release is available on GitHub.
 - **ESP32 badge**: Shows the latest ESP32 Arduino core release version. CI always installs the latest, so this is informational.
@@ -72,7 +72,7 @@ Dependabot checks for updates monthly. Review the Dependabot PR changelog for br
 
 ## Dependency Status Workflow
 
-The [Dependency Status](../../.github/workflows/dependency-status.yml) workflow runs weekly (Monday at 09:00 UTC) and can also be triggered manually via `workflow_dispatch`. It:
+The [Dependency Status](../.github/workflows/dependency-status.yml) workflow runs weekly (Monday at 09:00 UTC) and can also be triggered manually via `workflow_dispatch`. It:
 
 1. Fetches the latest MQTT release version from the [256dpi/arduino-mqtt](https://github.com/256dpi/arduino-mqtt) GitHub API.
 2. Fetches the latest ESP32 Arduino core release version from the [espressif/arduino-esp32](https://github.com/espressif/arduino-esp32) GitHub API.

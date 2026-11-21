@@ -1,5 +1,5 @@
-17
+22
 # Línea base de avisos de Doxygen aceptados (primer número del archivo).
 # build_docs.py falla si hay más avisos que este valor. Redúcelo cuando se corrijan avisos.
 # Origen actual: referencias \ref no resolubles a archivos Markdown enlazados desde README.md
-# (README.md se incluye en la entrada de docs/Doxyfile). Detalle en build/docs/doxygen-warnings.log.
+# y desde docs/improvements.md (README.md se incluye en la entrada de docs/Doxyfile). Detalle en build/docs/doxygen-warnings.log.

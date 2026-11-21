@@ -664,7 +664,7 @@ class StatusIndicator : public Device {
     }
 
     void start() {
-        Device::setFirmwareVersion("STI-909 FW 1.0.0");
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
     }
 
     ~StatusIndicator() override {
@@ -672,19 +672,26 @@ class StatusIndicator : public Device {
     }
 };
 
-StatusIndicator* indicator;
+static const int SYSTEM_DIAGNOSTIC_LED_PIN = 2;
+static const unsigned long BLINK_RATE_IN_MILLISECONDS = 500;
+static const uint8_t CORE_TIMER_CHANNEL = 0;
+
+static StatusIndicator* statusIndicatorApplication = nullptr;
 
 void setup() {
-    Serial.begin(115200);
-    indicator = new StatusIndicator();
-    indicator->start();
+    Serial.begin(SERIAL_BAUD_RATE);
+    statusIndicatorApplication = new StatusIndicator(SYSTEM_DIAGNOSTIC_LED_PIN, BLINK_RATE_IN_MILLISECONDS, CORE_TIMER_CHANNEL);
+    statusIndicatorApplication->start();
 }
 
 void loop() {
-    // Framework handles everything asynchronously
-    vTaskDelay(portTICK_PERIOD_MS);
+    vTaskDelay(pdMS_TO_TICKS(MAIN_LOOP_DELAY_IN_MILLISECONDS));
 }
 ```
+
+> **Note (registration order):** `initializeAsynchronousEngine()` sets `engineStarted = true`, and every `appendSensorToScheduler()` / `appendSensorToTriggeringScheduler()` / `appendToBothSchedulers()` call made afterwards returns `false` (or handle `0`). Always register sensors and timer events **before** starting the engine, and check the return value. All sketches in `examples/` follow this order.
+
+> **Note (named constants):** examples avoid magic numbers and strings. Pins, intervals, queue depths, initial states, firmware versions, MQTT client IDs, display layout values and serial messages are declared as documented `static const` values at the top of each sketch. Format strings passed to `MODEST_LOG_*` / `MIOT_LOG_*` are `#define` macros instead, because on ESP32 those macros concatenate string literals at compile time.
 
 For complete, grounded examples with connectivity, telemetry, and cloud integration, see the [Examples](#examples) section (26 sketches covering MQTT, HTTP, BLE, TLS, deep sleep, battery monitoring, offline buffering, OTA updates, and composite event patterns).
 

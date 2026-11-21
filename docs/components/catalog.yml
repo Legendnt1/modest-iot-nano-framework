@@ -14,7 +14,8 @@ categories:
     title: Núcleo
     description: >-
       Contratos de eventos y comandos, la clase mediadora `Device`, el planificador de
-      muestreo y el contrato de serialización de telemetría.
+      muestreo, el agregador de eventos compuestos (`EventAggregator`) y el contrato de
+      serialización de telemetría (`TelemetryWriter`, escritor y parser JSON).
     hardware: >-
       La lógica se compila y prueba en el host con dobles de prueba (`tests/fakes`);
       la ejecución real requiere un ESP32 con el core Arduino-ESP32.
@@ -25,7 +26,12 @@ categories:
       - EventHandler
       - CommandHandler
       - TelemetryPackage
+      - DiagnosticsTelemetryPackage
+      - TelemetryWriter
+      - JsonTelemetryWriter
+      - JsonParser
       - SamplingScheduler
+      - EventAggregator
 
   - id: types
     title: Tipos de datos
@@ -38,6 +44,8 @@ categories:
       - GatewayStatistics
       - LocationData
       - RgbColor
+      - CapturedEvent
+      - EventPattern
 
   - id: sensors
     title: Sensores

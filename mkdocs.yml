@@ -123,6 +123,10 @@ nav:
   - Desarrollo:
       - Extender el framework: extending.md
       - Generar y validar la documentación: development.md
+      - Proceso de release (inglés): release.md
+      - Dependencias (inglés): dependencies.md
+      - Benchmarks (inglés): benchmarks.md
+      - Cobertura de tests (inglés): coverage.md
       - Contribuir: contributing.md
   - Ayuda:
       - Limitaciones y compatibilidad: limitations.md

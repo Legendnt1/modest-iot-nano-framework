@@ -5,7 +5,6 @@ This document describes the complete release process for the Modest IoT Nano Fra
 ## Table of Contents
 
 - [Overview](#overview)
-- [Release Workflow](#release-workflow)
 - [Git Flow Helper Plugin Process](#git-flow-helper-plugin-process)
 - [Automated Release Workflow](#automated-release-workflow)
 - [Pre-Release Checklist](#pre-release-checklist)
