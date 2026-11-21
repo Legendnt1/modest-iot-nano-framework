@@ -384,7 +384,6 @@ void Device::executeNetworkDispatchContext(void *taskParameters) {
 
 /**
  * @brief Handles framework-internal commands before dispatching to handle().
- * @param command The command to check.
  * @return True if the command was a framework command and was consumed.
  *
  * Currently handles the diagnostics command (commandId = 300).
