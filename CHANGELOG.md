@@ -2,6 +2,143 @@
 
 All notable changes to the Modest IoT Nano Framework will be documented in this file.
 
+## [Unreleased]
+
+## [1.2.0] - 2026-11-20
+
+### Fixed
+
+- **.github/workflows/release.yml**: Doxygen logo image now displays correctly in the generated HTML. The README.md logo path (`assets/branding/logo.png`) is relative to the project root, but Doxygen outputs HTML to `docs/build/html/`. The release workflow now copies `assets/branding/logo.png` to `docs/build/html/assets/branding/` after Doxygen generation so the relative path resolves correctly.
+
+### Added
+
+#### Automated Release Workflow
+- **.github/workflows/release.yml**: Automated release workflow triggered on version tag push (e.g., `v1.2.0`). Validation (host tests, coverage, compile examples, lint) is performed by the existing CI workflows when the release branch is pushed, ensuring all checks pass before merging to `main` and `develop`. The tag-triggered workflow assumes validation passed and focuses on generating Doxygen HTML API reference and creating a GitHub Release with changelog body and artifacts (library ZIP, Doxygen HTML ZIP). Doxygen generation runs first; the release job depends on Doxygen and uploads both the library source ZIP (following `library.json` export rules) and the Doxygen HTML ZIP as release assets.
+- **docs/release.md**: Complete release process documentation covering the Git Flow Helper Plugin process (Release Start, Release Publish, manual merge, Release Finish), two-phase validation (release branch CI via existing workflows, then tag workflow for artifacts), pre-release checklist with CI verification gate, version bump instructions for all 7 version-managed files (4 core + 3 documentation), registry publishing (Arduino Library Manager auto-index, PlatformIO manual/automated), post-release steps, and troubleshooting.
+- **CONTRIBUTING.md**: Updated Version Management section to document all 7 version-managed files (4 core + 3 documentation) with a note that other docs/ files contain historical version references that should not be updated during a release.
+
+#### Code Coverage Reporting
+- **tests/run_coverage.sh**: Coverage runner script that compiles all 49 test suites with gcov instrumentation (`-fprofile-arcs -ftest-coverage`), runs them, and generates an HTML coverage report using lcov's `genhtml`. Supports configurable minimum coverage threshold (default 80%) via `MIN_COVERAGE` environment variable, and optional enforcement via `ENFORCE_COVERAGE=1`. Runs without sanitizers to avoid gcov interference. Requires GCC (not Clang) and the lcov package. Includes a gcov wrapper that suppresses `.gcov` annotated source files from being written to the project root. Platform-specific files (OneWireTemperatureSensor.cpp, DhtSensor.cpp, UltrasonicSensor.cpp, LoadCellAmplifier.cpp, TelemetryBuffer.cpp, PowerManager.cpp, GatewayClient.h) are excluded from the coverage report and deleted from the build directory before `genhtml` runs, so the HTML report reflects only testable code (89.6% line coverage).
+- **src/Device.cpp**: Added `LCOV_EXCL_START/END` markers to exclude FreeRTOS-specific functions from coverage: ISR handler, task creation, queue operations, command marshaling, diagnostics collection, power management, and engine stop. These ~200 lines cannot execute in host tests.
+- **.github/workflows/host-tests.yml**: Added `coverage` job that runs on Ubuntu, installs lcov and bc, executes the coverage script, uploads the HTML report as a `coverage-report` artifact (14-day retention), and posts the coverage summary to the GitHub step summary.
+- **.gitignore**: Added `*.gcov`, `*.gcda`, `*.gcno` to prevent accidental commits of gcov coverage artifacts.
+- **docs/coverage.md**: Documentation covering local execution, CI integration, coverage threshold configuration, tool selection rationale, report interpretation, expected gaps, platform-specific file exclusions, and limitations.
+
+#### Dependency Update Monitoring
+- **.github/dependabot.yml**: Dependabot configuration for automated GitHub Actions version monitoring. Checks monthly for updates to `actions/checkout`, `actions/upload-artifact`, `arduino/arduino-lint-action`, and `arduino/setup-arduino-cli`. Opens pull requests with conventional commit prefix (`ci`) and labels (`dependencies`, `ci`) when new versions are available.
+- **.github/workflows/dependency-status.yml**: Weekly workflow (Monday 09:00 UTC) that checks MQTT and ESP32 Arduino core versions via the GitHub Releases API. Compares MQTT against the minimum version in `library.properties`, updates `.badges/mqtt.json` and `.badges/esp32.json`, and commits the changes. Badges are displayed in README.md via shields.io endpoint badges. Can also be triggered manually via `workflow_dispatch`.
+- **.badges/mqtt.json**: Shields.io endpoint badge JSON for MQTT library version status. Green when up-to-date, orange when a newer release is available.
+- **.badges/esp32.json**: Shields.io endpoint badge JSON for ESP32 Arduino core version. Shows the latest release version (informational, since CI always installs latest).
+- **README.md**: Added two dynamic shields.io badges for MQTT and ESP32 dependency status.
+- **docs/dependencies.md**: Documentation listing all external dependencies (MQTT library, ESP32 Arduino core, GitHub Actions) with update processes. Dependabot handles GitHub Actions automatically; MQTT and ESP32 are monitored via the weekly Dependency Status workflow with shields.io badges.
+
+#### Benchmark Table
+- **docs/benchmarks.md**: Performance comparison table with 9 metrics comparing traditional `loop()`, Modest IoT v1.1.2, and v1.2.0. Covers Flash, RAM, latency, throughput, queue depth, stack usage, heap, serialization time, and power consumption. Values derived from source code analysis (exact constants and configuration) with a validation methodology for future hardware-measured measurements. Key findings: ~220-230 KB Flash (v1.2.0), ~40-50 KB RAM, zero heap allocation in critical path, ~30-40 KB Flash saved by ArduinoJson removal (W46), and ESP-IDF variant planned at ~180 KB (~73% reduction).
+- **README.md**: Added benchmarks.md to Documentation Map and updated Future Directions to link to the published document.
+
+#### HomeSecurityDevice Example — High-Priority Lane Demonstration
+- **examples/HomeSecurityDevice/HomeSecurityDevice.ino**: Extended with MQTT gateway integration and two TelemetryPackage subclasses to demonstrate the high-priority telemetry lane (W32). `SecurityStatusTelemetryPackage` uses `enqueueTelemetryPayload()` for routine status updates (door closed, motion stopped, leak cleared). `SecurityAlertTelemetryPackage` uses `enqueueHighPriorityPayload()` for critical alerts (water leak, door opened), with `"priority": "high"` in the JSON envelope. The `on(Event)` handler clearly shows which events go to which queue.
+- **tests/TelemetryPackage/test.cpp**: Added 3 golden tests (tests 16–18) for `SecurityStatusTelemetryPackage` (routine, no priority field), `SecurityAlertTelemetryPackage` with `markAsHighPriority()` (priority field present), and `SecurityAlertTelemetryPackage` without `markAsHighPriority()` (no priority field).
+
+#### Schema Registry (W33)
+- **TelemetryPackage per-package schema version**: Each TelemetryPackage subclass can declare its own schema version via `schemaVersionValue`. The `setVersionMetadata()` method now falls back to the global `Device::setTelemetrySchemaVersion()` only when the per-package version is not set, enabling safe telemetry schema evolution.
+- **DiagnosticsTelemetryPackage**: Declares `static constexpr const char* SCHEMA_VERSION = "1.0"` and sets `schemaVersionValue` in the constructor.
+- **Examples updated**: `SmartBandTelemetryPackage` (SmartBandMqtt), `SecurityStatusTelemetryPackage` and `SecurityAlertTelemetryPackage` (HomeSecurityDevice) now declare per-package schema versions.
+- **tests/TelemetryPackage/test.cpp**: Added 2 new tests (tests 20–21): per-package schema version priority over global schema, and fallback to global schema when per-package is not set. Updated DiagnosticsTelemetryPackage golden test (test 19) to include schema version in expected JSON output.
+
+#### Event Aggregator (W31)
+- **src/EventAggregator.h/cpp**: New component for composite event pattern matching with time-windowed detection. Implements `EventHandler` to intercept events from sensors. Captures each event with its timestamp and sourceId in a fixed-size circular buffer (32 captured events, zero heap allocation). Supports up to 4 composite patterns with AND logic (all required events must occur within the time window). When a pattern matches, emits a composite event via the output handler.
+- **EventAggregator::addAllMatchPattern()**: Three overloads — the original accepts event identifiers only (matches any source), the second accepts per-position source ID arrays, and the third adds a triggering condition function. Use `EventAggregator::ANY_SOURCE` for a position to match any source, or a specific pin number to require that exact source. This is essential when multiple sensors share the same event identifier (e.g., DATA_READ from LoadCellAmplifier vs. DhtSensor). All `addAllMatchPattern()` overloads use AND logic: all required events must occur within the time window.
+- **EventAggregator::addAnyMatchPattern()**: Two overloads for OR logic — the first accepts event identifiers only, the second adds per-position source ID filtering. Unlike `addAllMatchPattern()` which requires all events to occur, `addAnyMatchPattern()` emits the composite event when **any one** of the listed events occurs within the time window. For example, "motion OR door opened within 10 seconds" triggers an alert when either event occurs. OR and AND patterns can coexist in the same aggregator, sharing the 4-pattern slot limit.
+- **EventAggregator::PatternLogic**: Enum (`And` / `Or`) that determines the matching strategy for each pattern. `addAllMatchPattern()` sets `PatternLogic::And`, `addAnyMatchPattern()` sets `PatternLogic::Or`. The matching logic in `on(Event)` checks the pattern's logic type and applies the appropriate strategy.
+- **EventAggregator::PatternCondition**: Function pointer type (`bool (*)(int compositeEventId)`) for triggering conditions. The developer defines a function that receives the composite event ID as context and checks sensor values at the moment a pattern matches (e.g., "is cargo bay empty?"). If the condition returns `false`, the composite event is suppressed even though the event identifiers matched. The compositeEventId allows a single condition function to handle multiple patterns differently. Pass `nullptr` to always emit. The condition runs on the interrupt context, so keep it short.
+- **EventAggregator::ANY_SOURCE**: Public constant (value -1) for use in source ID filter arrays. Makes pattern definitions self-documenting and avoids magic numbers.
+- **EventAggregator::DEVICE_SOURCE_ID**: Public constant (value 0) that is automatically attached as the `sourceId` of every composite event. Sensors use positive pin numbers as sourceId, so this constant distinguishes composite events from sensor events. Enables source-aware pattern matching in nested aggregators: the second aggregator can filter by `DEVICE_SOURCE_ID` to match only composite events from the first aggregator, not raw sensor events.
+- **EventAggregator::removePattern()**: Removes a registered pattern by its composite event ID and frees the slot for reuse. Returns `true` if the pattern was found and removed, `false` if not found. After removal, the freed slot can be reused by a subsequent `addAllMatchPattern()` call. This enables dynamic rule management for the W29 Rules Engine.
+- **EventAggregator::cleanupPatterns()**: Removes all registered patterns in one call so developers do not need to track and remove each pattern individually. Typically called from the Device destructor before `stopAsynchronousEngine()`. After this call, no composite events are emitted until new patterns are registered.
+- **EventAggregator::setOutputHandler()**: Sets the `EventHandler` that receives composite events when patterns match.
+- **examples/IntrusionDetector/IntrusionDetector.ino**: Example focused on **standard patterns** that always emit when event identifiers match within the time window. Demonstrates two composite patterns: intrusion alert (motion AND door opened within 10 seconds triggers buzzer and LED) and leak near entry (water leak AND door opened within 30 seconds triggers buzzer). Uses the basic `addAllMatchPattern()` overload without condition functions. Sensors dispatch events to the EventAggregator instead of directly to the Device, illustrating the event chaining pattern: sensors → EventAggregator → Device::on(Event). Demonstrates proper housekeeping with `cleanupPatterns()` in the destructor to remove registered patterns before stopping the asynchronous engine.
+- **examples/ColdChainMonitor/ColdChainMonitor.ino**: IIoT example focused on **conditional patterns** where a triggering condition function determines whether the composite event is emitted. Demonstrates refrigerated truck cargo bay monitoring with three composite patterns: energy save (door opened AND weight change within 30 seconds, **only if** cargo bay is empty — uses `PatternCondition` to check LoadCellAmplifier weight), unauthorized access (door opened AND motion stopped within 60 seconds, standard pattern), and loading/unloading active (weight change AND door opened AND motion detected within 120 seconds, standard pattern). Uses source-aware patterns to distinguish DATA_READ from LoadCellAmplifier (pin 4) from other sensors sharing the same event identifier. Uses DoorWindowSensor, PassiveInfraredSensor, LoadCellAmplifier (hybrid scheduling), DhtSensor, RelayActuator, Buzzer, and Led. Demonstrates proper housekeeping with `cleanupPatterns()` in the destructor to remove registered patterns and clear the static condition function pointer before stopping the asynchronous engine.
+- **examples/PharmaceuticalCleanRoom/PharmaceuticalCleanRoom.ino**: IIoT example focused on **nested EventAggregator chains** where composite events from one aggregator feed into another, forming a multi-level pattern detection chain. Demonstrates pharmaceutical clean room monitoring with 3 aggregator levels: Level 1 detects environmental deviations (pressure breach using AND pattern, environmental anomaly using OR pattern via `addAnyMatchPattern()`), Level 2 correlates deviations into contamination risks (pressure breach AND environmental anomaly), and Level 3 triggers batch quarantine. Uses `EventAggregator::DEVICE_SOURCE_ID` for source filtering between levels to match only composite events from upstream aggregators. Uses PthSensor (pressure, I2C), DhtSensor (temperature), GasSensor (VOC/particles), DoorWindowSensor, RelayActuator (HVAC lockdown), Buzzer, and Led. Demonstrates `removePattern()` for dynamic pattern removal and `cleanupPatterns()` on all aggregator levels in the destructor.
+- **tests/EventAggregator/test.cpp**: 43 host tests covering single event patterns, two-event AND patterns within/outside time windows, three-event patterns, multiple patterns, captured event cleanup, circular buffer overflow, no patterns registered, pattern array full, invalid parameters, no output handler, reverse event order, time window boundary conditions, duplicate event identifiers, repeated pattern matches, shared events across patterns, source-aware exact match, source-aware wrong source rejection, source-aware wildcard, mixed exact and wildcard sources, two patterns with different sources on the same identifier, backward compatibility with the original API, condition function receives compositeEventId (emits), condition function returns false (suppresses), nullptr condition (always emits), condition-based sensor value check (practical ColdChainMonitor scenario), shared condition function handling multiple patterns via compositeEventId, remove existing pattern (no longer fires), remove non-existent pattern (returns false), remove and re-add pattern (slot reuse), remove middle pattern (array compaction), cleanup all patterns (removes all and allows re-registration), OR pattern single event triggers, OR pattern neither event fires, OR pattern with source filtering, OR pattern time window expiry, mixed AND and OR patterns coexisting, OR pattern array full, OR pattern remove and cleanup (slot reuse with AND pattern), nested aggregators basic chain (two aggregators chained via setOutputHandler), nested aggregators source filtering by DEVICE_SOURCE_ID (second aggregator matches only composite events, rejects sensor-source events), and nested aggregators three-level chain (three aggregators chained sequentially).
+
+#### Remote Diagnostics (W41)
+- **src/DiagnosticsTelemetryPackage.h/cpp**: New TelemetryPackage subclass that wraps `DiagnosticsSnapshot` for on-demand diagnostics telemetry. When the cloud sends a diagnostics command (commandId = 300), the device creates this package from `Device::collectDiagnostics()` and enqueues it via the standard telemetry queue. The JSON output contains all 14 health metrics (missedTicks, packetsEnqueued, highPriorityEnqueued, sendsSucceeded, freeHeapBytes, etc.) plus envelope metadata.
+- **Device::handleInternalCommand(Command)**: New private method that handles framework-internal commands (diagnostics, commandId = 300) before dispatching to `handle()`. Returns `true` if consumed, `false` otherwise. This keeps `handle()` purely for developer-defined custom commands.
+- **Device::handle(Command)**: Restored as a pure no-op override. Derived classes override this for their custom commands. Framework-internal commands are handled separately by `handleInternalCommand()` in `processPendingCommands()`, so the developer's `handle()` receives only custom commands.
+- **Device::processPendingCommands()**: Now calls `handleInternalCommand()` first for each command. If not consumed, dispatches to `targetHandler->handle()` for developer-defined custom commands.
+- **tests/TelemetryPackage/test.cpp**: Added golden test (test 19) for `DiagnosticsTelemetryPackage` verifying all 14 fields are present with correct values in the JSON output.
+
+#### High-Priority Telemetry Lane (W32)
+- **Device::enqueueHighPriorityPayload()**: Pushes a high-priority payload into a separate bounded FreeRTOS queue (4 slots). The network task checks this queue first (non-blocking) before polling the standard telemetry queue, ensuring critical alerts are transmitted before routine telemetry.
+- **TelemetryPackage::markAsHighPriority()**: Marks a package as high-priority, adding `"priority": "high"` to the JSON envelope metadata for edge-side routing.
+- **TelemetryPackage::isHighPriority()**: Accessor returning whether the high-priority flag is set.
+- **DiagnosticsSnapshot extension**: New fields `highPriorityEnqueued`, `highPriorityDropped`, and `highPriorityQueueHighWaterMark` to monitor high-priority queue pressure and dropped alerts.
+
+### Changed
+
+#### Device Queue Management Refactoring
+- **Device::assignEnvelopeMetadata()**: Extracted shared helper for timestamp, sequence, and version assignment, used by both `enqueueTelemetryPayload()` and `enqueueHighPriorityPayload()`.
+- **Device::drainTelemetryQueue()**: Extracted static helper for queue drain-delete-null pattern in `stopAsynchronousEngine()`. Made `static` since it operates only on its parameter.
+
+#### Examples — Destructor Safety
+- **9 Device subclasses** replaced `= default` destructors with proper `stopAsynchronousEngine()` calls: BleVitalsTransmitter, ClimateDataUploader, EquipmentHealthMonitor, IndoorAirQualityDisplay, MqttTlsDevice, OtaUpdateDevice, PipeTemperatureMonitor, RemoteLedController, SmartBandMqtt. Ensures the engine stops before sensor/actuator member destruction.
+
+#### StatusIndicator Example Refinement
+- **examples/StatusIndicator/StatusIndicator.ino**: Added `start()` method for post-construction initialization (firmware version), replacing inline `Device::setFirmwareVersion()` in `setup()`. Added proper destructor calling `stopAsynchronousEngine()` before member destruction. Reorganized constants into Doxygen groups (Engine Configuration, Device Configuration, Serial Output Configuration, Hardware Configuration) and extracted firmware version as named constant. Simplified `setup()` to: serial init → construct → `start()` → log.
+
+#### Quick Start Guide Enhancement
+- **docs/quick-start.md**: Added `HomeSecurityDevice` to the Recommended Examples list with a description of the high-priority telemetry lane (`enqueueTelemetryPayload()` vs `enqueueHighPriorityPayload()`), directing users ready for advanced features to this example after completing the StatusIndicator onboarding.
+
+#### JsonParser Framework Utility
+- **src/JsonParser.h/cpp**: Native JSON parser for flat key-value payloads with zero heap allocation. Five static methods: `parseInt()`, `parseInt32()`, `parseFloat()`, `parseBool()`, and `parseString()`. Private `findJsonValue()` helper eliminates duplicated key-finding logic across all parse methods. Replaces file-scope static functions in MqttGatewayClient with a framework-wide utility accessible to developers building custom devices.
+- **tests/JsonParser/test.cpp**: 20 host tests covering all five parse methods, null input handling, missing keys, buffer overflow protection, and the MQTT command format (parseInt + parseInt32).
+
+#### MQTT QoS and Retained Messages (W34)
+- **MqttGatewayClient**: Added configurable Quality of Service (QoS 0, 1, or 2) for both publish and subscribe operations, and retained message support for last-known-good telemetry. New constructor parameters `publishQos`, `subscribeQos`, and `retainedFlag` with backward-compatible defaults (QoS 0, non-retained). New setter/getter methods: `setPublishQoS()`, `getPublishQoS()`, `setSubscribeQoS()`, `getSubscribeQoS()`, `setRetained()`, `getRetained()`.
+- **MqttGatewayClient**: Migrated from file-scope static JSON parser functions to `JsonParser::parseInt()` and `JsonParser::parseInt32()` for incoming MQTT command parsing.
+
+#### TelemetryWriter Abstraction (W46)
+- **src/TelemetryWriter.h**: Abstract interface for telemetry field serialization with pure virtual `field()` overloads for `int32_t`, `float`, `bool`, and `const char*`. Decouples telemetry packages from the JSON serialization format, enabling future format writers (CBOR, MessagePack, binary).
+- **src/JsonTelemetryWriter.h/cpp**: Native `snprintf`-based JSON writer implementation using a 512-byte fixed stack buffer. Zero heap allocation per serialization, automatic comma handling, buffer overflow detection, and string escaping for special characters.
+- **TelemetryPackage::serializeToBuffer()**: Single-call serialization pipeline that encapsulates envelope metadata, data fields, finalization, overflow check, and memcpy. Replaces the 6-step `JsonTelemetryWriter` manual sequence in each gateway client.
+
+#### GasSensor Enum-to-String Utilities
+- **GasSensor::gasTypeName()**: Static method returning human-readable names for all 11 `GasType` enum values (LPG, CH4, CO, Alcohol, Propane, H2, Smoke, NH3, Benzene, Toluene, Acetone).
+- **GasSensor::operatingModeName()**: Static method returning display names for all 3 `OperatingMode` enum values (RAW, CALIBRATING, ACCURATE).
+
+#### ArduinoJson Dependency Removed (W46)
+- **TelemetryPackage.h**: Replaced `serialize(JsonDocument&)` with `write(TelemetryWriter&)` pure virtual method. Removed `toDocument()` method, simplified `toJsonString()` to use `JsonTelemetryWriter`. Eliminated `JsonDocument` type from the public API.
+- **MqttGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Replaced `deserializeJson()` with `JsonParser::parseInt()`/`JsonParser::parseInt32()` for command extraction. Removed `#include <ArduinoJson.h>`.
+- **BleGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Removed `#include <ArduinoJson.h>`.
+- **HttpGatewayClient.cpp**: Replaced `JsonDocument` with `serializeToBuffer()` for telemetry serialization. Removed `#include <ArduinoJson.h>`.
+- **library.properties**: Removed `ArduinoJson >=7.0.0` from `depends=`. Only MQTT >=2.5.3 remains as an external dependency.
+- **library.json**: Removed `ArduinoJson >=7.0.0` from dependencies. Only MQTT >=2.5.3 remains.
+
+#### API Improvements
+- **GatewayClient.h**: Renamed parameter `abstractTelemetryPayload` to `telemetryPackage` in `sendTelemetryRecord()` declaration.
+- **MqttGatewayClient.h/cpp**: Fixed `mqttMessageCallback` signature from `const String&` to `String&` to match MQTT Things library callback typedef.
+- **TelemetryWriter/JsonTelemetryWriter**: Parameter naming convention `v` → `value` across all `field()` overloads, with "The [description]" Doxygen format.
+
+#### Examples Migrated
+- **SmartBandMqtt, BleVitalsTransmitter, AirQualityMonitor, CropMonitoringStation, ClimateDataUploader, MqttTlsDevice**: All 6 examples with TelemetryPackage subclasses migrated from `serialize(JsonDocument&)` to `write(TelemetryWriter&)`. Replaced `doc["key"] = value` with `writer.field("key", value)`.
+- **Telemetry field type consistency**: Changed all `int` member variables in TelemetryPackage subclasses to `int32_t` to match `TelemetryWriter::field()` overloads and avoid platform-dependent ambiguity (where `int` differs from `int32_t` on some architectures like x86_64 Linux). Affected examples: **SmartBandMqtt** (`heartBeatsPerMinute`), **BleVitalsTransmitter** (`heartBeatsPerMinute`), **AirQualityMonitor** (`operatingMode`), **CropMonitoringStation** (`soilMoisture`). Developers using these examples as templates should update any custom `int` fields to `int32_t` when upgrading.
+- **AirQualityMonitor**: Replaced custom `getGasTypeName()` function with `GasSensor::gasTypeName()`. Replaced hardcoded operating mode strings with `GasSensor::operatingModeName()`.
+
+#### Tests Migrated
+- **7 TelemetryPackage test subclasses** across 5 test files migrated to `write(TelemetryWriter&)` API.
+- **15 golden tests** rewritten for insertion-order JSON output (envelope metadata fields first, then data fields).
+- **tests/fakes/ArduinoJson.h** (253 lines) deleted. Replaced with `tests/fakes/TelemetryWriter.h` simple mock.
+
+### Changed
+
+#### CI Workflow — Coverage Job
+- **.github/workflows/host-tests.yml**: Added a separate `coverage` job alongside the existing `host-tests` matrix job. The coverage job runs on Ubuntu only (gcov requires GCC), installs lcov and bc, and generates an HTML coverage report. The existing host-tests job continues to run with sanitizers on both Ubuntu and macOS, unchanged.
+
+### Removed
+
+- **ArduinoJson dependency**: Eliminated ~30-40 KB Flash usage and per-serialization heap allocation. The framework now has only one external dependency (MQTT >=2.5.3).
+
 ## [1.1.2] - 2026-11-17
 
 ### Added

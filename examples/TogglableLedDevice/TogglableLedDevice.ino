@@ -75,13 +75,14 @@ class TogglableLedDevice : public Device {
         // 1. Register the button for interrupt-driven operation (FALLING edge).
         // The GPIO interrupt fires on button press, and the sampler task handles
         // debouncing via processEvent(). This eliminates polling latency.
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToTriggeringScheduler(&toggleLedButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
 
-        // 2. Launch internal background task workers
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
+        // 2. Launch internal background task workers with a safe queue boundary depth of 5
+        initializeAsynchronousEngine(5);
     }
 
     /**

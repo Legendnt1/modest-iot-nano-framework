@@ -22,7 +22,6 @@
 
 #include <Arduino.h>
 #include <memory>
-#include <ArduinoJson.h>
 #include <ModestIoT.h>
 
 /** @name Default Configuration Constants */
@@ -79,7 +78,7 @@ static const int I2C_LIGHT_SENSOR_SOURCE_ID = 0;
  */
 class CropMonitoringTelemetryPackage : public TelemetryPackage {
     private:
-    int soilMoisture;
+    int32_t soilMoisture;
     float airTemperatureInCelsius;
     float airHumidityInPercentage;
     float lightIntensityInLux;
@@ -97,11 +96,11 @@ class CropMonitoringTelemetryPackage : public TelemetryPackage {
 
     ~CropMonitoringTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_SOIL_MOISTURE]              = this->soilMoisture;
-        serializationDestination[JSON_KEY_AIR_TEMPERATURE_IN_CELSIUS]   = this->airTemperatureInCelsius;
-        serializationDestination[JSON_KEY_AIR_HUMIDITY_IN_PERCENTAGE]   = this->airHumidityInPercentage;
-        serializationDestination[JSON_KEY_LIGHT_INTENSITY_IN_LUX]       = this->lightIntensityInLux;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_SOIL_MOISTURE, this->soilMoisture);
+        writer.field(JSON_KEY_AIR_TEMPERATURE_IN_CELSIUS, this->airTemperatureInCelsius);
+        writer.field(JSON_KEY_AIR_HUMIDITY_IN_PERCENTAGE, this->airHumidityInPercentage);
+        writer.field(JSON_KEY_LIGHT_INTENSITY_IN_LUX, this->lightIntensityInLux);
     }
 };
 //@} // Concrete Application Data Schema Specification
@@ -238,6 +237,9 @@ class CropMonitoringStation : public Device {
         airSensor.setSamplingIntervalInMilliseconds(airSamplingIntervalInMilliseconds);
         lightSensor.setSamplingIntervalInMilliseconds(lightSamplingIntervalInMilliseconds);
 
+        // Register sensors
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         // Register the soil moisture sensor (most frequent: every 30s)
         appendSensorToScheduler(&soilSensor, SOIL_MOISTURE_EVENT_IDENTIFIER, soilSamplingIntervalInMilliseconds,
                                 NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
@@ -247,11 +249,9 @@ class CropMonitoringStation : public Device {
                                 NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Register the light intensity sensor (least frequent: every 120s)
-        appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds,
-                                NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
+        appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds, 0);
 
         // Launch internal background task workers with a small queue for battery operation
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 

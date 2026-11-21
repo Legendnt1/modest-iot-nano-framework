@@ -97,13 +97,55 @@ int main() {
     // Test 12: CommandEntry parameterized constructor
     {
         struct FakeHandler : CommandHandler {
-            void handle(Command) override {}
+            void handle(const Command) override {}
         };
         FakeHandler handler;
         Device::CommandEntry entry(&handler, Command{42});
         assert(entry.targetHandler == &handler);
         assert(entry.command.identifier == 42);
         std::printf("  [PASS] CommandEntry parameterized constructor\n");
+    }
+
+    // Test 13: DiagnosticsSnapshot high-priority fields default to zero
+    {
+        DiagnosticsSnapshot snapshot;
+        assert(snapshot.highPriorityEnqueued == 0);
+        assert(snapshot.highPriorityDropped == 0);
+        assert(snapshot.highPriorityQueueHighWaterMark == 0);
+        std::printf("  [PASS] DiagnosticsSnapshot high-priority fields default to zero\n");
+    }
+
+    // Test 14: TelemetryPackage high-priority in JSON output
+    {
+        class HighPriorityTelemetryPackage : public TelemetryPackage {
+        public:
+            void write(TelemetryWriter& writer) const override {
+                writer.field("code", static_cast<int32_t>(42));
+            }
+        };
+        HighPriorityTelemetryPackage highPriority;
+        highPriority.setEnvelopeMetadata(1000, 1);
+        highPriority.markAsHighPriority();
+        String json = highPriority.toJsonString();
+        assert(json.find("\"priority\"") != String::npos);
+        assert(json.find("\"high\"") != String::npos);
+        assert(json.find("\"code\"") != String::npos);
+        std::printf("  [PASS] TelemetryPackage high-priority in JSON output\n");
+    }
+
+    // Test 15: TelemetryPackage without high-priority has no priority field
+    {
+        class NormalTelemetryPackage : public TelemetryPackage {
+        public:
+            void write(TelemetryWriter& writer) const override {
+                writer.field("value", static_cast<int32_t>(1));
+            }
+        };
+        NormalTelemetryPackage normal;
+        normal.setEnvelopeMetadata(1000, 2);
+        String json = normal.toJsonString();
+        assert(json.find("\"priority\"") == String::npos);
+        std::printf("  [PASS] TelemetryPackage without high-priority has no priority field\n");
     }
 
     std::printf("All Device tests passed successfully!\n");

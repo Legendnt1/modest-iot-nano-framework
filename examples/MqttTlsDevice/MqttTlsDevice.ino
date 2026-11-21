@@ -56,10 +56,10 @@ class EnvironmentalTelemetryPackage : public TelemetryPackage {
 
     ~EnvironmentalTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_TEMPERATURE_CELSIUS]   = this->temperatureInCelsius;
-        serializationDestination[JSON_KEY_HUMIDITY_PERCENTAGE]   = this->humidityInPercentage;
-        serializationDestination[JSON_KEY_PRESSURE_HECTOPASCALS] = this->pressureInHectopascals;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_TEMPERATURE_CELSIUS, this->temperatureInCelsius);
+        writer.field(JSON_KEY_HUMIDITY_PERCENTAGE, this->humidityInPercentage);
+        writer.field(JSON_KEY_PRESSURE_HECTOPASCALS, this->pressureInHectopascals);
     }
 };
 //@} // Concrete Application Data Schema Specification
@@ -99,13 +99,16 @@ class MqttTlsDevice : public Device {
           environmentalSensor(sensorPin, PthSensor::DEFAULT_I2C_ADDRESS, this),
           gatewayClient(client)
     {
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&environmentalSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(MQTT_TLS_SAMPLER_QUEUE_LENGTH);
     }
 
-    ~MqttTlsDevice() override = default;
+    ~MqttTlsDevice() override {
+        stopAsynchronousEngine();
+    }
 
     void on(Event event) override {
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {

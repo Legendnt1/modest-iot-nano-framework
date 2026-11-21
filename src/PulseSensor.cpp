@@ -9,7 +9,7 @@
 #include "PulseSensor.h"
 #include <Arduino.h>
 
-PulseSensor::PulseSensor(int analogInputGpioPin, EventHandler* parentHandler)
+PulseSensor::PulseSensor(const int analogInputGpioPin, EventHandler* parentHandler)
     : Sensor(analogInputGpioPin, parentHandler),
       cachedBeatsPerMinute(0),
       sampleSignalValue(0),

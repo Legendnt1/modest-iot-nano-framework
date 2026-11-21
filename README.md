@@ -1,15 +1,26 @@
-<p align="center">
-  <img src="assets/branding/logo.png" alt="Modest IoT Nano Framework logo" height="100" />
-</p>
+<div style="text-align: center;">
+
+![Modest IoT Nano Framework logo](assets/branding/logo.png)
+
+</div>
 
 # Modest IoT Nano Framework (C++ Edition)
 
-[![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://github.com/modest-iot/modest-iot-nano-framework)
+[![Host Unit Tests](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/host-tests.yml/badge.svg)](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/host-tests.yml)
+[![Compile Examples](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/compile-examples.yml/badge.svg)](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/compile-examples.yml)
+[![Lint](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/lint.yml/badge.svg)](https://github.com/modest-iot/modest-iot-nano-framework/actions/workflows/lint.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Platform](https://img.shields.io/badge/Platform-ESP32-orange.svg)](https://espressif.com/en/products/socs/esp32)
+[![Version](https://img.shields.io/github/v/tag/modest-iot/modest-iot-nano-framework?sort=semver)](https://github.com/modest-iot/modest-iot-nano-framework/releases)
+[![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://librarymanager/all#Modest-IoT-Nano-Framework)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/modest-iot/library/Modest-IoT-Nano-Framework.svg)](https://registry.platformio.org/libraries/modest-iot/Modest-IoT-Nano-Framework)
+[![MQTT](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modest-iot/modest-iot-nano-framework/develop/.badges/mqtt.json)](https://github.com/256dpi/arduino-mqtt)
+[![ESP32](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modest-iot/modest-iot-nano-framework/develop/.badges/esp32.json)](https://github.com/espressif/arduino-esp32)
 
-**Version**: 1.1.2  
+**Version**: 1.2.0  
 **Author**: Angel Velasquez  
 **Date created**: 2025-03-23  
-**Last updated**: 2026-11-17
+**Last updated**: 2026-11-20
 
 > **Git Flow**: This project uses Git Flow. `main` holds release versions (tagged `v1.0.0`, etc.), `develop` is the integration branch, and feature branches (e.g., `feature/W27-firmware-version`) merge into `develop`.
 
@@ -21,7 +32,7 @@ Modest IoT Nano Framework (C++ Edition) is a lightweight, object-oriented, event
 
 The framework uses a **Mediator pattern** where a `Device` subclass owns and coordinates its sensors and actuators. Sensors emit events that propagate synchronously through the mediator, which issues commands to actuators. Telemetry flows through a queue-based pipeline from the sampler task to the network task, keeping sensor polling and network transmission isolated.
 
-This repository contains the C++ edition of the framework. A MicroPython edition is planned as a separate distribution. The [`examples/`](examples/) folder includes 23 grounded real-world devices; start with [`StatusIndicator`](examples/StatusIndicator/) for the simplest usage demonstration.
+This repository contains the C++ edition of the framework. A MicroPython edition is planned as a separate distribution. The [`examples/`](examples/) folder includes 26 grounded real-world devices; start with [`StatusIndicator`](examples/StatusIndicator/) for the simplest usage demonstration.
 
 ## Key Characteristics
 
@@ -55,6 +66,7 @@ This repository contains the C++ edition of the framework. A MicroPython edition
 | `TelemetryBuffer` | Persistent telemetry buffer using LittleFS with monotonic indices for offline storage and FIFO replay — no file shifting overhead. |
 | `PowerManager` | Battery voltage sensing via ADC with configurable voltage divider, level calculation, and low-battery alerts. |
 | `OtaUpdateHandler` | Over-The-Air firmware update service with hostname configuration, password protection, and progress callbacks. |
+| `EventAggregator` | Composite event pattern matching with AND/OR logic, source-aware matching, conditional patterns, nested aggregators, and dynamic pattern management. |
 
 ### Sensors
 
@@ -211,10 +223,10 @@ Set `MODEST_LOG_LEVEL` in your build flags or sketch to control verbosity. At le
 
 ## Diagnostics
 
-Call `device.diagnostics()` to get a `DiagnosticsSnapshot` with 12 runtime health fields:
+Call `device.collectDiagnostics()` to get a `DiagnosticsSnapshot` with 12 runtime health fields:
 
 ```cpp
-DiagnosticsSnapshot health = device.diagnostics();
+DiagnosticsSnapshot health = device.collectDiagnostics();
 Serial.printf("Free heap: %u bytes\n", health.freeHeapBytes);
 Serial.printf("Packets dropped: %u\n", health.packetsDropped);
 Serial.printf("Sampler stack free: %u words\n", health.samplerStackFreeWords);
@@ -391,7 +403,7 @@ HttpGatewayClient httpGateway(wifiDriver, "https://api.example.com/device/teleme
 
 ## Examples
 
-The framework ships with 23 example sketches demonstrating various use cases:
+The framework ships with 26 example sketches demonstrating various use cases:
 
 | Example | Description |
 |---|---|
@@ -400,7 +412,7 @@ The framework ships with 23 example sketches demonstrating various use cases:
 | `RemoteLedController` | MQTT-connected RGB smart lamp controlled by cloud commands; demonstrates `enqueueCommand()`, `RgbLed`, and cloud-to-device CQRS flow. |
 | `IndoorAirQualityDisplay` | Desktop BME680 air quality monitor with OLED display; demonstrates `EnvironmentalGasSensor`, `OledDisplay`, and drawing primitives. |
 | `PipeTemperatureMonitor` | DS18B20 pipe freeze alarm with RGB LED and buzzer; demonstrates `OneWireTemperatureSensor` and fault detection. |
-| `EquipmentHealthMonitor` | Industrial equipment health dashboard; demonstrates `ModestLog`, `Device::diagnostics()`, and `EngineConfiguration`. |
+| `EquipmentHealthMonitor` | Industrial equipment health dashboard; demonstrates `ModestLog`, `Device::collectDiagnostics()`, and `EngineConfiguration`. |
 | `SmartBandMqtt` | Wearable device with pulse, DHT temperature/humidity, and button; publishes via MQTT. |
 | `AirConditioningDevice` | HVAC monitor with DHT sensor, buttons, and LCD display; demonstrates I²C actuator on sampler task. |
 | `AirQualityMonitor` | Gas sensor with MQTT telemetry; demonstrates keep-alive and reconnection. |
@@ -418,10 +430,13 @@ The framework ships with 23 example sketches demonstrating various use cases:
 | `MqttTlsDevice` | Secure environmental monitor with encrypted MQTT (TLS); demonstrates `WiFiConnectivityDriver::createSecureSocket()` builder method for TLS socket creation. |
 | `WeatherStation` | Battery-powered weather station with deep sleep, DHT22, BH1750, and PthSensor; demonstrates `PowerManager` for battery voltage sensing, adaptive power mode switching (Periodic → DeepSleep on low battery), and RTC-persisted low-battery state. |
 | `OtaUpdateDevice` | Minimal device with DHT22 and OTA firmware updates; demonstrates `OtaUpdateHandler` with hostname configuration, password protection, progress/error/start/end callbacks, and `service()` in `maintainNetworkServices()`. |
+| `IntrusionDetector` | Motion, door, and water leak sensors with composite event patterns; demonstrates `EventAggregator` standard AND patterns for home security. |
+| `ColdChainMonitor` | Refrigerated truck cargo bay monitoring; demonstrates `EventAggregator` conditional patterns with `PatternCondition` callbacks for IIoT cold chain logistics. |
+| `PharmaceuticalCleanRoom` | Clean room environmental monitoring; demonstrates `EventAggregator` nested 3-level aggregator chains, OR patterns, and `DEVICE_SOURCE_ID` for IIoT pharmaceutical manufacturing. |
 
 ## Testing
 
-The framework includes 47 host unit test suites that run natively without hardware:
+The framework includes 49 host unit test suites that run natively without hardware:
 
 | Suite | What It Tests |
 |---|---|
@@ -472,6 +487,8 @@ The framework includes 47 host unit test suites that run natively without hardwa
 | `tests/LoadCellAmplifier/` | HX711 load cell amplifier, weight calculation, tare, power down/up cycle |
 | `tests/GeolocationSensor/` | GPS NMEA parsing, GGA/RMC sentences, coordinate conversion, location change detection |
 | `tests/Device/` | Device base class, engine initialization, scheduler integration, telemetry pipeline |
+| `tests/EventAggregator/` | Composite event patterns, AND/OR logic, source-aware matching, condition functions, nested aggregators, dynamic pattern management |
+| `tests/JsonParser/` | JSON parsing utilities, token extraction, Bearer token parsing |
 
 Run all tests locally:
 
@@ -496,8 +513,12 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/user-stories.md`](docs/user-stories.md) | 19 user stories covering functional and non-functional requirements. |
 | [`docs/improvements.md`](docs/improvements.md) | Active work items, comparison tables, and future work. |
 | [`docs/evolution.md`](docs/evolution.md) | Historical record of completed work items W1–W28 with implementation details. |
-| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 51 source headers. |
+| [`docs/class-diagram.puml`](docs/class-diagram.puml) | PlantUML class diagram covering all 56 source headers. |
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
+| [`docs/benchmarks.md`](docs/benchmarks.md) | Performance comparison table with 9 metrics: Flash, RAM, latency, throughput, queue depth, stack, heap, serialization, and power. |
+| [`docs/coverage.md`](docs/coverage.md) | Code coverage guide: local execution with gcov/lcov, CI integration, threshold configuration, and report interpretation. |
+| [`docs/dependencies.md`](docs/dependencies.md) | External dependencies list with update processes: Dependabot for GitHub Actions, weekly status badges for MQTT library and ESP32 core. |
+| [`docs/release.md`](docs/release.md) | Complete release process: Git Flow Helper Plugin steps, automated release workflow, version bump, registry publishing, and troubleshooting. |
 
 ### Project Standards
 
@@ -548,7 +569,7 @@ The `Documentation` workflow (`.github/workflows/docs.yml`) builds and validates
 2. Go to **Tools > Manage Libraries...** (or press `Ctrl+Shift+I` / `Cmd+Shift+I`).
 3. Search for **Modest IoT Nano Framework**.
 4. Click **Install** to install the latest version.
-5. The required dependencies (`ArduinoJson` and `MQTT`) will be installed automatically.
+5. The required dependency (`MQTT`) will be installed automatically.
 
 **Option 2: Manual Installation**
 
@@ -556,8 +577,7 @@ The `Documentation` workflow (`.github/workflows/docs.yml`) builds and validates
 2. **Install as Library**:
    - Copy the repository to your Arduino libraries directory (e.g., `~/Arduino/libraries/ModestIoT/` on macOS/Linux or `Documents\Arduino\libraries\ModestIoT\` on Windows).
    - Alternatively, in the Arduino IDE: Sketch > Include Library > Add .ZIP Library.
-3. **Install Dependencies**: The framework requires the following Arduino libraries (install via Library Manager):
-   - `ArduinoJson (>=7.0.0)` (for telemetry serialization)
+3. **Install Dependencies**: The framework requires the following Arduino library (install via Library Manager):
    - `MQTT (>=2.5.3)` (for `MqttGatewayClient`)
 4. **Verify Structure**: The library should be organized as:
    ```plaintext
@@ -642,30 +662,31 @@ class StatusIndicator : public Device {
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
         }
     }
+
+    void start() {
+        Device::setFirmwareVersion("STI-909 FW 1.0.0");
+    }
+
+    ~StatusIndicator() override {
+        stopAsynchronousEngine();
+    }
 };
 
-static const int SYSTEM_DIAGNOSTIC_LED_PIN = 2;
-static const unsigned long BLINK_RATE_IN_MILLISECONDS = 500;
-static const uint8_t CORE_TIMER_CHANNEL = 0;
-
-static StatusIndicator* statusIndicatorApplication = nullptr;
+StatusIndicator* indicator;
 
 void setup() {
-    Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion(FIRMWARE_VERSION);
-    statusIndicatorApplication = new StatusIndicator(SYSTEM_DIAGNOSTIC_LED_PIN, BLINK_RATE_IN_MILLISECONDS, CORE_TIMER_CHANNEL);
+    Serial.begin(115200);
+    indicator = new StatusIndicator();
+    indicator->start();
 }
 
 void loop() {
-    vTaskDelay(pdMS_TO_TICKS(MAIN_LOOP_DELAY_IN_MILLISECONDS));
+    // Framework handles everything asynchronously
+    vTaskDelay(portTICK_PERIOD_MS);
 }
 ```
 
-> **Note (registration order):** in `src/Device.cpp`, `initializeAsynchronousEngine()` sets `engineStarted = true`, and every `appendSensorToScheduler()` / `appendSensorToTriggeringScheduler()` / `appendToBothSchedulers()` call made afterwards returns `false` (or handle `0`). Always register sensors and timer events **before** starting the engine, and check the return value. All sketches in `examples/` follow this order.
-
-> **Note (named constants):** examples avoid magic numbers and strings. Pins, intervals, queue depths, initial states, firmware versions, MQTT client IDs, display layout values and serial messages are declared as documented `static const` values at the top of each sketch. Format strings passed to `MODEST_LOG_*` / `MIOT_LOG_*` are `#define` macros instead, because on ESP32 those macros concatenate string literals at compile time.
-
-For complete, grounded examples with connectivity, telemetry, and cloud integration, see the [Examples](#examples) section (23 sketches covering MQTT, HTTP, BLE, TLS, deep sleep, battery monitoring, offline buffering, and OTA updates).
+For complete, grounded examples with connectivity, telemetry, and cloud integration, see the [Examples](#examples) section (26 sketches covering MQTT, HTTP, BLE, TLS, deep sleep, battery monitoring, offline buffering, OTA updates, and composite event patterns).
 
 ## Notes
 
@@ -691,9 +712,8 @@ Contributions, improvements, and extensions are welcome under the Apache License
 
 ## Future Directions
 
-- **v1.2.0**: Event aggregation for composite sensor rules (W29).
-- **PlatformIO Registry**: Manual submission for professional IoT developer discoverability.
-- **Benchmark Publication**: Hardware-measured performance comparison table.
+- **v1.3.0**: Rules Engine for dynamic rule management on top of EventAggregator (W29).
+- **Benchmark Publication**: See [docs/benchmarks.md](docs/benchmarks.md) for the performance comparison table.
 - **Edge Framework Phase 1**: Python-based edge server with MQTT broker, device registry, and telemetry ingestion.
 - **Edge Framework Phase 2.5**: Matter Bridge to expose Nano devices via Matter ecosystem.
 - **MicroPython Edition**: A planned port to MicroPython in a separate repository.

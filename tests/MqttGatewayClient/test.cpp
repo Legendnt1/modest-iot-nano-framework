@@ -4,7 +4,7 @@
 #include "WiFiConnectivityDriver.h"
 #include "TelemetryPackage.h"
 #include "Command.h"
-#include <ArduinoJson.h>
+#include "JsonTelemetryWriter.h"
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -45,7 +45,7 @@ public:
 // Mock concrete telemetry package for testing serialization and dispatch
 class SampleTelemetryPackage : public TelemetryPackage {
 private:
-    int sensorId;
+    int32_t sensorId;
     float readingValue;
 
 public:
@@ -54,9 +54,9 @@ public:
 
     ~SampleTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& destination) const override {
-        destination["id"] = sensorId;
-        destination["value"] = readingValue;
+    void write(TelemetryWriter& writer) const override {
+        writer.field("id", sensorId);
+        writer.field("value", readingValue);
     }
 };
 
@@ -74,7 +74,7 @@ public:
         // No-op for tests
     }
 
-    void handle(Command command) override {
+    void handle(const Command command) override {
         lastCommandId = command.identifier;
         handleCallCount++;
     }
@@ -535,6 +535,115 @@ public:
 
         // Subscribe should NOT have been called
         assert(MQTTClient::subscribeCount == 0);
+    }
+
+    // =========================================================================
+    // Test 15: QoS and retained default values
+    // =========================================================================
+    {
+        MQTTClient::resetMockState();
+        fakeMillis = 1000;
+
+        MockConnectivityDriver mockDriver;
+        Client fakeSocket;
+        MqttGatewayClient gateway(mockDriver, fakeSocket, "192.168.1.100", 1883,
+                                   "telemetry/out", "Node-14");
+
+        assert(gateway.getPublishQoSLevel() == 0);
+        assert(gateway.getSubscribeQoSLevel() == 0);
+        assert(gateway.getRetainedFlag() == false);
+    }
+
+    // =========================================================================
+    // Test 16: QoS and retained setter/getter round-trip
+    // =========================================================================
+    {
+        MQTTClient::resetMockState();
+        fakeMillis = 1000;
+
+        MockConnectivityDriver mockDriver;
+        Client fakeSocket;
+        MqttGatewayClient gateway(mockDriver, fakeSocket, "192.168.1.100", 1883,
+                                   "telemetry/out", "Node-15");
+
+        gateway.setPublishQoSLevel(1);
+        gateway.setSubscribeQoSLevel(2);
+        gateway.setRetainedFlag(true);
+
+        assert(gateway.getPublishQoSLevel() == 1);
+        assert(gateway.getSubscribeQoSLevel() == 2);
+        assert(gateway.getRetainedFlag() == true);
+
+        gateway.setPublishQoSLevel(0);
+        gateway.setRetainedFlag(false);
+
+        assert(gateway.getPublishQoSLevel() == 0);
+        assert(gateway.getRetainedFlag() == false);
+    }
+
+    // =========================================================================
+    // Test 17: Publish with QoS 1
+    // =========================================================================
+    {
+        MQTTClient::resetMockState();
+        fakeMillis = 1000;
+
+        MockConnectivityDriver mockDriver;
+        Client fakeSocket;
+        MqttGatewayClient gateway(mockDriver, fakeSocket, "192.168.1.100", 1883,
+                                   "telemetry/out", nullptr, nullptr, "Node-16",
+                                   1, 0, false);
+
+        SampleTelemetryPackage package(1, 1.0f);
+        gateway.sendTelemetryRecord(package);
+
+        assert(MQTTClient::publishCount == 1);
+        assert(MQTTClient::lastPublishQos == 1);
+        assert(MQTTClient::lastPublishRetained == false);
+    }
+
+    // =========================================================================
+    // Test 18: Publish with retained flag
+    // =========================================================================
+    {
+        MQTTClient::resetMockState();
+        fakeMillis = 1000;
+
+        MockConnectivityDriver mockDriver;
+        Client fakeSocket;
+        MqttGatewayClient gateway(mockDriver, fakeSocket, "192.168.1.100", 1883,
+                                   "telemetry/out", nullptr, nullptr, "Node-17",
+                                   0, 0, true);
+
+        SampleTelemetryPackage package(1, 1.0f);
+        gateway.sendTelemetryRecord(package);
+
+        assert(MQTTClient::publishCount == 1);
+        assert(MQTTClient::lastPublishQos == 0);
+        assert(MQTTClient::lastPublishRetained == true);
+    }
+
+    // =========================================================================
+    // Test 19: Subscribe with QoS 1
+    // =========================================================================
+    {
+        MQTTClient::resetMockState();
+        fakeMillis = 1000;
+
+        MockConnectivityDriver mockDriver;
+        Client fakeSocket;
+        MockDevice mockDevice;
+        MqttGatewayClient gateway(mockDriver, fakeSocket, "192.168.1.100", 1883,
+                                   "telemetry/out", "commands/in", &mockDevice, "Node-18",
+                                   0, 1, false);
+
+        // Trigger connection via send
+        SampleTelemetryPackage package(1, 1.0f);
+        gateway.sendTelemetryRecord(package);
+
+        assert(MQTTClient::subscribeCount == 1);
+        assert(MQTTClient::lastSubscribeTopic == "commands/in");
+        assert(MQTTClient::lastSubscribeQos == 1);
     }
 
     std::printf("All MqttGatewayClient and WiFi Reconnection tests passed successfully!\n");

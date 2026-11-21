@@ -41,7 +41,7 @@ struct EngineConfiguration {
  * @brief Runtime health snapshot containing stack, heap, queue, and timing metrics.
  * @ingroup core_module
  *
- * Returned by value from `Device::diagnostics()`. Stack margins are reported in
+ * Returned by value from `Device::collectDiagnostics()`. Stack margins are reported in
  * FreeRTOS `StackType_t` words (4 bytes on ESP32), not raw bytes.
  */
 struct DiagnosticsSnapshot {
@@ -51,6 +51,9 @@ struct DiagnosticsSnapshot {
     uint32_t    packetsDropped          = 0; ///< Total telemetry packets dropped due to full queue.
     uint32_t    packetsDroppedOldest    = 0; ///< Total oldest packets dropped to make room for new ones.
     uint8_t     queueHighWaterMark      = 0; ///< Maximum queue depth observed.
+    uint32_t    highPriorityEnqueued        = 0; ///< Total high-priority packets successfully enqueued.
+    uint32_t    highPriorityDropped         = 0; ///< Total high-priority packets dropped due to full high-priority queue.
+    uint8_t     highPriorityQueueHighWaterMark = 0; ///< Maximum high-priority queue depth observed.
     uint32_t    sendsSucceeded          = 0; ///< Successful gateway transmissions.
     uint32_t    sendsFailed             = 0; ///< Failed gateway transmissions.
     uint32_t    freeHeapBytes           = 0; ///< Current free heap in bytes.
@@ -87,6 +90,7 @@ private:
     static constexpr uint32_t   TASK_TERMINATION_WAIT_IN_MILLISECONDS           = 100; ///< Wait time for task termination.
     static constexpr int        INVALID_EVENT_IDENTIFIER                        = -1; ///< Sentinel for invalid event identifier.
     static constexpr int        INVALID_COMMAND_IDENTIFIER                      = -1; ///< Sentinel for invalid command identifier.
+    static constexpr int        DIAGNOSTICS_COMMAND_IDENTIFIER                  = 300; ///< Framework diagnostics command (300+ range reserved).
     static constexpr auto       SAMPLER_TASK_NAME                               = "HardwareWorker"; ///< FreeRTOS sampler task name.
     static constexpr auto       NETWORK_TASK_NAME                               = "NetworkWorker"; ///< FreeRTOS network task name.
     static constexpr auto       DEVICE_COMPONENT_NAME                           = "Device"; ///< Log component name.
@@ -97,12 +101,17 @@ private:
     TaskHandle_t hardwareSamplingTaskHandle; ///< Handle for the hardware sampling task.
     TaskHandle_t networkDispatcherTaskHandle; ///< Handle for the network dispatcher task.
     QueueHandle_t telemetryQueueHandle; ///< Handle for the telemetry queue.
+    QueueHandle_t highPriorityQueueHandle; ///< Handle for the high-priority telemetry queue.
 
     // Shared diagnostic counters (single-writer rule: each counter written by one task)
     mutable uint32_t packetsEnqueuedCount; ///< Total packets successfully enqueued.
     mutable uint32_t packetsDroppedCount; ///< Total packets dropped due to full queue.
     mutable uint32_t packetsDroppedOldestCount; ///< Total oldest packets dropped to make room for new ones.
     mutable uint8_t queueHighWaterMarkCount; ///< Maximum queue depth observed.
+    mutable uint32_t highPriorityEnqueuedCount; ///< Total high-priority packets successfully enqueued.
+    mutable uint32_t highPriorityDroppedCount; ///< Total high-priority packets dropped due to full high-priority queue.
+    mutable uint8_t highPriorityQueueHighWaterMarkCount; ///< Maximum high-priority queue depth observed.
+    mutable bool firstHighPriorityDropLogged; ///< Tracks whether the first high-priority drop warning was emitted.
     mutable uint32_t missedTickCount; ///< Ticks missed by the sampler.
     mutable bool firstDropLogged; ///< Tracks whether the first drop warning was emitted.
     mutable uint32_t nextSequenceNumber; ///< Monotonically increasing sequence for telemetry envelope.
@@ -175,6 +184,24 @@ private:
      */
     void enterDeepSleep() const;
 
+    /**
+     * @brief Assigns envelope metadata to a telemetry package.
+     * @param package The telemetry package to populate.
+     *
+     * Sets timestamp, sequence number, schema version, and firmware version.
+     * Shared by both enqueueTelemetryPayload() and enqueueHighPriorityPayload().
+     */
+    void assignEnvelopeMetadata(TelemetryPackage* package) const;
+
+    /**
+     * @brief Drains and deletes a telemetry queue.
+     * @param queueHandle Reference to the queue handle (set to nullptr after delete).
+     *
+     * Deletes all pending TelemetryPackage pointers in the queue, then deletes
+     * the FreeRTOS queue itself. Used in stopAsynchronousEngine() for cleanup.
+     */
+    static void drainTelemetryQueue(QueueHandle_t& queueHandle);
+
 public:
     /**
      * @brief Power mode for the hardware timer.
@@ -190,9 +217,10 @@ public:
     /**
      * @brief Reports the wake reason from the last sleep cycle.
      *
-     * Uses `esp_sleep_get_wakeup_cause()` to determine how the device woke up
-     * (timer, GPIO, touchpad, ULP, or reset) and prints the result to Serial.
-     * Call early in setup() to diagnose unexpected wake cycles.
+     * Uses `esp_sleep_get_wakeup_causes()` (ESP-IDF 6.0+) to determine how the
+     * device woke up. Multiple wakeup sources may trigger simultaneously; each
+     * is reported on a separate line. Call early in setup() to diagnose
+     * unexpected wake cycles.
      * @runs_on{any}
      */
     static void reportWakeReason();
@@ -303,6 +331,18 @@ protected:
      * retains ownership and the payload is deleted automatically — no manual cleanup needed.
      */
     bool enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetryPackageStandardUniquePointer) const;
+
+    /**
+     * @brief Pushes a high-priority payload into the high-priority queue.
+     * @param highPriorityPayload Unique pointer to the high-priority payload to enqueue.
+     * @return `true` when enqueued successfully, otherwise `false`.
+     *
+     * High-priority packets bypass the standard telemetry queue and are processed first by the
+     * network task. The high-priority queue is bounded (4 slots); when full, new packets
+     * are dropped (not evicted) because high-priority data is too critical to replace.
+     * The packet receives envelope metadata and a `"priority": "high"` field.
+     */
+    bool enqueueHighPriorityPayload(std::unique_ptr<TelemetryPackage> highPriorityPayload) const;
 
     /**
      * @brief Registers a sensor/event pair in the scheduler (two-argument fallback form).
@@ -441,7 +481,7 @@ public:
      * @brief Sets the telemetry gateway client for diagnostics aggregation.
      * @param gateway The gateway client to register.
      *
-     * Registers a gateway so that diagnostics() can query send statistics
+     * Registers a gateway so that collectDiagnostics() can query send statistics
      * (sends succeeded/failed). Call this before initializeAsynchronousEngine().
      */
     void setTelemetryGateway(GatewayClient* gateway);
@@ -476,13 +516,13 @@ public:
     static void IRAM_ATTR onSensorTriggerWrapper();
 
     /**
-     * @brief Returns a snapshot of runtime health and diagnostic counters.
+     * @brief Collects a snapshot of runtime health and diagnostic counters.
      *
      * Queries FreeRTOS stack high-water marks, heap statistics, and aggregates
      * the shared counters (packets enqueued/dropped, missed ticks, queue high-water).
      * Safe to call from any task; does not block.
      */
-    [[nodiscard]] DiagnosticsSnapshot diagnostics() const;
+    [[nodiscard]] DiagnosticsSnapshot collectDiagnostics() const;
     /**
      * @brief Enqueues a command for execution on the sampler task context.
      * @param targetHandler The CommandHandler that should process the command.
@@ -500,7 +540,11 @@ public:
 
     /**
      * @brief Concrete fallback command interface fulfillment.
-     * Intercepts framework-wide actions; overrides CommandHandler.
+     * Overrides CommandHandler; derived classes can override for custom commands.
+     *
+     * The default implementation does nothing. Framework-internal commands
+     * (e.g., diagnostics) are handled separately before this method is called,
+     * so the developer's override receives only custom commands.
      */
     void handle(Command command) override;
 
@@ -539,6 +583,19 @@ public:
      * envelope metadata as the `firmwareVersion` field. Pass nullptr to omit.
      */
     static void setFirmwareVersion(const char* version);
+
+private:
+
+    /**
+     * @brief Handles framework-internal commands before dispatching to handle().
+     * @param command The command to check.
+     * @return True if the command was a framework command and was consumed.
+     *
+     * Called by processPendingCommands() before calling handle().
+     * Currently handles the diagnostics command (commandId = 300).
+     * This keeps handle() purely for developer-defined custom commands.
+     */
+    bool handleInternalCommand(Command command) const;
 };
 
 #endif // DEVICE_H

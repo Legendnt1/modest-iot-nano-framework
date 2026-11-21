@@ -10,6 +10,9 @@
 *.so
 *.dylib
 *.log
+*.gcov
+*.gcda
+*.gcno
 /site/
 /.venv-docs/
 __pycache__/

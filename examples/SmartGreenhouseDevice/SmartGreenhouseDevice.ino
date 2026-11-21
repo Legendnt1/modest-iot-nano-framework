@@ -89,10 +89,11 @@ public:
           waterPump(RELAY_PUMP_PIN, WATER_PUMP_INITIAL_STATE, this),
           ventMotor(SERVO_VENT_PIN, VENT_CLOSED_ANGLE, this)
     {
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&soilSensor,        Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&temperatureSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 

@@ -88,13 +88,14 @@ public:
         lightSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         motionSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
 
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&lightSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         // PIR sensor uses interrupt-driven operation (CHANGE edge) for zero-latency motion detection
         appendSensorToTriggeringScheduler(&motionSensor,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           CHANGE);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 

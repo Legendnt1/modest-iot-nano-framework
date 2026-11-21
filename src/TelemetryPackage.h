@@ -11,18 +11,27 @@
  */
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <cstring>
+#include "TelemetryWriter.h"
+#include "JsonTelemetryWriter.h"
 
 /**
  * @brief Polymorphic payload contract for telemetry serialization.
+ *
+ * Subclasses implement write(TelemetryWriter&) to declare data fields without
+ * knowing the serialization format. The base class provides convenience methods
+ * for JSON string serialization using JsonTelemetryWriter.
+ *
  * @ingroup core_module
  */
 class TelemetryPackage {
 protected:
     uint32_t captureTimestamp = 0; ///< Capture time in milliseconds from device boot.
     uint32_t sequenceNumber = 0; ///< Monotonically increasing sequence assigned before enqueue.
-    const char* schemaVersionValue = nullptr; ///< Optional schema version string for telemetry format tracking.
+    const char* schemaVersionValue = nullptr; ///< Per-package schema version (set by subclass); falls back to global if nullptr.
     const char* firmwareVersionValue = nullptr; ///< Optional firmware version string for fleet management.
+    bool highPriority = false; ///< True when this package is high-priority (set by Device::enqueueHighPriorityPayload).
 
 public:
     /**
@@ -40,27 +49,51 @@ public:
      * @brief Sets the optional schema and firmware version strings.
      * @param schemaVersion Optional schema version identifier (e.g., "1.0").
      * @param firmwareVersion Optional firmware version identifier (e.g., "1.0.0").
-     * @note Pass nullptr to omit a field from the JSON output. Called by Device
+     * @note Pass nullptr to omit a field from the output. Called by Device
      *   before enqueueing when firmware version tracking is enabled.
+     *   If the subclass already set a per-package schema version, this global
+     *   value is ignored for schema but still sets the firmware version.
      */
     void setVersionMetadata(const char* schemaVersion, const char* firmwareVersion) {
-        schemaVersionValue = schemaVersion;
+        // Per-package schema version takes priority; set global only if not already set
+        if (schemaVersionValue == nullptr) {
+            schemaVersionValue = schemaVersion;
+        }
         firmwareVersionValue = firmwareVersion;
     }
 
     /**
-     * @brief Adds envelope metadata fields to the JSON document.
-     * @param doc Document to populate with timestamp and sequence.
-     * @note Optionally includes schemaVersion and firmwareVersion when set.
+     * @brief Marks this package as high-priority.
+     *
+     * When set, the telemetry envelope includes `"priority": "high"` to enable
+     * edge-side routing for high-priority alerts. Called internally by
+     * Device::enqueueHighPriorityPayload(); applications should not call this method directly.
      */
-    void addEnvelopeMetadata(JsonDocument& doc) const {
-        doc["timestamp"] = static_cast<int>(captureTimestamp);
-        doc["sequence"] = static_cast<int>(sequenceNumber);
+    void markAsHighPriority() { highPriority = true; }
+
+    /**
+     * @brief Returns whether this package is marked as high-priority.
+     * @return `true` when the high-priority flag is set.
+     */
+    [[nodiscard]] bool isHighPriority() const { return highPriority; }
+
+    /**
+     * @brief Adds envelope metadata fields to the writer.
+     * @param writer The telemetry writer to populate.
+     * @note Optionally includes schemaVersion and firmwareVersion when set.
+     *   Schema version priority: per-package (set by subclass) > global (Device::setTelemetrySchemaVersion).
+     */
+    void addEnvelopeMetadata(TelemetryWriter& writer) const {
+        writer.field("timestamp", static_cast<int32_t>(captureTimestamp));
+        writer.field("sequence", static_cast<int32_t>(sequenceNumber));
+        if (highPriority) {
+            writer.field("priority", "high");
+        }
         if (schemaVersionValue != nullptr) {
-            doc["schemaVersion"] = schemaVersionValue;
+            writer.field("schemaVersion", schemaVersionValue);
         }
         if (firmwareVersionValue != nullptr) {
-            doc["firmwareVersion"] = firmwareVersionValue;
+            writer.field("firmwareVersion", firmwareVersionValue);
         }
     }
 
@@ -68,37 +101,51 @@ public:
     virtual ~TelemetryPackage() = default;
 
     /**
-     * @brief Serializes fields into an existing JSON document instance.
-     * @param serializationDestination Destination document to populate.
+     * @brief Writes telemetry data fields to the given writer.
+     * @param writer The telemetry writer to populate with data fields.
      * @note Envelope metadata (timestamp, sequence) is added automatically by
-     *   the `toDocument()` and `toJsonString()` convenience methods.
+     *   the `toJsonString()` convenience method before calling this method.
      */
-    virtual void serialize(JsonDocument& serializationDestination) const = 0;
-
-    /**
-     * @brief Creates and returns a standalone JSON document with all fields.
-     * @return A JSON document with envelope metadata followed by subclass fields.
-     * @note Renamed from `serialize()` to avoid name hiding when subclasses
-     *   override the pure virtual `serialize(JsonDocument&)` method.
-     */
-    [[nodiscard]] JsonDocument toDocument() const {
-        JsonDocument standaloneDocument;
-        this->addEnvelopeMetadata(standaloneDocument);
-        this->serialize(standaloneDocument);
-        return standaloneDocument;
-    }
+    virtual void write(TelemetryWriter& writer) const = 0;
 
     /**
      * @brief Serializes telemetry to a JSON string.
      * @return A String containing the serialized JSON representation.
-     * @note Renamed from `serializeAsString()` to avoid name hiding when
-     *   subclasses override the pure virtual `serialize(JsonDocument&)` method.
+     * @note Uses JsonTelemetryWriter internally with envelope metadata.
      */
     [[nodiscard]] String toJsonString() const {
-        const JsonDocument sourceDocument = this->toDocument();
-        String serializedJsonString;
-        serializeJson(sourceDocument, serializedJsonString);
-        return serializedJsonString;
+        JsonTelemetryWriter writer;
+        this->addEnvelopeMetadata(writer);
+        this->write(writer);
+        writer.finalize();
+        return String(writer.getString());
+    }
+
+    /**
+     * @brief Serializes telemetry directly into a caller-provided buffer.
+     * @param buffer The pre-allocated target buffer.
+     * @param bufferSize The capacity of the target buffer in bytes.
+     * @return The number of bytes written (excluding null terminator), or 0 on overflow.
+     * @note The caller provides the buffer to avoid heap allocation on the network task.
+     *   The result is null-terminated. This method encapsulates the full serialization
+     *   pipeline: envelope metadata, data fields, finalization, and overflow check.
+     */
+    [[nodiscard]] size_t serializeToBuffer(char* buffer, const size_t bufferSize) const {
+        JsonTelemetryWriter writer;
+        this->addEnvelopeMetadata(writer);
+        this->write(writer);
+        writer.finalize();
+        if (writer.hasOverflow()) {
+            return 0;
+        }
+        const char* jsonString = writer.getString();
+        const size_t length = strlen(jsonString);
+        if (length >= bufferSize) {
+            return 0;
+        }
+        memcpy(buffer, jsonString, length);
+        buffer[length] = '\0';
+        return length;
     }
 };
 

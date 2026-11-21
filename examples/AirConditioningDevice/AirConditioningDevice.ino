@@ -172,6 +172,8 @@ class AirConditioningDevice : public Device {
         targetTemperature(DEFAULT_TARGET_TEMPERATURE)
     {
         // 1. Register the DHT sensor using the baseline scheduler ticker token
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&humidityAndTemperatureSensor,  Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
         // 2. Register buttons for interrupt-driven operation (FALLING edge)
@@ -183,7 +185,6 @@ class AirConditioningDevice : public Device {
                                           FALLING);
 
         // 3. Launch FreeRTOS execution background engines
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
 
         // 4. Initial rendering pass to populate both display lines

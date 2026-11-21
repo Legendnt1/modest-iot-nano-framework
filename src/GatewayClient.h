@@ -44,11 +44,11 @@ public:
 
     /**
      * @brief Polymorphically serializes any payload inheriting from TelemetryPackage and ships it.
-     * @param abstractTelemetryPayload Polymorphic payload to serialize and transmit.
+     * @param telemetryPackage The payload to serialize and transmit.
      * @return `true` when payload transmission succeeds, otherwise `false`.
      * @runs_on{network}
      */
-    virtual bool sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) = 0;
+    virtual bool sendTelemetryRecord(const TelemetryPackage& telemetryPackage) = 0;
 
     /**
      * @brief Periodic background upkeep routine for network and session state (e.g. keep-alive ping).

@@ -241,6 +241,9 @@ public:
         // Announce boot with energy saving status
         announceBoot();
 
+        // Register sensors
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         // Register the DHT sensor for temperature and humidity
         appendSensorToScheduler(&dhtSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
@@ -251,7 +254,6 @@ public:
         appendSensorToScheduler(&lightSensor, DigitalLightIntensitySensor::LIGHT_DETECTED_EVENT_IDENTIFIER);
 
         // Launch internal background task workers with a small queue for battery operation
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 

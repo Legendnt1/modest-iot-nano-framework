@@ -59,7 +59,7 @@ uint8_t RgbLed::adjustColorChannelIntensity(const uint8_t currentIntensity, cons
  *          `ADJUST_BRIGHTNESS_COMMAND` scales the active color by `payload / 255.0f` using `adjustColorChannelIntensity()` and rewrites the outputs.
  *          Outputs are rewritten only for recognized commands.
  */
-void RgbLed::executeCommand(Command command) {
+void RgbLed::executeCommand(const Command command) {
     if (command == TURN_ON_COMMAND) {
         active = true;
     } else if (command == TURN_OFF_COMMAND) {

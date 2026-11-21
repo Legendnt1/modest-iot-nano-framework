@@ -144,13 +144,16 @@ public:
         : Device(samplingIntervalInMilliseconds, timerGroupIndex),
           dhtSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT22, this)
     {
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&dhtSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
-    ~OtaUpdateDevice() override = default;
+    ~OtaUpdateDevice() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data-ready events to log readings.

@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"   # e.g., v1.2.0, v1.3.0
+
+# Note: Validation (host tests, coverage, compile examples, lint) is already
+# performed by the existing CI workflows when the release branch is pushed.
+# This workflow assumes those checks passed and focuses on generating Doxygen
+# documentation and creating the GitHub Release with artifacts.
+
+jobs:
+  doxygen:
+    name: Generate Doxygen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Doxygen and Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Generate Doxygen HTML
+        run: |
+          doxygen docs/Doxyfile
+          # Copy assets/branding/ so the README logo path resolves correctly
+          mkdir -p docs/build/html/assets/branding
+          cp assets/branding/logo.png docs/build/html/assets/branding/
+
+      - name: Upload Doxygen HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: doxygen-html
+          path: docs/build/html/
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [doxygen]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          # Extract the section for this version from CHANGELOG.md
+          TAG="${GITHUB_REF#refs/tags/}"
+          # Get the version without 'v' prefix
+          VERSION="${TAG#v}"
+          CHANGELOG=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '$d')
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release ${TAG}"
+          fi
+          echo "$CHANGELOG" > release_body.md
+
+      - name: Create library ZIP
+        run: |
+          # Create a ZIP with the files specified in library.json export.include
+          zip -r Modest-IoT-Nano-Framework.zip \
+            src/ \
+            examples/ \
+            CMakeLists.txt \
+            library.properties \
+            library.json \
+            keywords.txt \
+            LICENSE.md \
+            README.md \
+            docs/
+
+      - name: Download Doxygen HTML
+        uses: actions/download-artifact@v4
+        with:
+          name: doxygen-html
+          path: doxygen-html/
+
+      - name: Create Doxygen ZIP
+        run: cd doxygen-html && zip -r ../doxygen-html.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_body.md
+          files: |
+            Modest-IoT-Nano-Framework.zip
+            doxygen-html.zip

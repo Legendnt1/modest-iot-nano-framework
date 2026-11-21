@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15...4.3)
 
 # 1. Project Configuration & Metadata
-project(Modest-IoT-Nano-Framework VERSION 1.1.2 LANGUAGES C CXX)
+project(Modest-IoT-Nano-Framework VERSION 1.2.0 LANGUAGES C CXX)
 
 # Work around macOS SDK bug where <atomic> triggers <ctime> before <time.h> defines tm
 add_compile_options(-D_LIBCPP_DISABLE_AVAILABILITY)
@@ -71,7 +71,6 @@ file(GLOB ESP32_PORT_INCLUDES "${ESP32_TOOLS_BASE}/include/*/port/include")
 
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-        "${ARDUINO_LIBS}/ArduinoJson/src"
         "${ARDUINO_LIBS}/MQTT/src"
         "${ESP32_PLATFORM_BASE}/libraries/BluetoothSerial/src"
         "${ESP32_PLATFORM_BASE}/libraries/BLE/src"
@@ -238,6 +237,9 @@ add_executable(test_MqttGatewayClient
         src/Device.cpp
         src/SamplingScheduler.cpp
         src/Sensor.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
+        src/DiagnosticsTelemetryPackage.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -252,6 +254,8 @@ target_include_directories(test_EngineConfiguration PRIVATE tests/fakes src)
 
 add_executable(test_DiagnosticsSnapshot
         tests/DiagnosticsSnapshot/test.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -276,16 +280,33 @@ target_include_directories(test_SamplingScheduler PRIVATE tests/fakes src)
 
 add_executable(test_TelemetryPackage
         tests/TelemetryPackage/test.cpp
+        src/Device.cpp
+        src/SamplingScheduler.cpp
+        src/Sensor.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
+        src/DiagnosticsTelemetryPackage.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
 target_include_directories(test_TelemetryPackage PRIVATE tests/fakes src)
+
+add_executable(test_JsonParser
+        tests/JsonParser/test.cpp
+        src/JsonParser.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_JsonParser PRIVATE tests/fakes src)
 
 add_executable(test_TriggeringScheduler
         tests/TriggeringScheduler/test.cpp
         src/Sensor.cpp
         src/Device.cpp
         src/SamplingScheduler.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
+        src/DiagnosticsTelemetryPackage.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -296,6 +317,9 @@ add_executable(test_CommandMarshaling
         src/Device.cpp
         src/SamplingScheduler.cpp
         src/Sensor.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
+        src/DiagnosticsTelemetryPackage.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -370,6 +394,9 @@ add_executable(test_DeepSleep
         src/Device.cpp
         src/SamplingScheduler.cpp
         src/Sensor.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
+        src/DiagnosticsTelemetryPackage.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -418,6 +445,8 @@ add_executable(test_BleGatewayClient
         tests/BleGatewayClient/test.cpp
         src/BleGatewayClient.cpp
         src/BleConnectivityDriver.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -428,6 +457,8 @@ add_executable(test_HttpGatewayClient
         tests/HttpGatewayClient/test.cpp
         src/HttpGatewayClient.cpp
         src/WiFiConnectivityDriver.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -590,6 +621,9 @@ add_executable(test_Device
         src/Actuator.cpp
         src/Device.cpp
         src/SamplingScheduler.cpp
+        src/JsonTelemetryWriter.cpp
+        src/JsonParser.cpp
+        src/DiagnosticsTelemetryPackage.cpp
         ${TEST_FAKES}
         ${TEST_FAKES_SRC}
 )
@@ -615,6 +649,16 @@ add_executable(test_LoadCellAmplifier
 )
 target_include_directories(test_LoadCellAmplifier PRIVATE tests/fakes src)
 target_compile_options(test_LoadCellAmplifier PRIVATE -Wall -Wextra -Werror)
+
+add_executable(test_EventAggregator
+        tests/EventAggregator/test.cpp
+        src/EventAggregator.cpp
+        src/TimeSynchronizationDriver.cpp
+        ${TEST_FAKES}
+        ${TEST_FAKES_SRC}
+)
+target_include_directories(test_EventAggregator PRIVATE tests/fakes src)
+target_compile_options(test_EventAggregator PRIVATE -Wall -Wextra -Werror)
 
 add_test(NAME DigitalLightIntensitySensorTest COMMAND test_DigitalLightIntensitySensor)
 add_test(NAME RgbLedTest COMMAND test_RgbLed)
@@ -663,9 +707,10 @@ add_test(NAME UltrasonicSensorTest COMMAND test_UltrasonicSensor)
 add_test(NAME LoadCellAmplifierTest COMMAND test_LoadCellAmplifier)
 add_test(NAME DeviceTest COMMAND test_Device)
 add_test(NAME GeolocationSensorTest COMMAND test_GeolocationSensor)
+add_test(NAME EventAggregatorTest COMMAND test_EventAggregator)
 
 add_custom_target(run_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS test_DigitalLightIntensitySensor test_RgbLed test_RelayActuator test_RfidSensor test_BleConnectivityDriver test_ModestLog test_MqttGatewayClient test_EngineConfiguration test_DiagnosticsSnapshot test_SensorFault test_SamplingScheduler test_TelemetryPackage test_TriggeringScheduler test_CommandMarshaling test_WaterFlowSensor test_SoilMoistureSensor test_PthSensor test_WaterLeakSensor test_DoorWindowSensor test_OneWireTemperatureSensor test_DhtSensor test_DeepSleep test_ServoMotor test_CharacterLcdDisplay test_OledDisplay test_EnvironmentalGasSensor test_BleGatewayClient test_HttpGatewayClient test_Buzzer test_ConfigurationStore test_TimeSynchronizationDriver test_GasSensor test_Button test_PowerManager test_TelemetryBuffer test_OtaUpdateHandler test_Led test_PassiveInfraredSensor test_PulseSensor test_Hd44780Driver test_Ssd1306Driver test_WiFiConnectivityDriver test_BmeEnvironmentalSensor test_GeolocationSensor test_UltrasonicSensor test_LoadCellAmplifier test_Device
+        DEPENDS test_DigitalLightIntensitySensor test_RgbLed test_RelayActuator test_RfidSensor test_BleConnectivityDriver test_ModestLog test_MqttGatewayClient test_EngineConfiguration test_DiagnosticsSnapshot test_SensorFault test_SamplingScheduler test_TelemetryPackage test_TriggeringScheduler test_CommandMarshaling test_WaterFlowSensor test_SoilMoistureSensor test_PthSensor test_WaterLeakSensor test_DoorWindowSensor test_OneWireTemperatureSensor test_DhtSensor test_DeepSleep test_ServoMotor test_CharacterLcdDisplay test_OledDisplay test_EnvironmentalGasSensor test_BleGatewayClient test_HttpGatewayClient test_Buzzer test_ConfigurationStore test_TimeSynchronizationDriver test_GasSensor test_Button test_PowerManager test_TelemetryBuffer test_OtaUpdateHandler test_Led test_PassiveInfraredSensor test_PulseSensor test_Hd44780Driver test_Ssd1306Driver test_WiFiConnectivityDriver test_BmeEnvironmentalSensor test_GeolocationSensor test_UltrasonicSensor test_LoadCellAmplifier test_Device test_EventAggregator
         COMMENT "Executing all native host test suites..."
 )

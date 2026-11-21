@@ -23,13 +23,13 @@
 class MqttGatewayClient : public GatewayClient {
 private:
     MQTTClient mqttClient; ///< Underlying MQTT client instance (MQTT Things).
-    
+
     const char* clientIdentifier; ///< Unique client identifier.
     const char* publishTopic; ///< MQTT topic for publishing telemetry.
     const char* subscribeTopic; ///< MQTT topic for subscribing to inbound commands.
 
     unsigned long lastReconnectAttemptTimestamp; ///< Timestamp of the last broker connection attempt.
-    unsigned long reconnectIntervalMilliseconds; ///< Minimum cooldown between reconnect attempts in milliseconds.
+    unsigned long reconnectIntervalInMilliseconds; ///< Minimum cooldown between reconnect attempts in milliseconds.
 
     uint32_t sendsSucceededCount; ///< Successful telemetry transmissions.
     uint32_t sendsFailedCount; ///< Failed telemetry transmissions.
@@ -56,7 +56,10 @@ private:
     static void mqttMessageCallback(String& topic, String& payload);
 
     static constexpr uint16_t DEFAULT_RECONNECT_INTERVAL_MILLISECONDS = 5000; ///< Default cooldown between broker reconnection attempts.
-    static constexpr uint8_t DEFAULT_MQTT_QOS = 0; ///< Default Quality of Service for MQTT subscribe.
+
+    uint8_t publishQoS; ///< Quality of Service for MQTT publish (0, 1, or 2).
+    uint8_t subscribeQoS; ///< Quality of Service for MQTT subscribe (0, 1, or 2).
+    bool retained; ///< Retained flag for MQTT publish messages.
 
     /// @brief JSON key for the command identifier in inbound MQTT command payloads.
     static constexpr const char* JSON_KEY_COMMAND_IDENTIFIER = "commandId";
@@ -79,12 +82,16 @@ public:
      *        Commands are marshaled to the sampler task for cross-task safety.
      *        Required when subscribeTopic is non-null; ignored otherwise.
      * @param deviceId Unique identification literal used during broker handshakes.
+     * @param publishQos Quality of Service for publish (0, 1, or 2). Default: 0.
+     * @param subscribeQos Quality of Service for subscribe (0, 1, or 2). Default: 0.
+     * @param retainedFlag Retained flag for publish messages. Default: false.
      */
-    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient, 
+    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient,
                       const char* brokerIpAddress, uint16_t brokerPort,
                       const char* publishTopic, const char* subscribeTopic,
                       Device* targetDevice,
-                      const char* deviceId = "ModestIotNode");
+                      const char* deviceId = "ModestIotNode",
+                      uint8_t publishQos = 0, uint8_t subscribeQos = 0, bool retainedFlag = false);
 
     /**
      * @brief Legacy constructor for publish-only mode (backward compatible).
@@ -98,19 +105,24 @@ public:
      * @param brokerPort The port of your broker instance (typically 1883 for unencrypted TCP).
      * @param topic Target MQTT topic string destination for publishing records.
      * @param deviceId Unique identification literal used during broker handshakes.
+     * @param publishQosLevel Quality of Service for publish (0, 1, or 2). Default: 0.
+     * @param retainedFlag Retained flag for publish messages. Default: false.
      */
-    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient, 
+    MqttGatewayClient(ConnectivityDriver& transportDriver, Client& networkClient,
                       const char* brokerIpAddress, uint16_t brokerPort,
-                      const char* topic, const char* deviceId = "ModestIotNode");
-    
+                      const char* topic,
+                      const char* deviceId = "ModestIotNode",
+                      uint8_t publishQosLevel = 0,
+                      bool retainedFlag = false);
+
     ~MqttGatewayClient() override = default;
 
     /**
      * @brief Polymorphically serializes any payload inheriting from TelemetryPackage and publishes it.
-     * @param abstractTelemetryPayload Polymorphic payload to serialize and publish.
+     * @param telemetryPackage The payload to serialize and publish.
      * @return True if the payload byte stream was successfully accepted and pushed by the broker.
      */
-    bool sendTelemetryRecord(const TelemetryPackage& abstractTelemetryPayload) override;
+    bool sendTelemetryRecord(const TelemetryPackage& telemetryPackage) override;
 
     /**
      * @brief Periodic background upkeep routine for MQTT ping packets and keep-alive handling.
@@ -137,15 +149,52 @@ public:
 
     /**
      * @brief Sets the cooldown interval between broker reconnection attempts.
-     * @param intervalMilliseconds Cooldown period in milliseconds (default: 5000ms).
+     * @param intervalInMilliseconds Cooldown period in milliseconds (default: 5000ms).
      */
-    void setReconnectInterval(unsigned long intervalMilliseconds);
+    void setReconnectInterval(unsigned long intervalInMilliseconds);
 
     /**
      * @brief Gets the configured cooldown interval between broker reconnection attempts.
      * @return Cooldown period in milliseconds.
      */
     [[nodiscard]] unsigned long getReconnectInterval() const;
+
+    /**
+     * @brief Sets the Quality of Service level for MQTT telemetry publishing.
+     * @param qosLevel QoS level: 0 (at most once), 1 (at least once), or 2 (exactly once).
+     */
+    void setPublishQoSLevel(uint8_t qosLevel);
+
+    /**
+     * @brief Gets the configured Quality of Service level for MQTT telemetry publishing.
+     * @return QoS level (0, 1, or 2).
+     */
+    [[nodiscard]] uint8_t getPublishQoSLevel() const;
+
+    /**
+     * @brief Sets the Quality of Service level for MQTT topic subscription.
+     * @param qosLevel QoS level: 0 (at most once), 1 (at least once), or 2 (exactly once).
+     */
+    void setSubscribeQoSLevel(uint8_t qosLevel);
+
+    /**
+     * @brief Gets the configured Quality of Service level for MQTT topic subscription.
+     * @return QoS level (0, 1, or 2).
+     */
+    [[nodiscard]] uint8_t getSubscribeQoSLevel() const;
+
+    /**
+     * @brief Enables or disables the retained flag for MQTT publish messages.
+     * When enabled, the broker stores the last message for new subscribers.
+     * @param retainEnabled True to enable retained messages, false to disable.
+     */
+    void setRetainedFlag(bool retainEnabled);
+
+    /**
+     * @brief Gets the current retained flag setting for MQTT publish messages.
+     * @return True if retained messages are enabled.
+     */
+    [[nodiscard]] bool getRetainedFlag() const;
 
     /**
      * @brief Returns send success/failure counters for diagnostics aggregation.

@@ -21,38 +21,32 @@
 #include <Arduino.h>
 #include <ModestIoT.h>
 
-/** @brief Serial communication baud rate. */
-static const unsigned long SERIAL_BAUD_RATE = 115200;
+/** @name Top-Level Declarative Canvas */
+//@{
 
-/** @brief Delay in the main loop when no work is pending. */
-static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
-
+/** @name Engine Configuration */
+//@{
 /** @brief Sampler event queue length for status indicator. */
 static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
+//@} // Engine Configuration
 
-/** @brief Initial logical state of the status LED (off). */
-static const bool STATUS_LED_INITIAL_STATE = false;
-
-/** @brief Value for appendSensorToScheduler(): no minimum sampling interval is enforced. */
-static const uint32_t NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS = 0;
+/** @name Device Configuration */
+//@{
+/** @brief Firmware version string for this device. */
+static const char* STATUS_INDICATOR_FIRMWARE_VERSION = "STI-909 FW 1.0.0";
+//@} // Device Configuration
 
 /** @name Serial Output Configuration */
 //@{
+/** @brief Serial communication baud rate. */
+static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Log prefix for all StatusIndicator serial output. */
 static const char* STATUS_INDICATOR_LOG_PREFIX = "[StatusIndicator]";
-
-/** @brief Message printed when the timer event cannot be registered in the scheduler. */
-static const char* REGISTRATION_FAILED_MESSAGE = "[ERROR] Blinker registration failed (engine already started or scheduler full)";
-
-/** @brief Message printed each time a timer event toggles the LED. */
-static const char* LED_TOGGLE_DISPATCHED_MESSAGE = " Timer event caught -> LED toggle dispatched.";
-
-/** @brief Message printed once the application has booted. */
-static const char* APPLICATION_ACTIVE_MESSAGE = " Loop-less, event-driven command routing active.";
+/** @brief Delay in the main loop when no work is pending. */
+static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@} // Serial Output Configuration
 
-/** @brief Firmware version reported in the telemetry envelope. */
-static const char* FIRMWARE_VERSION = "STI-909 FW 1.0.0";
+//@} // Top-Level Declarative Canvas
 
 /** @name Application Mediator Implementation */
 //@{
@@ -94,13 +88,13 @@ class StatusIndicator : public Device {
     statusLed(ledPin, STATUS_LED_INITIAL_STATE, this) // Pass pin, initial active state, and set parent handler
     {
         // 1. Register this device context to receive automated clock alarm notifications
-        // mapped directly to our clean event identity token.
-        // Registration must happen BEFORE the engine starts: Device rejects any
-        // scheduler registration once initializeAsynchronousEngine() has run.
+        // mapped directly to our clean event identity token
+        // Capture and evaluate scheduler capacity bounds gracefully
         // Note: `this` is a Device, not a Sensor, so the EventHandler* overload is used with
         // an explicit period matching the timer tick interval.
-        bool registered = appendSensorToScheduler(this, StatusIndicator::TIMER_EVENT_IDENTIFIER, blinkIntervalInMilliseconds,
-                                                  NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
+        bool registered = appendSensorToScheduler(this, StatusIndicator::TIMER_EVENT_IDENTIFIER, blinkIntervalInMilliseconds, 0);
         if (!registered) {
             Serial.println(REGISTRATION_FAILED_MESSAGE);
         }
@@ -127,39 +121,38 @@ class StatusIndicator : public Device {
             // Route the pre-instantiated static toggle command directly to the actuator.
             // No local state tracking variables or toggles are written here!
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
-            Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + LED_TOGGLE_DISPATCHED_MESSAGE).c_str());
+            Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + " Timer event caught -> LED toggle dispatched.").c_str());
         }
+    }
+
+    /**
+     * @brief Post-construction startup hook.
+     *
+     * Handles all initialization that cannot run in the constructor:
+     * firmware version and startup logging. Called from `setup()`
+     * after construction.
+     */
+    void start() {
+        Device::setFirmwareVersion(STATUS_INDICATOR_FIRMWARE_VERSION);
+    }
+
+    ~StatusIndicator() override {
+        stopAsynchronousEngine();
     }
 };
 //@} // Application Mediator Implementation
 
-/** @name Top-Level Declarative Canvas */
+/** @name Hardware Configuration */
 //@{
-
-/**
- * @brief Defines the GPIO pin for the system diagnostic LED.
- *
- * This typically targets the ESP32 onboard diagnostic blue LED pin (GPIO 2).
- */
+/** @brief GPIO pin for the system diagnostic LED (ESP32 onboard LED). */
 static const int SYSTEM_DIAGNOSTIC_LED_PIN = 2;
-
-/**
- * @brief Defines the blink rate for the LED in milliseconds.
- */
+/** @brief Blink rate for the LED in milliseconds. */
 static const unsigned long BLINK_RATE_IN_MILLISECONDS = 500;
-
-/**
- * @brief Defines the hardware core timer channel to be used.
- *
- * This specifies which 64-bit timer group (0-3) will be utilized for timing events.
- */
+/** @brief Hardware core timer channel (0-3). */
 static const uint8_t CORE_TIMER_CHANNEL = 0;
+//@} // Hardware Configuration
 
-/**
- * @brief Pointer to the StatusIndicator application instance.
- *
- * This global pointer holds the single instance of our status indicator application.
- */
+/// @brief Pointer to the StatusIndicator application instance.
 static StatusIndicator* statusIndicatorApplication = nullptr;
 
 /**
@@ -171,16 +164,17 @@ static StatusIndicator* statusIndicatorApplication = nullptr;
  */
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion(FIRMWARE_VERSION);
 
     // Boot the framework application.
     // Background execution queues, FreeRTOS tasks, and hardware alarm vectors launch automatically!
     statusIndicatorApplication = new StatusIndicator(
-    SYSTEM_DIAGNOSTIC_LED_PIN,
-    BLINK_RATE_IN_MILLISECONDS,
-    CORE_TIMER_CHANNEL);
+        SYSTEM_DIAGNOSTIC_LED_PIN,
+        BLINK_RATE_IN_MILLISECONDS,
+        CORE_TIMER_CHANNEL);
 
-    Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + APPLICATION_ACTIVE_MESSAGE).c_str());
+    statusIndicatorApplication->start();
+
+    Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + " Loop-less, event-driven command routing active.").c_str());
 }
 
 /**

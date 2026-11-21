@@ -26,7 +26,6 @@ Try the framework without any hardware. Wokwi simulates an ESP32 board directly 
 3. Add the required libraries:
    - Click the **Libraries** button on the left sidebar.
    - Search for **`Modest-IoT-Nano-Framework`** and click **Add**.
-   - Search for **`ArduinoJson`** and click **Add**.
    - Search for **`MQTT`** (by 256dpi) and click **Add**.
    - **What you'll see**: Each library appears in the project dependencies list with a checkmark. Wokwi downloads the library files in the background — this takes a few seconds.
 4. Replace the default code with the `StatusIndicator` example from the framework's `examples/StatusIndicator/StatusIndicator.ino` file.
@@ -88,8 +87,8 @@ Run the framework on a physical ESP32 board with real sensors, actuators, and ne
    - **What you'll see**: The Library Manager window opens, showing a searchable list of available libraries.
 3. Search for **`Modest-IoT-Nano-Framework`**.
    - **What you'll see**: The framework appears in the results with its name, version (1.1.2 or later), and a brief description.
-4. Click **Install** to install the framework and its dependencies (ArduinoJson, MQTT).
-   - **What you'll see**: A progress bar shows the download and installation. The framework and its dependencies are downloaded in order: first ArduinoJson, then MQTT, then Modest-IoT-Nano-Framework. Once complete, the Install button changes to a version number, confirming the library is installed.
+4. Click **Install** to install the framework and its dependency (MQTT).
+    - **What you'll see**: A progress bar shows the download and installation. The framework and its dependency are downloaded in order: first MQTT, then Modest-IoT-Nano-Framework. Once complete, the Install button changes to a version number, confirming the library is installed.
    - **Verification**: Go to **File > Examples** and scroll to find **Modest-IoT-Nano-Framework** in the list. The `StatusIndicator` example should be available.
 
 #### Option 2: PlatformIO (VS Code or CLion)
@@ -111,7 +110,7 @@ lib_deps = Modest-IoT-Nano-Framework >=1.1.2
 ```
 
 4. PlatformIO will automatically resolve and download the framework and its dependencies.
-   - **What you'll see**: The PlatformIO Output panel at the bottom shows the dependency resolution: "Resolving dependencies...", then downloads each package with progress bars. You'll see messages like "Downloading Modest-IoT-Nano-Framework @ >=1.1.2" followed by ArduinoJson and MQTT.
+   - **What you'll see**: The PlatformIO Output panel at the bottom shows the dependency resolution: "Resolving dependencies...", then downloads each package with progress bars. You'll see messages like "Downloading Modest-IoT-Nano-Framework @ >=1.1.2" followed by MQTT.
    - **Verification**: Check the `.pio/libdeps/` directory in your project — it contains the downloaded framework and dependency source code.
 
 **CLion:**
@@ -239,16 +238,17 @@ The device is now running continuously. The `loop()` function is empty — all w
 Now that your first device is running, explore the following resources:
 
 - **Full README** — Overview, architecture, and feature list: [README.md](../README.md)
-- **Examples** — 23 examples covering sensors, actuators, MQTT, BLE, and more: [examples/](../examples/)
+- **Examples** — 26 examples covering sensors, actuators, MQTT, BLE, and more: [examples/](../examples/)
 - **Documentation** — ADRs, user stories, evolution history, and API reference: [docs/](../docs/)
 - **Contributing Guide** — How to contribute to the framework: [CONTRIBUTING.md](../CONTRIBUTING.md)
 - **Improvements Roadmap** — Planned features and comparison tables: [docs/improvements.md](../docs/improvements.md)
 
 ### Recommended Examples to Try Next
 
-1. **MultiSensorMonitor** — Add real sensors (DHT, BH1750) with the framework's sampling scheduler.
-2. **MqttTelemetry** — Connect to an MQTT broker and publish telemetry data.
-3. **BleNotify** — Expose sensor data via BLE notifications to a smartphone.
+1. **HomeSecurityDevice** — Demonstrates the high-priority telemetry lane: routine sensor state uses `enqueueTelemetryPayload()` while critical alerts (water leak, door opened) bypass the standard queue via `enqueueHighPriorityPayload()`. The network task processes high-priority packets first, ensuring alerts reach the MQTT broker before routine telemetry.
+2. **CropMonitoringStation** — Add real sensors (DHT, BH1750, soil moisture) with the framework's sampling scheduler and MQTT telemetry.
+3. **MqttTelemetryDevice** — Connect to an MQTT broker and publish environmental telemetry data with configurable topics.
+4. **IntrusionDetector** — Composite event pattern matching using `EventAggregator`: motion and door opened within a time window triggers an intrusion alert.
 
 ---
 

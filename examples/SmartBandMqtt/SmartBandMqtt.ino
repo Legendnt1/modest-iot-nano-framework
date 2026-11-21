@@ -54,8 +54,12 @@ static const char* APPLICATION_ONLINE_MESSAGE = "[SmartBand Core] Thread executi
 //@{
 
 class SmartBandTelemetryPackage : public TelemetryPackage {
+public:
+    /** @brief Schema version for this telemetry format. */
+    static constexpr const char* SCHEMA_VERSION = "1.0";
+
     private:
-    int heartBeatsPerMinute;
+    int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
     float relativeHumidityInPercentage;
 
@@ -63,14 +67,17 @@ class SmartBandTelemetryPackage : public TelemetryPackage {
     SmartBandTelemetryPackage(int heartRate, float temperature, float humidity)
         : heartBeatsPerMinute(heartRate),
         skinTemperatureInCelsius(temperature),
-        relativeHumidityInPercentage(humidity) {}
+        relativeHumidityInPercentage(humidity)
+    {
+        schemaVersionValue = SCHEMA_VERSION;
+    }
 
     ~SmartBandTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination[JSON_KEY_HEART_BEATS_PER_MINUTE]       = this->heartBeatsPerMinute;
-        serializationDestination[JSON_KEY_SKIN_TEMPERATURE_IN_CELSIUS]   = this->skinTemperatureInCelsius;
-        serializationDestination[JSON_KEY_RELATIVE_HUMIDITY_PERCENTAGE] = this->relativeHumidityInPercentage;
+    void write(TelemetryWriter& writer) const override {
+        writer.field(JSON_KEY_HEART_BEATS_PER_MINUTE, this->heartBeatsPerMinute);
+        writer.field(JSON_KEY_SKIN_TEMPERATURE_IN_CELSIUS, this->skinTemperatureInCelsius);
+        writer.field(JSON_KEY_RELATIVE_HUMIDITY_PERCENTAGE, this->relativeHumidityInPercentage);
     }
 };
 //@} // Concrete Application Data Schema Specification
@@ -119,17 +126,20 @@ class SmartBandDevice : public Device {
         userActionButton.setHandler(this);
 
         // Sensors are registered for periodic polling; the button uses interrupt-driven mode
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&heartRateSensor,       Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&ambientClimateSensor,  Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToTriggeringScheduler(&userActionButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
+        initializeAsynchronousEngine(10);
     }
 
-    ~SmartBandDevice() override = default;
+    ~SmartBandDevice() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data-ready and button press events.

@@ -5,7 +5,7 @@ skinparam classFontStyle bold
 skinparam packageStyle rectangle
 skinparam linetype ortho
 skinparam shadowing false
-title Modest IoT Nano Framework — Class Diagram (v1.1.1, 51 headers)
+title Modest IoT Nano Framework — Class Diagram (v1.2.0, 56 headers, W41 + W33 + W31)
 
 ' ─────────────────────────────────────────────
 '  CORE
@@ -66,6 +66,9 @@ package "Core" #FAFAFA {
     +packetsDropped : uint32_t
     +packetsDroppedOldest : uint32_t
     +queueHighWaterMark : uint8_t
+    +highPriorityEnqueued : uint32_t
+    +highPriorityDropped : uint32_t
+    +highPriorityQueueHighWaterMark : uint8_t
     +sendsSucceeded : uint32_t
     +sendsFailed : uint32_t
     +freeHeapBytes : uint32_t
@@ -74,6 +77,37 @@ package "Core" #FAFAFA {
     +networkStackFreeWords : uint16_t
     +uptimeSeconds : uint32_t
   }
+
+  class DiagnosticsTelemetryPackage {
+    +{static} SCHEMA_VERSION : const char* = "1.0"
+    +DiagnosticsTelemetryPackage(snapshot : const DiagnosticsSnapshot&)
+    +write(writer : TelemetryWriter&) : void
+  }
+  TelemetryPackage <|-- DiagnosticsTelemetryPackage
+  DiagnosticsTelemetryPackage ..> DiagnosticsSnapshot : wraps
+
+  class EventAggregator {
+    +{static} EVENT_AGGREGATOR_MAX_CAPTURED_EVENTS : uint8_t = 32
+    +{static} EVENT_AGGREGATOR_MAX_PATTERNS : uint8_t = 4
+    +{static} ANY_SOURCE : int = -1
+    +{static} DEVICE_SOURCE_ID : int = 0
+    +PatternCondition : type alias (bool (*)(int compositeEventId))
+    +PatternLogic : enum {And, Or}
+    +EventPattern : struct {identifiers, sourceIds, compositeEventId, timeWindowSeconds, condition, logic}
+    +CapturedEvent : struct {identifier, sourceId, timestampSeconds}
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAllMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int, condition : PatternCondition) : bool
+    +addAnyMatchPattern(eventIds : int[], count : uint8_t, timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +addAnyMatchPattern(eventIds : int[], count : uint8_t, sourceIds : int[], timeWindowSeconds : uint32_t, compositeEventId : int) : bool
+    +removePattern(compositeEventId : int) : bool
+    +cleanupPatterns() : void
+    +setOutputHandler(handler : EventHandler*) : void
+    +on(event : Event) : void
+  }
+  EventHandler <|.. EventAggregator : implements
+  EventAggregator ..> Event : captures and emits
+  EventAggregator --> EventHandler : emits composite events
 
   class ConfigurationStore {
     +begin(namespaceName : const char*, readOnly : bool) : bool
@@ -164,6 +198,7 @@ package "Core" #FAFAFA {
 
   class Device {
     +{static} MAX_TRIGGERED_SENSORS : uint8_t = 4
+    +{static} DIAGNOSTICS_COMMAND_IDENTIFIER : int = 300
     +NotificationBitFlag : enum {TimerTickArrived, TerminationSignal, SensorTrigger, CommandAvailable}
     +PowerMode : enum {Periodic, Tickless, DeepSleep}
     +TriggerEntry : struct {sensor, eventIdentifier, interruptMode, wasTriggered, slotIndex}
@@ -171,13 +206,14 @@ package "Core" #FAFAFA {
     +activeDevice : Device*
     +triggerTable[MAX_TRIGGERED_SENSORS] : TriggerEntry
     +commandQueueHandle : QueueHandle_t
+    +highPriorityQueueHandle : QueueHandle_t
     +onSensorTrigger(handle : uint32_t) : void
     +onSensorTriggerWrapper() : void
     +processTriggeredSensors() : void
     +processPendingCommands() : void
     +enqueueCommand(targetHandler : CommandHandler*, command : Command) : bool
     +handle(command : Command) : void
-    +diagnostics() const : DiagnosticsSnapshot
+    +collectDiagnostics() const : DiagnosticsSnapshot
     +setPowerMode(mode : PowerMode) : void
     +getPowerMode() const : PowerMode
     +enterDeepSleep() const : void
@@ -188,6 +224,7 @@ package "Core" #FAFAFA {
     #initializeAsynchronousEngine(engineConfiguration : const EngineConfiguration&) : void
     #enqueueTelemetryPayload(telemetryPackagePointerAddress : TelemetryPackage**) : bool
     #enqueueTelemetryPayload(telemetryPackageStandardUniquePointer : unique_ptr<TelemetryPackage>) : bool
+    #enqueueHighPriorityPayload(highPriorityPayload : unique_ptr<TelemetryPackage>) : bool
     #appendSensorToScheduler(targetSensorInstance : EventHandler*, requestedEventIdentifier : int) : bool
     #appendSensorToScheduler(targetSensorInstance : Sensor*, requestedEventIdentifier : int) : bool
     #appendSensorToScheduler(targetSensorInstance : EventHandler*, requestedEventIdentifier : int, periodInMilliseconds : uint32_t) : bool
@@ -227,10 +264,38 @@ package "Core" #FAFAFA {
     #executeCommand(command : Command) : void
   }
 
+  interface TelemetryWriter {
+    +field(name : const char*, value : int32_t) : void
+    +field(name : const char*, value : float) : void
+    +field(name : const char*, value : bool) : void
+    +field(name : const char*, value : const char*) : void
+  }
+
+  class JsonParser {
+    +parseInt(json : const char*, key : const char*, outValue : int*) : bool
+    +parseInt32(json : const char*, key : const char*, outValue : int32_t*) : bool
+    +parseFloat(json : const char*, key : const char*, outValue : float*) : bool
+    +parseBool(json : const char*, key : const char*, outValue : bool*) : bool
+    +parseString(json : const char*, key : const char*, outBuffer : char*, bufferSize : size_t) : bool
+  }
+
+  class JsonTelemetryWriter {
+    +JsonTelemetryWriter()
+    +field(name : const char*, value : int32_t) : void
+    +field(name : const char*, value : float) : void
+    +field(name : const char*, value : bool) : void
+    +field(name : const char*, value : const char*) : void
+    +finalize() : void
+    +getString() const : const char*
+    +hasOverflow() const : bool
+  }
+
   abstract class TelemetryPackage {
-    +serialize(serializationDestination : JsonDocument&) const : void
-    +toDocument() const : JsonDocument
+    +write(writer : TelemetryWriter&) const : void
     +toJsonString() const : String
+    +serializeToBuffer(buffer : char*, bufferSize : size_t) const : size_t
+    +markAsHighPriority() : void
+    +isHighPriority() const : bool
   }
 }
 
@@ -726,7 +791,7 @@ package "Gateway" #FFF8EE {
     #communicationTransportDriver : ConnectivityDriver&
     #serviceEndpointUrl : const char*
     +GatewayClient(transportDriver : ConnectivityDriver&, targetEndpoint : const char*)
-    +sendTelemetryRecord(abstractTelemetryPayload : const TelemetryPackage&) : bool
+    +sendTelemetryRecord(telemetryPackage : const TelemetryPackage&) : bool
     +service() : void
     +loop() : void
     +isConnected() : bool
@@ -760,7 +825,7 @@ package "Gateway" #FFF8EE {
     +isConnected() : bool
     +getStatistics() : GatewayStatistics
     +sendRequest(method : HttpMethod, payload : const char*) : bool
-    +sendTelemetryRecord(abstractTelemetryPayload : const TelemetryPackage&) : bool
+    +sendTelemetryRecord(telemetryPackage : const TelemetryPackage&) : bool
     -executeHttpRequest(method : HttpMethod, payload : const char*) : bool
   }
 
@@ -782,14 +847,23 @@ package "Gateway" #FFF8EE {
     -publishTopic : const char*
     -subscribeTopic : const char*
     -targetDevice : Device*
+    -publishQoS : uint8_t
+    -subscribeQoS : uint8_t
+    -retained : bool
     +MqttGatewayClient(transportDriver : ConnectivityDriver&, networkClient : Client&, brokerIpAddress : const char*, brokerPort : uint16_t, publishTopic : const char*, subscribeTopic : const char*, targetDevice : Device*, deviceId : const char* = "ModestIotNode")
-    +sendTelemetryRecord(abstractTelemetryPayload : const TelemetryPackage&) : bool
+    +sendTelemetryRecord(telemetryPackage : const TelemetryPackage&) : bool
     +service() : void
     +loop() : void
     +isConnected() : bool
     +getClientState() : int
     +setReconnectInterval(intervalMilliseconds : unsigned long) : void
     +getReconnectInterval() const : unsigned long
+    +setPublishQoS(qos : uint8_t) : void
+    +getPublishQoS() const : uint8_t
+    +setSubscribeQoS(qos : uint8_t) : void
+    +getSubscribeQoS() const : uint8_t
+    +setRetained(retain : bool) : void
+    +getRetained() const : bool
     +getStatistics() const : GatewayStatistics
     +getSubscribeTopic() const : const char*
   }
@@ -863,10 +937,13 @@ Device   "0..4" o--> Sensor : triggerTable
 
 GatewayClient     --> ConnectivityDriver : uses
 GatewayClient     ..> TelemetryPackage   : serializes
+TelemetryPackage  ..> TelemetryWriter    : writes to
+TelemetryWriter   <|.. JsonTelemetryWriter : implements
 
 MqttGatewayClient *-- MQTTClient : owns
 MqttGatewayClient --> Client       : uses socket
 MqttGatewayClient --> Device       : enqueueCommand
+MqttGatewayClient ..> JsonParser   : parses commands
 
 WiFiConnectivityDriver ..> WiFiClient : allocates
 WiFiConnectivityDriver ..> Client     : exposes

@@ -160,8 +160,8 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
 ### TS15: Validate Framework with Automated Tests
 - **As an** IoT Developer, **I want** the framework to have comprehensive host unit tests and CI workflows, **so that** I can trust the codebase compiles and behaves correctly without deploying to hardware.
 - **Acceptance Criteria**:
-    - **Given** a new pull request, **when** CI runs, **then** all 47 host test suites pass with Address and Undefined sanitizers enabled.
-    - **Given** a new pull request, **when** CI runs, **then** all 23 example sketches compile cleanly on ESP32 and ESP32-S3 targets.
+    - **Given** a new pull request, **when** CI runs, **then** all 49 host test suites pass with Address and Undefined sanitizers enabled.
+    - **Given** a new pull request, **when** CI runs, **then** all 26 example sketches compile cleanly on ESP32 and ESP32-S3 targets.
     - **Given** library metadata is changed, **when** CI runs, **then** `arduino-lint` validates Arduino Library Manager compliance.
     - **Given** a telemetry package is serialized in a host test, **when** the golden JSON is compared, **then** the exact output matches the expected string.
 - **Status**: ✓ Implemented. See `tests/run_all.sh`, `.github/workflows/host-tests.yml`, `.github/workflows/compile-examples.yml`, `.github/workflows/lint.yml`, and `tests/TelemetryPackage/test.cpp`.
@@ -215,7 +215,7 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
 - **As an** IoT Developer, **I want** to install the Modest IoT Nano Framework from a registry provider without manual steps, **so that** I can use the framework in my project with a single configuration line.
 - **Acceptance Criteria**:
     - **Given** the framework is published to the Arduino Library Manager, **when** the Arduino IDE Library Manager lists available libraries, **then** the framework appears with the correct name, version, and description.
-    - **Given** the framework is published to the Arduino Library Manager, **when** installation is triggered, **then** the framework and its dependencies (ArduinoJson, MQTT) are downloaded and available in the sketch.
+    - **Given** the framework is published to the Arduino Library Manager, **when** installation is triggered, **then** the framework and its dependency (MQTT) are downloaded and available in the sketch.
     - **Given** a `library.json` manifest exists, **when** `Modest-IoT-Nano-Framework` is added to `lib_deps` in `platformio.ini`, **then** PlatformIO resolves and downloads the framework and its dependencies.
     - **Given** the framework is installed via either registry, **when** a sketch that includes `ModestIoT.h` is built, **then** the build succeeds without missing header errors.
     - **Given** both `library.json` and `library.properties` exist, **when** the metadata is compared, **then** the name, version, and dependencies are consistent between the two files.
@@ -226,14 +226,270 @@ This document contains user stories for the Modest IoT Nano Framework, designed 
 - **As an** IoT Developer, **I want** a step-by-step Quick Start Guide, **so that** I can go from zero to a working device in under 10 minutes.
 - **Acceptance Criteria**:
     - **Given** the Quick Start Guide offers two routes, **when** the user chooses the Simulation route, **then** the `StatusIndicator` example runs in Wokwi without any hardware or toolchain installation.
-    - **Given** the Simulation route is followed, **when** the required libraries are added in Wokwi, **then** the framework, ArduinoJson, and MQTT are available for the simulated sketch.
+    - **Given** the Simulation route is followed, **when** the required libraries are added in Wokwi, **then** the framework and MQTT are available for the simulated sketch.
     - **Given** the user chooses the Hardware route, **when** the Quick Start Guide is followed, **then** the framework is installed, the `StatusIndicator` example is opened, and the sketch is uploaded to the ESP32 board.
     - **Given** the Hardware route covers installation, **when** the Installation section is read, **then** three toolchain paths are documented: Arduino Library Manager, PlatformIO in VS Code, and PlatformIO in CLion.
     - **Given** the `StatusIndicator` example is uploaded, **when** the Serial Monitor is connected, **then** LED toggle status messages are output confirming the framework is running.
     - **Given** the Quick Start Guide is complete, **when** the Next Steps section is reached, **then** links to the full README, examples, and documentation are provided.
 - **Status**: ✓ Implemented (v1.1.2). See `docs/quick-start.md` (two-route guide: Simulation via Wokwi, Hardware via ESP32) and `examples/StatusIndicator`.
 
+### TS22: Format-Neutral Telemetry Serialization
+
+- **As an** IoT Developer, **I want** telemetry packages to be decoupled from the JSON serialization format, **so that** I can swap JSON for CBOR, MessagePack, or binary protocols without changing telemetry package code.
+- **Acceptance Criteria**:
+    - **Given** a `TelemetryWriter` interface exists, **when** a `TelemetryPackage` subclass implements `write(TelemetryWriter&)`, **then** the package declares data fields without knowing the serialization format.
+    - **Given** a `JsonTelemetryWriter` implementation exists, **when** `write()` is called with a `JsonTelemetryWriter`, **then** the output is valid JSON with envelope metadata (timestamp, sequence, schemaVersion, firmwareVersion).
+    - **Given** the `TelemetryWriter` interface is abstract, **when** a new format writer (e.g., CBOR) is needed, **then** only the new writer class needs to be implemented — no telemetry package changes required.
+    - **Given** `JsonTelemetryWriter` uses a fixed stack buffer, **when** serialization occurs, **then** no heap allocation is made (zero `JsonDocument` usage).
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryWriter.h`, `JsonTelemetryWriter.h`, `JsonTelemetryWriter.cpp`, and `TelemetryPackage.h`.
+
+### TS23: Native JSON Parsing for MQTT Commands
+
+- **As an** IoT Developer, **I want** incoming MQTT commands to be parsed without ArduinoJson, **so that** the framework has zero external dependencies for JSON handling.
+- **Acceptance Criteria**:
+    - **Given** an incoming MQTT message with JSON payload `{"commandIdentifier": N, "commandPayload": V}`, **when** the native JSON parser extracts values, **then** the command ID and payload are extracted correctly.
+    - **Given** the JSON payload is malformed, **when** the native JSON parser processes it, **then** an error is logged and the message is ignored.
+    - **Given** the JSON payload is missing the `commandIdentifier` field, **when** the native JSON parser processes it, **then** an error is logged and the message is ignored.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp` (`JsonParser::parseInt()`, `JsonParser::parseInt32()`).
+
+### TS24: ArduinoJson Dependency Removal
+
+- **As an** IoT Developer, **I want** the framework to have no ArduinoJson dependency, **so that** my firmware saves ~30-40 KB of Flash and avoids per-serialization heap allocations.
+- **Acceptance Criteria**:
+    - **Given** W46 is complete, **when** `library.properties` and `library.json` are checked, **then** ArduinoJson is removed from the dependencies list.
+    - **Given** W46 is complete, **when** all source files are searched for `#include <ArduinoJson.h>`, **then** no matches are found in production code.
+    - **Given** W46 is complete, **when** all 26 examples compile, **then** the build succeeds without ArduinoJson.
+    - **Given** W46 is complete, **when** all 49 host test suites run, **then** all tests pass without the ArduinoJson mock.
+- **Status**: ✓ Implemented (v1.2.0). See `library.properties`, `library.json`, and all migrated source files.
+
+### TS25: Implement TelemetryWriter Abstraction
+
+- **As an** IoT Developer, **I want** a `TelemetryWriter` interface and `JsonTelemetryWriter` implementation, **so that** telemetry packages can serialize to JSON without ArduinoJson.
+- **Acceptance Criteria**:
+    - **Given** `TelemetryWriter` is an abstract class, **when** the interface is reviewed, **then** it has pure virtual `field()` overloads for `int32_t`, `float`, `bool`, and `const char*`.
+    - **Given** `JsonTelemetryWriter` implements `TelemetryWriter`, **when** `field()` is called, **then** the value is appended to a fixed-size stack buffer using `snprintf`.
+    - **Given** `JsonTelemetryWriter` has a `finalize()` method, **when** all fields are written, **then** the buffer contains valid JSON with proper comma separation and closing brace.
+    - **Given** `JsonTelemetryWriter` uses a 512-byte buffer, **when** the buffer is full, **then** serialization stops and an error is logged.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryWriter.h`, `JsonTelemetryWriter.h`, `JsonTelemetryWriter.cpp`.
+
+### TS26: Migrate TelemetryPackage to TelemetryWriter
+
+- **As an** IoT Developer, **I want** `TelemetryPackage` to use `TelemetryWriter` instead of `JsonDocument`, **so that** the core API is decoupled from ArduinoJson.
+- **Acceptance Criteria**:
+    - **Given** `TelemetryPackage` has a `write(TelemetryWriter&)` pure virtual method, **when** subclasses override it, **then** they call `writer.field()` for each data field.
+    - **Given** `TelemetryPackage::toJsonString()` exists, **when** it is called, **then** it creates a `JsonTelemetryWriter`, calls `addEnvelopeMetadata()` and `write()`, and returns the JSON string.
+    - **Given** `TelemetryPackage::addEnvelopeMetadata()` exists, **when** it is called with a `TelemetryWriter`, **then** timestamp, sequence, schemaVersion, and firmwareVersion fields are written.
+    - **Given** the old `serialize(JsonDocument&)` method is removed, **when** the codebase is searched for `serialize(JsonDocument&)`, **then** no matches are found.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h`.
+
+### TS27: Migrate Gateway Clients and Add Native JSON Parser
+
+- **As an** IoT Developer, **I want** gateway clients to use `JsonTelemetryWriter` and a native JSON parser, **so that** no ArduinoJson is used in the network task.
+- **Acceptance Criteria**:
+    - **Given** `MqttGatewayClient::sendTelemetryRecord()` uses `serializeToBuffer()`, **when** telemetry is sent, **then** the JSON payload is serialized to a fixed buffer without heap allocation.
+    - **Given** `BleGatewayClient::sendTelemetryRecord()` uses `serializeToBuffer()`, **when** telemetry is sent, **then** the JSON payload is serialized to a fixed buffer without heap allocation.
+    - **Given** `mqttMessageCallback()` uses a native JSON parser, **when** a command arrives, **then** `commandIdentifier` and `commandPayload` are extracted without ArduinoJson.
+    - **Given** the native JSON parser handles malformed JSON, **when** invalid JSON arrives, **then** an error is logged and the message is ignored.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp`, `BleGatewayClient.cpp`, `HttpGatewayClient.cpp`.
+
+### TS28: Enqueue Critical Alerts via High-Priority Lane
+
+- **As an** IoT Developer, **I want** to enqueue critical alerts via a high-priority lane, **so that** alarms bypass the standard telemetry queue and are transmitted immediately.
+- **Acceptance Criteria**:
+    - **Given** a Device has a high-priority queue, **when** `enqueueHighPriorityPayload()` is called with a TelemetryPackage, **then** the package is placed in the high-priority queue instead of the standard queue.
+    - **Given** the high-priority queue is bounded (4 slots), **when** `enqueueHighPriorityPayload()` is called and the queue is full, **then** the alert is dropped and a warning is logged.
+    - **Given** a high-priority alert is enqueued, **when** the network task processes the high-priority lane, **then** the alert packet gets envelope field `"priority": "high"` for edge-side routing.
+    - **Given** a high-priority alert is enqueued while the standard queue has pending packets, **when** the network task runs, **then** the alert is processed before standard telemetry packets.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h`, `Device.cpp`, `TelemetryPackage.h`.
+
+### TS29: High-Priority Lane Diagnostics
+
+- **As an** IoT Developer, **I want** to monitor high-priority lane statistics via DiagnosticsSnapshot, **so that** I can detect dropped alerts and high-priority queue pressure.
+- **Acceptance Criteria**:
+    - **Given** high-priority alerts have been enqueued, **when** `diagnostics()` is called, **then** `highPriorityEnqueued` reflects the total count of alerts successfully enqueued.
+    - **Given** high-priority alerts have been dropped due to a full queue, **when** `diagnostics()` is called, **then** `highPriorityDropped` reflects the total count of dropped alerts.
+    - **Given** the high-priority queue has reached a certain depth, **when** `diagnostics()` is called, **then** `highPriorityQueueHighWaterMark` reflects the maximum depth observed.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h` (DiagnosticsSnapshot extension), `Device.cpp`.
+
+### TS30: Configure MQTT QoS for Telemetry Publishing
+
+- **As an** IoT Developer, **I want** to configure the QoS level for MQTT telemetry publishing, **so that** I can ensure message delivery reliability based on my application's requirements.
+- **Acceptance Criteria**:
+    - **Given** a MqttGatewayClient is created with QoS 1, **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish uses QoS 1.
+    - **Given** a MqttGatewayClient is created with QoS 0 (default), **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish uses QoS 0.
+    - **Given** a MqttGatewayClient is created with QoS 2, **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish uses QoS 2.
+    - **Given** a MqttGatewayClient is created, **when** QoS is changed via `setPublishQoS()`, **then** subsequent publishes use the new QoS level.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS31: Configure Retained Messages for Last-Known-Good Telemetry
+
+- **As an** IoT Developer, **I want** to publish telemetry with the retained flag, **so that** the MQTT broker stores the last-known-good message for new subscribers.
+- **Acceptance Criteria**:
+    - **Given** a MqttGatewayClient is created with retained mode enabled, **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish includes the retained flag.
+    - **Given** a MqttGatewayClient is created with retained mode disabled (default), **when** `sendTelemetryRecord()` publishes a message, **then** the MQTT publish does not include the retained flag.
+    - **Given** a MqttGatewayClient is created, **when** retained mode is changed via `setRetained()`, **then** subsequent publishes use the new retained setting.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS32: Configure MQTT QoS for Subscribe
+
+- **As an** IoT Developer, **I want** to configure the QoS level for MQTT topic subscription, **so that** incoming commands are received with the desired delivery guarantee.
+- **Acceptance Criteria**:
+    - **Given** a MqttGatewayClient is created with subscribe QoS 1, **when** the client subscribes to the command topic, **then** the subscription uses QoS 1.
+    - **Given** a MqttGatewayClient is created with subscribe QoS 0 (default), **when** the client subscribes to the command topic, **then** the subscription uses QoS 0.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS33: Add QoS and Retained Configuration to MqttGatewayClient
+
+- **As an** IoT Developer, **I want** MqttGatewayClient to accept QoS and retained parameters, **so that** I can configure delivery guarantees at construction time.
+- **Acceptance Criteria**:
+    - **Given** MqttGatewayClient constructors accept QoS and retained parameters, **when** a client is created, **then** the parameters are stored as member variables.
+    - **Given** the default constructor parameters, **when** a client is created without explicit QoS/retained, **then** QoS defaults to 0 and retained defaults to false.
+    - **Given** `setPublishQoS()`, `setRetained()`, and `setSubscribeQoS()` exist, **when** they are called, **then** the stored values are updated.
+    - **Given** `getPublishQoS()`, `getRetained()`, and `getSubscribeQoS()` exist, **when** they are called, **then** the current values are returned.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.h`, `MqttGatewayClient.cpp`.
+
+### TS34: Update MQTT publish and subscribe to use QoS and Retained
+
+- **As an** IoT Developer, **I want** MqttGatewayClient to pass QoS and retained to the MQTT library, **so that** messages are published with the configured delivery guarantees.
+- **Acceptance Criteria**:
+    - **Given** `sendTelemetryRecord()` calls `mqttClient.publish()`, **when** the method executes, **then** the publish call includes the configured QoS and retained parameters.
+    - **Given** `subscribeToTopic()` calls `mqttClient.subscribe()`, **when** the method executes, **then** the subscribe call uses the configured subscribe QoS.
+    - **Given** the test mock is updated, **when** a test verifies QoS and retained, **then** the mock records and exposes these values for assertion.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp`, `tests/fakes/MQTT.h`, `tests/MqttGatewayClient/test.cpp`.
+
+### TS35: Parse JSON Commands with JsonParser
+
+- **As an** IoT Developer, **I want** to parse JSON payloads from MQTT commands, HTTP responses, and BLE notifications, **so that** I can extract values without ArduinoJson.
+- **Acceptance Criteria**:
+    - **Given** a JSON string `{"commandId": 1, "threshold": 42.5}`, **when** `JsonParser::parseInt()` is called with key "commandId", **then** the value 1 is extracted.
+    - **Given** a JSON string `{"enabled": true}`, **when** `JsonParser::parseBool()` is called with key "enabled", **then** the value true is extracted.
+    - **Given** a JSON string `{"name": "sensor_01"}`, **when** `JsonParser::parseString()` is called with key "name", **then** the string "sensor_01" is copied to the output buffer.
+    - **Given** a missing key, **when** any `JsonParser` method is called, **then** false is returned and the output value is unchanged.
+- **Status**: ✓ Implemented (v1.2.0). See `JsonParser.h`, `JsonParser.cpp`, `tests/JsonParser/test.cpp`.
+
+### TS36: Request On-Demand Diagnostics via MQTT Command
+
+- **As an** IoT Developer, **I want** to request diagnostics from a device via an MQTT command, **so that** I can monitor fleet health without continuous telemetry overhead.
+- **Acceptance Criteria**:
+    - **Given** a device is connected to an MQTT broker, **when** a command with `commandId` equal to 300 is published, **then** the device creates a `DiagnosticsTelemetryPackage` from `Device::collectDiagnostics()`.
+    - **Given** a diagnostics command is received, **when** the device serializes the diagnostics snapshot, **then** the JSON output contains all 14 DiagnosticsSnapshot fields (missedTicks, packetsEnqueued, highPriorityEnqueued, sendsSucceeded, freeHeapBytes, etc.).
+    - **Given** a diagnostics command is received, **when** the device sends the diagnostics telemetry, **then** it uses `enqueueTelemetryPayload()` (standard queue) to avoid blocking the sampler task.
+    - **Given** a diagnostics command is received but no gateway client is registered, **when** the device processes the command, **then** a warning is logged and no telemetry is sent.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h`, `Device.cpp`, `DiagnosticsTelemetryPackage.h`.
+
+### TS37: Diagnostics Command Integration with JsonParser
+
+- **As an** IoT Developer, **I want** the diagnostics command to be parsed using `JsonParser`, **so that** the framework maintains zero external dependencies for JSON handling.
+- **Acceptance Criteria**:
+    - **Given** an incoming MQTT message with JSON payload `{"commandId": 300}`, **when** `JsonParser::parseInt()` extracts the command ID, **then** the diagnostics command is recognized and processed.
+    - **Given** the JSON payload is malformed or missing `commandId`, **when** the MQTT callback processes it, **then** an error is logged and the message is ignored.
+- **Status**: ✓ Implemented (v1.2.0). See `MqttGatewayClient.cpp` (uses `JsonParser::parseInt()`), `Device.cpp` (handle diagnostics command).
+
+### TS38: Implement DiagnosticsTelemetryPackage
+
+- **As an** IoT Developer, **I want** a `DiagnosticsTelemetryPackage` that wraps `DiagnosticsSnapshot` fields, **so that** diagnostics data is serialized as JSON via `TelemetryWriter`.
+- **Acceptance Criteria**:
+    - **Given** `DiagnosticsTelemetryPackage` exists, **when** it is constructed with a `DiagnosticsSnapshot`, **then** all 14 fields are stored as member variables.
+    - **Given** `DiagnosticsTelemetryPackage::write()` is called, **when** a `TelemetryWriter` serializes it, **then** the JSON output contains all 14 fields with correct key names.
+    - **Given** a golden test for `DiagnosticsTelemetryPackage`, **when** `toJsonString()` is called, **then** the output matches the expected JSON format with envelope metadata and all 14 data fields.
+- **Status**: ✓ Implemented (v1.2.0). See `DiagnosticsTelemetryPackage.h`, `DiagnosticsTelemetryPackage.cpp`, `tests/TelemetryPackage/test.cpp`.
+
+### TS39: Implement Diagnostics Command Handler in Device
+
+- **As an** IoT Developer, **I want** Device to handle the diagnostics command internally, **so that** my `handle()` override receives only custom commands without framework-internal logic.
+- **Acceptance Criteria**:
+    - **Given** Device has a diagnostics command ID constant (300), **when** `handleInternalCommand(Command)` receives a command with that ID, **then** `Device::collectDiagnostics()` is called and the result is wrapped in a `DiagnosticsTelemetryPackage`.
+    - **Given** a gateway client is registered, **when** the diagnostics command is processed, **then** the `DiagnosticsTelemetryPackage` is enqueued via `enqueueTelemetryPayload()`.
+    - **Given** no gateway client is registered, **when** the diagnostics command is processed, **then** a warning is logged and no telemetry is sent.
+    - **Given** `handleInternalCommand()` returns true for framework commands, **when** `processPendingCommands()` runs, **then** `handle()` is not called for framework commands — only for developer-defined custom commands.
+- **Status**: ✓ Implemented (v1.2.0). See `Device.h`, `Device.cpp`.
+
+### TS40: Declare Per-Package Schema Version
+
+- **As an** IoT Developer, **I want** each TelemetryPackage subclass to declare its own schema version, **so that** different telemetry packages can evolve independently without breaking each other.
+- **Acceptance Criteria**:
+    - **Given** a TelemetryPackage subclass declares a schema version constant, **when** the package is serialized, **then** the schema version is included in the JSON envelope metadata.
+    - **Given** a TelemetryPackage subclass does not declare a schema version, **when** the package is serialized, **then** the schema version falls back to the global `Device::setTelemetrySchemaVersion()` value (if set).
+    - **Given** a TelemetryPackage subclass declares schema version "1.0", **when** `toJsonString()` is called, **then** the JSON output includes `"schemaVersion": "1.0"`.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h`, `DiagnosticsTelemetryPackage.h`, `SmartBandMqtt.ino`, `HomeSecurityDevice.ino`.
+
+### TS41: Maintain Backward Compatibility with Global Schema Version
+
+- **As an** IoT Developer, **I want** the global `Device::setTelemetrySchemaVersion()` to remain functional, **so that** existing code continues to work without modification.
+- **Acceptance Criteria**:
+    - **Given** `Device::setTelemetrySchemaVersion()` is called with a version string, **when** a TelemetryPackage without a per-package schema version is serialized, **then** the global schema version is used.
+    - **Given** `Device::setTelemetrySchemaVersion()` is not called, **when** a TelemetryPackage without a per-package schema version is serialized, **then** no schema version is included in the output.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h` (`setVersionMetadata()` fallback logic).
+
+### TS42: Add Per-Package Schema Version to TelemetryPackage
+
+- **As an** IoT Developer, **I want** TelemetryPackage to support per-package schema versions, **so that** subclasses can declare their own schema version.
+- **Acceptance Criteria**:
+    - **Given** TelemetryPackage has a protected `schemaVersionValue` member, **when** a subclass sets it, **then** the value is used in `addEnvelopeMetadata()`.
+    - **Given** TelemetryPackage's `setVersionMetadata()` checks per-package schema first, **when** the per-package schema is set, **then** it's used instead of the global schema.
+    - **Given** TelemetryPackage's `setVersionMetadata()` falls back to global schema, **when** the per-package schema is not set, **then** the global schema is applied.
+- **Status**: ✓ Implemented (v1.2.0). See `TelemetryPackage.h`.
+
+### TS43: Update Examples and Tests for Per-Package Schema Versions
+
+- **As an** IoT Developer, **I want** examples to declare per-package schema versions, **so that** developers see the pattern in practice.
+- **Acceptance Criteria**:
+    - **Given** SmartBandTelemetryPackage declares `static constexpr const char* SCHEMA_VERSION = "1.0"`, **when** the package is serialized, **then** the JSON output includes `"schemaVersion": "1.0"`.
+    - **Given** DiagnosticsTelemetryPackage declares `static constexpr const char* SCHEMA_VERSION = "1.0"`, **when** the package is serialized, **then** the JSON output includes `"schemaVersion": "1.0"`.
+    - **Given** golden tests are updated, **when** tests run, **then** all tests pass with the new schema version in the output.
+- **Status**: ✓ Implemented (v1.2.0). See `DiagnosticsTelemetryPackage.h`, `SmartBandMqtt.ino`, `HomeSecurityDevice.ino`, `tests/TelemetryPackage/test.cpp`.
+
+### TS44: Define Composite Event Patterns
+
+- **As an** IoT Developer, **I want** to define composite event patterns (e.g., "motion AND door opened within 5 seconds"), **so that** the device can detect complex automation triggers on-device.
+- **Acceptance Criteria**:
+    - **Given** an EventAggregator exists, **when** `addAllMatchPattern()` is called with two event identifiers and a time window, **then** the AND pattern is registered for matching.
+    - **Given** a pattern is registered, **when** both event identifiers occur within the time window, **then** a composite event is emitted via the registered handler.
+    - **Given** a pattern is registered, **when** only one event identifier occurs within the time window, **then** no composite event is emitted.
+    - **Given** a pattern is registered, **when** both event identifiers occur but outside the time window, **then** no composite event is emitted.
+    - **Given** an EventAggregator exists, **when** `addAnyMatchPattern()` is called with two event identifiers and a time window, **then** the OR pattern is registered — any single event triggers the composite event.
+    - **Given** an OR pattern is registered, **when** only one of the event identifiers occurs, **then** the composite event is emitted immediately.
+    - **Given** an EventAggregator exists, **when** `addAllMatchPattern()` is called with source IDs, **then** the pattern matches only events from the specified sensor sources, using `EventAggregator::ANY_SOURCE` for wildcard positions.
+    - **Given** a conditional pattern is registered via `addAllMatchPattern()` with a `PatternCondition` callback, **when** the pattern matches but the condition returns false, **then** the composite event is suppressed.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.h`, `EventAggregator.cpp`.
+
+### TS45: Event Aggregator as EventHandler
+
+- **As an** IoT Developer, **I want** the EventAggregator to implement EventHandler, **so that** it can be registered as a sensor's handler to intercept events.
+- **Acceptance Criteria**:
+    - **Given** an EventAggregator implements EventHandler, **when** a sensor's `setHandler()` is called with the aggregator, **then** events from the sensor are passed to the aggregator's `on(Event)` method.
+    - **Given** the EventAggregator receives an event, **when** the event matches a registered pattern, **then** the composite event is emitted via the output handler.
+    - **Given** the EventAggregator receives an event, **when** no pattern matches, **then** the event is captured but no composite event is emitted.
+    - **Given** two EventAggregator instances are chained via `setOutputHandler()`, **when** the first aggregator emits a composite event, **then** the second aggregator receives it and can match it against its own patterns.
+    - **Given** a composite event is emitted, **when** the event is inspected, **then** its sourceId is `EventAggregator::DEVICE_SOURCE_ID` (0), distinguishing it from raw sensor events.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.h` (implements `EventHandler`).
+
+### TS46: Implement EventAggregator Core
+
+- **As an** IoT Developer, **I want** EventAggregator to capture events and match patterns, **so that** composite events are emitted when patterns match.
+- **Acceptance Criteria**:
+    - **Given** EventAggregator has a fixed-size circular buffer (32 captured events), **when** `on(Event)` is called, **then** the event is captured with its timestamp and sourceId.
+    - **Given** EventAggregator has a fixed-size pattern array (4 patterns), **when** `addAllMatchPattern()` is called, **then** the AND pattern is stored.
+    - **Given** EventAggregator has a fixed-size pattern array (4 patterns), **when** `addAnyMatchPattern()` is called, **then** the OR pattern is stored.
+    - **Given** an event is captured, **when** `checkForEventPatternMatch()` runs, **then** all registered patterns are checked using their respective logic (AND requires all identifiers, OR requires any one).
+    - **Given** a pattern matches, **when** the composite event is emitted, **then** the output handler's `on(Event)` is called with the composite event identifier and `EventAggregator::DEVICE_SOURCE_ID` as the source.
+    - **Given** a pattern has a `PatternCondition` callback, **when** the pattern matches, **then** the condition function is called with the composite event ID before emitting.
+    - **Given** a pattern is registered, **when** `removePattern()` is called with the composite event ID, **then** the pattern is removed and the slot is available for reuse.
+    - **Given** multiple patterns are registered, **when** `cleanupPatterns()` is called, **then** all patterns are removed in one operation.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.cpp`.
+
+### TS47: Captured Event Cleanup and Buffer Management
+
+- **As an** IoT Developer, **I want** EventAggregator to remove expired captured events, **so that** the circular buffer doesn't grow unbounded.
+- **Acceptance Criteria**:
+    - **Given** captured events are older than the maximum pattern time window, **when** `removeExpiredCapturedEvents()` runs, **then** the expired captured events are removed.
+    - **Given** the circular buffer is full, **when** a new event is captured, **then** the oldest captured event is evicted.
+    - **Given** the pattern array is full, **when** `addAllMatchPattern()` or `addAnyMatchPattern()` is called, **then** the new pattern is rejected and false is returned.
+    - **Given** a pattern is removed via `removePattern()`, **when** the pattern array is inspected, **then** the remaining patterns are compacted to fill the gap.
+    - **Given** all patterns are removed via `cleanupPatterns()`, **when** a new pattern is registered, **then** the slot is available and the pattern is accepted.
+- **Status**: ✓ Implemented (v1.2.0). See `EventAggregator.cpp`, `tests/EventAggregator/test.cpp`.
+
 ---
 
 *Created: March 23, 2025.*
-*Last Updated: November 17, 2026.*
+*Last Updated: November 19, 2026.*

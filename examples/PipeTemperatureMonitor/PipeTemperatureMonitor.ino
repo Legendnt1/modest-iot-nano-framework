@@ -170,16 +170,19 @@ public:
           alarmBuzzer(buzzerPin, this),
           alarmActive(false)
     {
-        // Configure fault detection: consecutive failures that trigger a fault event
-        pipeSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
+        // Configure fault detection: 3 consecutive failures triggers fault event
+        pipeSensor.setFaultThreshold(3);
 
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&pipeSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
-    ~PipeTemperatureMonitor() override = default;
+    ~PipeTemperatureMonitor() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data events and fault/recovery events.

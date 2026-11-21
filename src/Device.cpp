@@ -7,6 +7,7 @@
  */
 
 #include "Device.h"
+#include "DiagnosticsTelemetryPackage.h"
 #include "ModestLog.h"
 
 #ifdef ARDUINO_ARCH_ESP32
@@ -35,10 +36,15 @@ Device::Device(const unsigned long samplingIntervalInMilliseconds, const uint8_t
       hardwareSamplingTaskHandle(nullptr),
       networkDispatcherTaskHandle(nullptr),
       telemetryQueueHandle(nullptr),
+      highPriorityQueueHandle(nullptr),
       packetsEnqueuedCount(0),
       packetsDroppedCount(0),
       packetsDroppedOldestCount(0),
       queueHighWaterMarkCount(0),
+      highPriorityEnqueuedCount(0),
+      highPriorityDroppedCount(0),
+      highPriorityQueueHighWaterMarkCount(0),
+      firstHighPriorityDropLogged(false),
       missedTickCount(0),
       firstDropLogged(false),
       nextSequenceNumber(0),
@@ -59,6 +65,7 @@ Device::~Device() {
     stopAsynchronousEngine();
 }
 
+// LCOV_EXCL_START — FreeRTOS ISR and task creation, cannot run in host tests
 void IRAM_ATTR Device::handleHardwareTimerInterrupt(void *deviceInstance) {
     if (deviceInstance != nullptr) {
         auto *self = static_cast<Device *>(deviceInstance);
@@ -87,6 +94,7 @@ void Device::initializeAsynchronousEngine(const EngineConfiguration &engineConfi
     engineStarted = true;
 
     telemetryQueueHandle = xQueueCreate(engineConfiguration.queueLength, sizeof(TelemetryPackage*));
+    highPriorityQueueHandle = xQueueCreate(4, sizeof(TelemetryPackage*));
     commandQueueHandle = xQueueCreate(engineConfiguration.queueLength, sizeof(CommandEntry));
 
     xTaskCreatePinnedToCore(
@@ -108,6 +116,7 @@ void Device::initializeAsynchronousEngine(const EngineConfiguration &engineConfi
     const bool autoReload = powerMode == PowerMode::Periodic;
     timerAlarm(hardwareTimer, alarmIntervalInMicroseconds, autoReload, 0);
 }
+// LCOV_EXCL_END
 
 bool Device::appendSensorToScheduler(EventHandler *targetSensorInstance, const int requestedEventIdentifier) {
     if (engineStarted || targetSensorInstance == nullptr || requestedEventIdentifier == INVALID_EVENT_IDENTIFIER)
@@ -151,6 +160,7 @@ bool Device::appendSensorToScheduler(EventHandler *targetSensorInstance, const i
            result != SamplingScheduler::AddResult::InvalidArgument;
 }
 
+// LCOV_EXCL_START — FreeRTOS queue operations, cannot run in host tests
 bool Device::enqueueTelemetryPayload(TelemetryPackage **telemetryPackagePointerAddress) const {
     if (telemetryQueueHandle == nullptr || telemetryPackagePointerAddress == nullptr) return false;
 
@@ -194,16 +204,34 @@ bool Device::enqueueTelemetryPayload(TelemetryPackage **telemetryPackagePointerA
     return false;
 }
 
+void Device::assignEnvelopeMetadata(TelemetryPackage* package) const {
+#if defined(ARDUINO_ARCH_ESP32)
+    package->setEnvelopeMetadata(TimeSynchronizationDriver::getCurrentTimestamp(), nextSequenceNumber++);
+#else
+    package->setEnvelopeMetadata(static_cast<uint32_t>(millis()), nextSequenceNumber++);
+#endif
+    package->setVersionMetadata(telemetrySchemaVersion, firmwareVersion);
+}
+// LCOV_EXCL_END
+
+// LCOV_EXCL_START — FreeRTOS queue operations, cannot run in host tests
+void Device::drainTelemetryQueue(QueueHandle_t& queueHandle) {
+    if (queueHandle == nullptr) return;
+    TelemetryPackage* pending = nullptr;
+    while (xQueueReceive(queueHandle, &pending, 0) == pdPASS) {
+        delete pending;
+    }
+    vQueueDelete(queueHandle);
+    queueHandle = nullptr;
+}
+// LCOV_EXCL_END
+
+// LCOV_EXCL_START — FreeRTOS queue operations, cannot run in host tests
 bool Device::enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetryPackageStandardUniquePointer) const {
     if (telemetryQueueHandle == nullptr || telemetryPackageStandardUniquePointer == nullptr) return false;
 
     // Assign envelope metadata before enqueue attempt so drops are visible as gaps
-#if defined(ARDUINO_ARCH_ESP32)
-    telemetryPackageStandardUniquePointer->setEnvelopeMetadata(TimeSynchronizationDriver::getCurrentTimestamp(), nextSequenceNumber++);
-#else
-    telemetryPackageStandardUniquePointer->setEnvelopeMetadata(static_cast<uint32_t>(millis()), nextSequenceNumber++);
-#endif
-    telemetryPackageStandardUniquePointer->setVersionMetadata(telemetrySchemaVersion, firmwareVersion);
+    assignEnvelopeMetadata(telemetryPackageStandardUniquePointer.get());
 
     TelemetryPackage *rawPackagePointer = telemetryPackageStandardUniquePointer.release();
     if (xQueueSend(telemetryQueueHandle, &rawPackagePointer, 0) == pdPASS) {
@@ -239,6 +267,35 @@ bool Device::enqueueTelemetryPayload(std::unique_ptr<TelemetryPackage> telemetry
     return false;
 }
 
+bool Device::enqueueHighPriorityPayload(std::unique_ptr<TelemetryPackage> highPriorityPayload) const {
+    if (highPriorityQueueHandle == nullptr || highPriorityPayload == nullptr) return false;
+
+    // Assign envelope metadata and high priority before enqueue
+    assignEnvelopeMetadata(highPriorityPayload.get());
+    highPriorityPayload->markAsHighPriority();
+
+    TelemetryPackage *rawHighPriorityPointer = highPriorityPayload.release();
+    if (xQueueSend(highPriorityQueueHandle, &rawHighPriorityPointer, 0) == pdPASS) {
+        // Ownership transferred to the high-priority queue.
+        highPriorityEnqueuedCount++;
+        if (const auto currentQueueSize = static_cast<uint8_t>(uxQueueMessagesWaiting(highPriorityQueueHandle));
+            currentQueueSize > highPriorityQueueHighWaterMarkCount) {
+            highPriorityQueueHighWaterMarkCount = currentQueueSize;
+        }
+        return true;
+    }
+    // High-priority queue is full: drop the new packet (high-priority data is too critical to evict)
+    delete rawHighPriorityPointer;
+    highPriorityDroppedCount++;
+    if (!firstHighPriorityDropLogged) {
+        MODEST_LOG_W(DEVICE_COMPONENT_NAME, "First high-priority packet dropped: high-priority queue full");
+        firstHighPriorityDropLogged = true;
+    }
+    return false;
+}
+// LCOV_EXCL_END
+
+// LCOV_EXCL_START — FreeRTOS task context, cannot run in host tests
 void Device::executeHardwareSamplingContext(void *taskParameters) {
     auto *self = static_cast<Device *>(taskParameters);
     while (true) {
@@ -300,7 +357,16 @@ void Device::executeNetworkDispatchContext(void *taskParameters) {
             }
         }
 
-        // Poll queue with a timeout so network maintenance (MQTT keep-alive, connection checks) executes regularly
+        // Check high-priority queue first (non-blocking) — high-priority packets are processed before standard telemetry
+        if (xQueueReceive(self->highPriorityQueueHandle, &incomingPolymorphicPacketPointer, 0) == pdPASS) {
+            if (incomingPolymorphicPacketPointer != nullptr) {
+                self->processQueuedTelemetryData(incomingPolymorphicPacketPointer);
+                delete incomingPolymorphicPacketPointer;
+                incomingPolymorphicPacketPointer = nullptr;
+            }
+        }
+
+        // Poll standard telemetry queue with a timeout so network maintenance executes regularly
         if (xQueueReceive(self->telemetryQueueHandle, &incomingPolymorphicPacketPointer,
                           pdMS_TO_TICKS(NETWORK_QUEUE_RECEIVE_TIMEOUT_IN_MILLISECONDS)) ==
             pdPASS) {
@@ -314,10 +380,38 @@ void Device::executeNetworkDispatchContext(void *taskParameters) {
     }
     vTaskDelete(nullptr);
 }
+// LCOV_EXCL_END
 
 /**
- * @brief Default fallback implementation of CommandHandler interface.
- * Allows derived application controllers to completely omit empty override boilerplate.
+ * @brief Handles framework-internal commands before dispatching to handle().
+ * @param command The command to check.
+ * @return True if the command was a framework command and was consumed.
+ *
+ * Currently handles the diagnostics command (commandId = 300).
+ * This keeps handle() purely for developer-defined custom commands.
+ */
+bool Device::handleInternalCommand(const Command command) const {
+    if (command.identifier == DIAGNOSTICS_COMMAND_IDENTIFIER) {
+        if (telemetryGateway == nullptr) {
+            MODEST_LOG_W(DEVICE_COMPONENT_NAME, "Diagnostics requested but no gateway client registered");
+            return true;
+        }
+        const DiagnosticsSnapshot snapshot = collectDiagnostics();
+        auto diagPackage = std::make_unique<DiagnosticsTelemetryPackage>(snapshot);
+        enqueueTelemetryPayload(std::move(diagPackage));
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Concrete fallback command interface fulfillment.
+ * Overrides CommandHandler; derived classes can override for custom commands.
+ *
+ * The default implementation does nothing. Framework-internal commands
+ * (e.g., diagnostics) are handled separately by handleInternalCommand()
+ * before this method is called, so the developer's override receives
+ * only custom commands.
  */
 void Device::handle(const Command command) {
     (void) command;
@@ -350,6 +444,7 @@ void Device::maintainNetworkServices() const {
  * the sampler task drains these flags and dispatches events.
  */
 
+// LCOV_EXCL_START — GPIO ISR and trigger scheduler, cannot run in host tests
 Device *Device::activeDevice = nullptr;
 
 // ISR handle table: maps GPIO interrupt number to trigger handle (slot index + 1)
@@ -495,6 +590,7 @@ bool Device::appendToBothSchedulers(Sensor *targetSensorInstance,
     return samplingOk && triggerHandle != 0;
 }
 /** @} */
+// LCOV_EXCL_END
 
 /**
  * @name Command Marshaling
@@ -505,6 +601,7 @@ bool Device::appendToBothSchedulers(Sensor *targetSensorInstance,
  * in the sampler task for thread safety.
  */
 
+// LCOV_EXCL_START — FreeRTOS command marshaling, cannot run in host tests
 /**
  * @brief Enqueues a command for execution on the sampler task context.
  *
@@ -532,20 +629,28 @@ bool Device::enqueueCommand(CommandHandler *targetHandler, const Command command
 /**
  * @brief Processes all pending commands in the sampler task context.
  *
- * Drains the command queue and calls `targetHandler->handle(command)` for
- * each entry on the sampler task's own context.
+ * Drains the command queue and first checks for framework-internal commands
+ * via handleInternalCommand(). If not consumed, dispatches to
+ * `targetHandler->handle(command)` for developer-defined custom commands.
  */
 void Device::processPendingCommands() const {
     CommandEntry entry;
     while (xQueueReceive(commandQueueHandle, &entry, 0) == pdPASS) {
+        // Framework-internal commands (e.g., diagnostics) are handled first
+        if (handleInternalCommand(entry.command)) {
+            continue;
+        }
+        // Custom commands are dispatched to the target handler
         if (entry.targetHandler != nullptr) {
             entry.targetHandler->handle(entry.command);
         }
     }
 }
 /** @} */
+// LCOV_EXCL_END
 
-DiagnosticsSnapshot Device::diagnostics() const {
+// LCOV_EXCL_START — FreeRTOS stack high-water marks, cannot run in host tests
+DiagnosticsSnapshot Device::collectDiagnostics() const {
     DiagnosticsSnapshot snapshot;
     snapshot.missedTicks = missedTickCount;
     snapshot.worstCaseWakeMicros = 0; // Populated when handler timing measurement is added
@@ -553,6 +658,9 @@ DiagnosticsSnapshot Device::diagnostics() const {
     snapshot.packetsDropped = packetsDroppedCount;
     snapshot.packetsDroppedOldest = packetsDroppedOldestCount;
     snapshot.queueHighWaterMark = queueHighWaterMarkCount;
+    snapshot.highPriorityEnqueued = highPriorityEnqueuedCount;
+    snapshot.highPriorityDropped = highPriorityDroppedCount;
+    snapshot.highPriorityQueueHighWaterMark = highPriorityQueueHighWaterMarkCount;
 
     // Aggregate gateway send statistics if a gateway is registered
     if (telemetryGateway != nullptr) {
@@ -586,7 +694,9 @@ DiagnosticsSnapshot Device::diagnostics() const {
 
     return snapshot;
 }
+// LCOV_EXCL_END
 
+// LCOV_EXCL_START — ESP32 power management, cannot run in host tests
 /**
  * @brief Re-arms the hardware timer for the next due sensor sample.
  *
@@ -655,36 +765,44 @@ void Device::enterDeepSleep() const {
 /**
  * @brief Reports the wake reason from the last sleep cycle.
  *
- * Uses `esp_sleep_get_wakeup_cause()` to determine how the device woke up
- * and prints the result to Serial. Call early in setup() to diagnose
- * unexpected wake cycles.
+ * Uses `esp_sleep_get_wakeup_causes()` (ESP-IDF 6.0+) to determine how the
+ * device woke up and prints the result to Serial. Multiple wakeup sources
+ * may trigger simultaneously; each is reported on a separate line.
+ * Call early in setup() to diagnose unexpected wake cycles.
  */
 void Device::reportWakeReason() {
 #ifdef ARDUINO_ARCH_ESP32
-    switch (esp_sleep_get_wakeup_cause()) {
-        case ESP_SLEEP_WAKEUP_EXT0:
-            Serial.println(F("[Device] Wakeup: External signal (RTC_IO)"));
-            break;
-        case ESP_SLEEP_WAKEUP_EXT1:
-            Serial.println(F("[Device] Wakeup: External signal (RTC_CNTL)"));
-            break;
-        case ESP_SLEEP_WAKEUP_TIMER:
-            Serial.println(F("[Device] Wakeup: Timer"));
-            break;
-        case ESP_SLEEP_WAKEUP_TOUCHPAD:
-            Serial.println(F("[Device] Wakeup: Touchpad"));
-            break;
-        case ESP_SLEEP_WAKEUP_ULP:
-            Serial.println(F("[Device] Wakeup: ULP coprogram"));
-            break;
-        default:
-            Serial.println(F("[Device] Wakeup: Reset or unknown"));
-            break;
+    const uint32_t causes = esp_sleep_get_wakeup_causes();
+    bool reported = false;
+
+    if (causes & BIT(ESP_SLEEP_WAKEUP_EXT0)) {
+        Serial.println(F("[Device] Wakeup: External signal (RTC_IO)"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_EXT1)) {
+        Serial.println(F("[Device] Wakeup: External signal (RTC_CNTL)"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_TIMER)) {
+        Serial.println(F("[Device] Wakeup: Timer"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_TOUCHPAD)) {
+        Serial.println(F("[Device] Wakeup: Touchpad"));
+        reported = true;
+    }
+    if (causes & BIT(ESP_SLEEP_WAKEUP_ULP)) {
+        Serial.println(F("[Device] Wakeup: ULP coprogram"));
+        reported = true;
+    }
+    if (!reported) {
+        Serial.println(F("[Device] Wakeup: Reset or unknown"));
     }
 #else
     (void)0; // Suppress unused warning in host builds
 #endif
 }
+// LCOV_EXCL_END
 
 void Device::setTelemetryGateway(GatewayClient* gateway) {
     telemetryGateway = gateway;
@@ -723,6 +841,7 @@ void Device::setFirmwareVersion(const char* version) {
 }
 /** @} */
 
+// LCOV_EXCL_START — FreeRTOS task management, cannot run in host tests
 void Device::stopAsynchronousEngine() {
     // Guard against double-stop
     if (hardwareSamplingTaskHandle == nullptr && networkDispatcherTaskHandle == nullptr) {
@@ -753,15 +872,9 @@ void Device::stopAsynchronousEngine() {
     hardwareSamplingTaskHandle = nullptr;
     networkDispatcherTaskHandle = nullptr;
 
-    // Drain and delete any pending telemetry packets in the queue
-    if (telemetryQueueHandle != nullptr) {
-        TelemetryPackage *pendingPacket = nullptr;
-        while (xQueueReceive(telemetryQueueHandle, &pendingPacket, 0) == pdPASS) {
-            delete pendingPacket;
-        }
-        vQueueDelete(telemetryQueueHandle);
-        telemetryQueueHandle = nullptr;
-    }
+    // Drain and delete any pending packets in all queues
+    Device::drainTelemetryQueue(highPriorityQueueHandle);
+    Device::drainTelemetryQueue(telemetryQueueHandle);
 
     // Drain and delete the command queue
     if (commandQueueHandle != nullptr) {
@@ -773,3 +886,4 @@ void Device::stopAsynchronousEngine() {
         commandQueueHandle = nullptr;
     }
 }
+// LCOV_EXCL_END

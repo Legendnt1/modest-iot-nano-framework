@@ -89,9 +89,10 @@ public:
           accessLed(ledPin, ACCESS_LED_INITIAL_STATE, this),
           feedbackBuzzer(buzzerPin, this)
     {
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&rfidReader, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 

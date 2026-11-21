@@ -8,13 +8,13 @@
  * maintenance needs.
  *
  * The primary purpose of this example is to demonstrate the ModestLog zero-overhead
- * compile-time logging system and the Device::diagnostics() runtime health monitoring
+ * compile-time logging system and the Device::collectDiagnostics() runtime health monitoring
  * API, which are essential for production deployments.
  *
  * @par Modest IoT Nano Framework aspects illustrated:
  * - `ModestLog` zero-overhead compile-time logging with `MIOT_LOG_*` macros
  * - Log level filtering: `MIOT_LOG_I` (Info), `MIOT_LOG_W` (Warn), `MIOT_LOG_E` (Error)
- * - `Device::diagnostics()` for runtime health snapshot (`DiagnosticsSnapshot`)
+ * - `Device::collectDiagnostics()` for runtime health snapshot (`DiagnosticsSnapshot`)
  * - `EngineConfiguration` for custom task stack sizes, priorities, and core pinning
  * - `LoadCellAmplifier` for force/vibration measurement (proxy for accelerometer)
  * - `DhtSensor` for ambient temperature monitoring
@@ -134,7 +134,7 @@ static const float VIBRATION_WARNING_THRESHOLD_IN_GRAMS = 5.0f;
  * @brief Industrial equipment health monitoring device.
  *
  * This class extends the `Device` base class to manage vibration and temperature sensors,
- * using ModestLog for structured logging and Device::diagnostics() for runtime health
+ * using ModestLog for structured logging and Device::collectDiagnostics() for runtime health
  * monitoring. Custom EngineConfiguration is used to tune task parameters for industrial
  * monitoring workloads.
  */
@@ -149,7 +149,7 @@ private:
      * @brief Reports the current diagnostics snapshot to Serial.
      */
     void reportDiagnostics() {
-        DiagnosticsSnapshot diag = diagnostics();
+        DiagnosticsSnapshot diag = collectDiagnostics();
 
         MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, DIAGNOSTICS_HEADER_LOG_FORMAT, sampleCount);
         MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, UPTIME_LOG_FORMAT, diag.uptimeSeconds);
@@ -204,18 +204,22 @@ public:
         config.networkStackBytes = NETWORK_STACK_SIZE_IN_BYTES;
         config.samplerPriority = SAMPLER_TASK_PRIORITY;
         config.queueLength = SAMPLER_QUEUE_LENGTH;
+
         // Hybrid scheduling: interrupt-driven data-ready detection eliminates the 100 ms busy-wait.
+        // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
+        // the engine start guard rejects any registration after the engine is running.
         appendToBothSchedulers(&vibrationSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendSensorToScheduler(&tempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        // Start the engine only after all registrations: Device rejects registrations once it is running.
         initializeAsynchronousEngine(config);
 
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, ENGINE_CONFIGURED_LOG_FORMAT,
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Engine configured: sampler stack %lu bytes, queue length %u",
                    config.samplerStackBytes, config.queueLength);
     }
 
-    ~EquipmentHealthMonitor() override = default;
+    ~EquipmentHealthMonitor() override {
+        stopAsynchronousEngine();
+    }
 
     /**
      * @brief Handles sensor data events and reports readings with structured logging.

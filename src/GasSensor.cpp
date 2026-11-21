@@ -379,6 +379,42 @@ bool GasSensor::isGasDetected() const {
     return false;
 }
 
+/**
+ * @brief Returns a human-readable name for a GasType enum value.
+ * @param type The GasType to convert.
+ * @return A null-terminated string representing the gas type name.
+ */
+const char* GasSensor::gasTypeName(GasType type) {
+    switch (type) {
+        case GasType::LPG: return "LPG";
+        case GasType::Methane: return "CH4";
+        case GasType::CarbonMonoxide: return "CO";
+        case GasType::Alcohol: return "Alcohol";
+        case GasType::Propane: return "Propane";
+        case GasType::Hydrogen: return "H2";
+        case GasType::Smoke: return "Smoke";
+        case GasType::Ammonia: return "NH3";
+        case GasType::Benzene: return "Benzene";
+        case GasType::Toluene: return "Toluene";
+        case GasType::Acetone: return "Acetone";
+        default: return "Unknown";
+    }
+}
+
+/**
+ * @brief Returns a human-readable name for an OperatingMode enum value.
+ * @param mode The OperatingMode to convert.
+ * @return A null-terminated string representing the operating mode name.
+ */
+const char* GasSensor::operatingModeName(OperatingMode mode) {
+    switch (mode) {
+        case OperatingMode::RawMode: return "RAW";
+        case OperatingMode::CalibratingMode: return "CALIBRATING";
+        case OperatingMode::AccurateMode: return "ACCURATE";
+        default: return "Unknown";
+    }
+}
+
 uint32_t GasSensor::getDefaultSamplingIntervalInMilliseconds() const {
     return DEFAULT_SAMPLING_INTERVAL_IN_MILLISECONDS;
 }

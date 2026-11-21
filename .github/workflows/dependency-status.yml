@@ -1,0 +1,92 @@
+name: Dependency Status
+
+on:
+  schedule:
+    # Run weekly on Monday at 09:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  check-dependencies:
+    name: Check dependency versions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check MQTT library version
+        id: mqtt
+        run: |
+          # Get current version from library.properties
+          CURRENT=$(grep '^depends=' library.properties | sed 's/.*>=\([0-9.]*\).*/\1/')
+          echo "Current MQTT version: ${CURRENT}"
+
+          # Get latest release version from GitHub API
+          LATEST=$(curl -s https://api.github.com/repos/256dpi/arduino-mqtt/releases/latest | grep '"tag_name"' | head -1 | sed 's/.*"v\?\([0-9.]*\)".*/\1/')
+          echo "Latest MQTT version: ${LATEST}"
+
+          # Compare versions
+          if [ "$(printf '%s\n' "$LATEST" "$CURRENT" | sort -V | head -n1)" = "$CURRENT" ] && [ "$CURRENT" != "$LATEST" ]; then
+            STATUS="outdated"
+            COLOR="orange"
+            MESSAGE="${CURRENT} (latest: ${LATEST})"
+          else
+            STATUS="up-to-date"
+            COLOR="green"
+            MESSAGE="${CURRENT}"
+          fi
+
+          echo "status=${STATUS}" >> $GITHUB_OUTPUT
+          echo "color=${COLOR}" >> $GITHUB_OUTPUT
+          echo "message=${MESSAGE}" >> $GITHUB_OUTPUT
+
+          # Update badge JSON
+          cat > .badges/mqtt.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "MQTT",
+            "message": "${MESSAGE}",
+            "color": "${COLOR}"
+          }
+          EOF
+
+      - name: Check ESP32 core version
+        id: esp32
+        run: |
+          # Get latest release version from GitHub API
+          LATEST=$(curl -s https://api.github.com/repos/espressif/arduino-esp32/releases/latest | grep '"tag_name"' | head -1 | sed 's/.*"v\?\([0-9.]*\)".*/\1/')
+          echo "Latest ESP32 core version: ${LATEST}"
+
+          # ESP32 core is always installed at latest in CI, so it's always up-to-date
+          cat > .badges/esp32.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "ESP32",
+            "message": "${LATEST}",
+            "color": "blue"
+          }
+          EOF
+
+      - name: Commit badge updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .badges/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "ci: update dependency status badges"
+            git push
+          fi
+
+      - name: Post summary
+        run: |
+          echo "## Dependency Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **MQTT** | ${{ steps.mqtt.outputs.status }} | ${{ steps.mqtt.outputs.message }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **ESP32 Core** | up-to-date | ${{ steps.esp32.outputs.message }} (CI installs latest) |" >> $GITHUB_STEP_SUMMARY

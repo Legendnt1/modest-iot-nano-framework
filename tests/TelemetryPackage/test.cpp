@@ -1,6 +1,7 @@
 #include <time.h>
-#include "TelemetryPackage.h"
-#include <ArduinoJson.h>
+#include "Device.h"
+#include "DiagnosticsTelemetryPackage.h"
+#include "JsonTelemetryWriter.h"
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -10,7 +11,7 @@ namespace {
 // Concrete telemetry packages matching the examples
 class SmartBandTelemetryPackage : public TelemetryPackage {
 private:
-    int heartBeatsPerMinute;
+    int32_t heartBeatsPerMinute;
     float skinTemperatureInCelsius;
     float relativeHumidityInPercentage;
 
@@ -22,10 +23,10 @@ public:
 
     ~SmartBandTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination["heartBeatsPerMinute"] = this->heartBeatsPerMinute;
-        serializationDestination["skinTemperatureInCelsius"] = this->skinTemperatureInCelsius;
-        serializationDestination["relativeHumidityPercentage"] = this->relativeHumidityInPercentage;
+    void write(TelemetryWriter& writer) const override {
+        writer.field("heartBeatsPerMinute", this->heartBeatsPerMinute);
+        writer.field("skinTemperatureInCelsius", this->skinTemperatureInCelsius);
+        writer.field("relativeHumidityPercentage", this->relativeHumidityInPercentage);
     }
 };
 
@@ -33,7 +34,7 @@ class AirQualityTelemetryPackage : public TelemetryPackage {
 private:
     float gasConcentrationInPpm;
     bool gasDetected;
-    int operatingMode;
+    int32_t operatingMode;
 
 public:
     AirQualityTelemetryPackage(float ppm, bool detected, int mode)
@@ -41,10 +42,50 @@ public:
 
     ~AirQualityTelemetryPackage() override = default;
 
-    void serialize(JsonDocument& serializationDestination) const override {
-        serializationDestination["gasPpm"] = this->gasConcentrationInPpm;
-        serializationDestination["gasDetected"] = this->gasDetected;
-        serializationDestination["sensorMode"] = this->operatingMode;
+    void write(TelemetryWriter& writer) const override {
+        writer.field("gasPpm", this->gasConcentrationInPpm);
+        writer.field("gasDetected", this->gasDetected);
+        writer.field("sensorMode", this->operatingMode);
+    }
+};
+
+// Telemetry packages from HomeSecurityDevice example (W32 high-priority lane)
+class SecurityStatusTelemetryPackage : public TelemetryPackage {
+private:
+    bool doorOpen;
+    bool motionDetected;
+    bool waterLeak;
+
+public:
+    SecurityStatusTelemetryPackage(bool door, bool motion, bool leak)
+        : doorOpen(door),
+          motionDetected(motion),
+          waterLeak(leak) {}
+
+    ~SecurityStatusTelemetryPackage() override = default;
+
+    void write(TelemetryWriter& writer) const override {
+        writer.field("doorOpen", this->doorOpen);
+        writer.field("motionDetected", this->motionDetected);
+        writer.field("waterLeak", this->waterLeak);
+    }
+};
+
+class SecurityAlertTelemetryPackage : public TelemetryPackage {
+private:
+    const char* alertType;
+    bool alertState;
+
+public:
+    SecurityAlertTelemetryPackage(const char* type, bool state)
+        : alertType(type),
+          alertState(state) {}
+
+    ~SecurityAlertTelemetryPackage() override = default;
+
+    void write(TelemetryWriter& writer) const override {
+        writer.field("alertType", this->alertType);
+        writer.field("waterLeak", this->alertState);
     }
 };
 
@@ -61,10 +102,8 @@ public:
         packet.setEnvelopeMetadata(0, 0);
         String json = packet.toJsonString();
 
-        // Keys are sorted alphabetically by std::map in the mock:
-        // heartBeatsPerMinute, relativeHumidityPercentage, sequence,
-        // skinTemperatureInCelsius, timestamp
-        std::string expected = "{\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"sequence\":0,\"skinTemperatureInCelsius\":36.5,\"timestamp\":0}";
+        // Keys in insertion order: envelope metadata first, then subclass fields
+        std::string expected = "{\"timestamp\":0,\"sequence\":0,\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
         assert(json == expected);
         std::printf("  SmartBand default metadata: PASS\n");
     }
@@ -77,7 +116,7 @@ public:
         packet.setEnvelopeMetadata(1234567, 42);
         String json = packet.toJsonString();
 
-        std::string expected = "{\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"sequence\":42,\"skinTemperatureInCelsius\":36.5,\"timestamp\":1234567}";
+        std::string expected = "{\"timestamp\":1234567,\"sequence\":42,\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
         assert(json == expected);
         std::printf("  SmartBand custom metadata: PASS\n");
     }
@@ -90,9 +129,7 @@ public:
         packet.setEnvelopeMetadata(0, 0);
         String json = packet.toJsonString();
 
-        // Keys sorted alphabetically: gasDetected, gasPpm, sensorMode,
-        // sequence, timestamp
-        std::string expected = "{\"gasDetected\":true,\"gasPpm\":250.5,\"sensorMode\":0,\"sequence\":0,\"timestamp\":0}";
+        std::string expected = "{\"timestamp\":0,\"sequence\":0,\"gasPpm\":250.50,\"gasDetected\":true,\"sensorMode\":0}";
         assert(json == expected);
         std::printf("  AirQuality default metadata: PASS\n");
     }
@@ -105,7 +142,7 @@ public:
         packet.setEnvelopeMetadata(9876543, 99);
         String json = packet.toJsonString();
 
-        std::string expected = "{\"gasDetected\":true,\"gasPpm\":250.5,\"sensorMode\":0,\"sequence\":99,\"timestamp\":9876543}";
+        std::string expected = "{\"timestamp\":9876543,\"sequence\":99,\"gasPpm\":250.50,\"gasDetected\":true,\"sensorMode\":0}";
         assert(json == expected);
         std::printf("  AirQuality custom metadata: PASS\n");
     }
@@ -118,7 +155,7 @@ public:
         packet.setEnvelopeMetadata(0, 0);
         String json = packet.toJsonString();
 
-        std::string expected = "{\"heartBeatsPerMinute\":0,\"relativeHumidityPercentage\":0,\"sequence\":0,\"skinTemperatureInCelsius\":0,\"timestamp\":0}";
+        std::string expected = "{\"timestamp\":0,\"sequence\":0,\"heartBeatsPerMinute\":0,\"skinTemperatureInCelsius\":0.00,\"relativeHumidityPercentage\":0.00}";
         assert(json == expected);
         std::printf("  SmartBand zero values: PASS\n");
     }
@@ -131,64 +168,69 @@ public:
         packet.setEnvelopeMetadata(100, 1);
         String json = packet.toJsonString();
 
-        std::string expected = "{\"gasDetected\":false,\"gasPpm\":0,\"sensorMode\":2,\"sequence\":1,\"timestamp\":100}";
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"gasPpm\":0.00,\"gasDetected\":false,\"sensorMode\":2}";
         assert(json == expected);
         std::printf("  AirQuality gas not detected: PASS\n");
     }
 
     // =========================================================================
-    // Test 7: Bounded buffer overflow detection
+    // Test 7: JsonTelemetryWriter overflow detection
+    // =========================================================================
+    {
+        JsonTelemetryWriter writer;
+        // Fill the buffer with many fields to trigger overflow
+        for (int i = 0; i < 100; i++) {
+            writer.field("field", static_cast<int32_t>(i));
+        }
+        writer.finalize();
+        assert(writer.hasOverflow());
+        std::printf("  JsonTelemetryWriter overflow: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 8: toJsonString() contains all fields
     // =========================================================================
     {
         SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
         packet.setEnvelopeMetadata(1234567, 42);
+        String json = packet.toJsonString();
 
-        // Serialize to a very small buffer — should return 0 (overflow)
-        char smallBuffer[10];
-        JsonDocument doc = packet.toDocument();
-        size_t len = serializeJson(doc, smallBuffer, sizeof(smallBuffer));
-        assert(len == 0);
-        std::printf("  Bounded buffer overflow: PASS\n");
+        assert(std::string(json).find("\"heartBeatsPerMinute\":72") != std::string::npos);
+        assert(std::string(json).find("\"sequence\":42") != std::string::npos);
+        assert(std::string(json).find("\"timestamp\":1234567") != std::string::npos);
+        std::printf("  toJsonString contains all fields: PASS\n");
     }
 
     // =========================================================================
-    // Test 8: Bounded buffer with sufficient size
-    // =========================================================================
-    {
-        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
-        packet.setEnvelopeMetadata(1234567, 42);
-
-        char buffer[512];
-        JsonDocument doc = packet.toDocument();
-        size_t len = serializeJson(doc, buffer, sizeof(buffer));
-        assert(len > 0);
-        assert(std::string(buffer).find("\"heartBeatsPerMinute\":72") != std::string::npos);
-        assert(std::string(buffer).find("\"sequence\":42") != std::string::npos);
-        assert(std::string(buffer).find("\"timestamp\":1234567") != std::string::npos);
-        std::printf("  Bounded buffer sufficient size: PASS\n");
-    }
-
-    // =========================================================================
-    // Test 9: toDocument() returns correct field count
+    // Test 9: SmartBandTelemetryPackage field count via string search
     // =========================================================================
     {
         SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
         packet.setEnvelopeMetadata(100, 1);
-        JsonDocument doc = packet.toDocument();
-        const auto& fields = doc.getFields();
-        assert(fields.size() == 5); // timestamp, sequence, heartBeatsPerMinute, skinTemperatureInCelsius, relativeHumidityPercentage
+        String json = packet.toJsonString();
+
+        // Count fields by checking each key is present
+        assert(std::string(json).find("\"timestamp\"") != std::string::npos);
+        assert(std::string(json).find("\"sequence\"") != std::string::npos);
+        assert(std::string(json).find("\"heartBeatsPerMinute\"") != std::string::npos);
+        assert(std::string(json).find("\"skinTemperatureInCelsius\"") != std::string::npos);
+        assert(std::string(json).find("\"relativeHumidityPercentage\"") != std::string::npos);
         std::printf("  SmartBand field count: PASS\n");
     }
 
     // =========================================================================
-    // Test 10: AirQualityTelemetryPackage toDocument() field count
+    // Test 10: AirQualityTelemetryPackage field count via string search
     // =========================================================================
     {
         AirQualityTelemetryPackage packet(250.5f, true, 0);
         packet.setEnvelopeMetadata(200, 2);
-        JsonDocument doc = packet.toDocument();
-        const auto& fields = doc.getFields();
-        assert(fields.size() == 5); // timestamp, sequence, gasPpm, gasDetected, sensorMode
+        String json = packet.toJsonString();
+
+        assert(std::string(json).find("\"timestamp\"") != std::string::npos);
+        assert(std::string(json).find("\"sequence\"") != std::string::npos);
+        assert(std::string(json).find("\"gasPpm\"") != std::string::npos);
+        assert(std::string(json).find("\"gasDetected\"") != std::string::npos);
+        assert(std::string(json).find("\"sensorMode\"") != std::string::npos);
         std::printf("  AirQuality field count: PASS\n");
     }
 
@@ -201,7 +243,7 @@ public:
         // setVersionMetadata not called — fields should be omitted
         String json = packet.toJsonString();
 
-        std::string expected = "{\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
         assert(json == expected);
         assert(std::string(json).find("schemaVersion") == std::string::npos);
         assert(std::string(json).find("firmwareVersion") == std::string::npos);
@@ -217,10 +259,7 @@ public:
         packet.setVersionMetadata("1.0", "1.0.0");
         String json = packet.toJsonString();
 
-        // Keys sorted alphabetically: firmwareVersion, heartBeatsPerMinute,
-        // relativeHumidityPercentage, schemaVersion, sequence,
-        // skinTemperatureInCelsius, timestamp
-        std::string expected = "{\"firmwareVersion\":\"1.0.0\",\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"schemaVersion\":\"1.0\",\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"schemaVersion\":\"1.0\",\"firmwareVersion\":\"1.0.0\",\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
         assert(json == expected);
         std::printf("  Version metadata included: PASS\n");
     }
@@ -234,7 +273,7 @@ public:
         packet.setVersionMetadata(nullptr, "2.0.0");
         String json = packet.toJsonString();
 
-        std::string expected = "{\"firmwareVersion\":\"2.0.0\",\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"firmwareVersion\":\"2.0.0\",\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
         assert(json == expected);
         assert(std::string(json).find("schemaVersion") == std::string::npos);
         std::printf("  Only firmware version: PASS\n");
@@ -249,23 +288,154 @@ public:
         packet.setVersionMetadata("2.0", nullptr);
         String json = packet.toJsonString();
 
-        std::string expected = "{\"heartBeatsPerMinute\":72,\"relativeHumidityPercentage\":45.2,\"schemaVersion\":\"2.0\",\"sequence\":1,\"skinTemperatureInCelsius\":36.5,\"timestamp\":100}";
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"schemaVersion\":\"2.0\",\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
         assert(json == expected);
         assert(std::string(json).find("firmwareVersion") == std::string::npos);
         std::printf("  Only schema version: PASS\n");
     }
 
     // =========================================================================
-    // Test 15: Version metadata field count
+    // Test 15: Version metadata field count via string search
     // =========================================================================
     {
         SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
         packet.setEnvelopeMetadata(100, 1);
         packet.setVersionMetadata("1.0", "1.0.0");
-        JsonDocument doc = packet.toDocument();
-        const auto& fields = doc.getFields();
-        assert(fields.size() == 7); // timestamp, sequence, schemaVersion, firmwareVersion, heartBeatsPerMinute, skinTemperatureInCelsius, relativeHumidityPercentage
+        String json = packet.toJsonString();
+
+        assert(std::string(json).find("\"timestamp\"") != std::string::npos);
+        assert(std::string(json).find("\"sequence\"") != std::string::npos);
+        assert(std::string(json).find("\"schemaVersion\"") != std::string::npos);
+        assert(std::string(json).find("\"firmwareVersion\"") != std::string::npos);
+        assert(std::string(json).find("\"heartBeatsPerMinute\"") != std::string::npos);
+        assert(std::string(json).find("\"skinTemperatureInCelsius\"") != std::string::npos);
+        assert(std::string(json).find("\"relativeHumidityPercentage\"") != std::string::npos);
         std::printf("  Version metadata field count: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 16: SecurityStatusTelemetryPackage (routine, standard queue)
+    // =========================================================================
+    {
+        SecurityStatusTelemetryPackage packet(true, false, false);
+        packet.setEnvelopeMetadata(100, 1);
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"doorOpen\":true,\"motionDetected\":false,\"waterLeak\":false}";
+        assert(json == expected);
+        assert(!packet.isHighPriority());
+        std::printf("  SecurityStatus routine telemetry: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 17: SecurityAlertTelemetryPackage with high priority
+    // =========================================================================
+    {
+        SecurityAlertTelemetryPackage packet("water_leak", true);
+        packet.setEnvelopeMetadata(200, 2);
+        packet.markAsHighPriority();
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":200,\"sequence\":2,\"priority\":\"high\",\"alertType\":\"water_leak\",\"waterLeak\":true}";
+        assert(json == expected);
+        assert(packet.isHighPriority());
+        std::printf("  SecurityAlert high-priority telemetry: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 18: SecurityAlertTelemetryPackage without high priority
+    // =========================================================================
+    {
+        SecurityAlertTelemetryPackage packet("door_opened", true);
+        packet.setEnvelopeMetadata(300, 3);
+        // markAsHighPriority() not called — no priority field
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":300,\"sequence\":3,\"alertType\":\"door_opened\",\"waterLeak\":true}";
+        assert(json == expected);
+        assert(!packet.isHighPriority());
+        assert(std::string(json).find("priority") == std::string::npos);
+        std::printf("  SecurityAlert without priority: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 19: DiagnosticsTelemetryPackage golden test (W41)
+    // =========================================================================
+    {
+        DiagnosticsSnapshot snapshot;
+        snapshot.missedTicks = 5;
+        snapshot.worstCaseWakeMicros = 1500;
+        snapshot.packetsEnqueued = 100;
+        snapshot.packetsDropped = 2;
+        snapshot.packetsDroppedOldest = 1;
+        snapshot.queueHighWaterMark = 8;
+        snapshot.highPriorityEnqueued = 10;
+        snapshot.highPriorityDropped = 0;
+        snapshot.highPriorityQueueHighWaterMark = 3;
+        snapshot.sendsSucceeded = 95;
+        snapshot.sendsFailed = 5;
+        snapshot.freeHeapBytes = 131072;
+        snapshot.minFreeHeapBytes = 98304;
+        snapshot.samplerStackFreeWords = 512;
+        snapshot.networkStackFreeWords = 1024;
+        snapshot.uptimeSeconds = 3600;
+
+        DiagnosticsTelemetryPackage packet(snapshot);
+        packet.setEnvelopeMetadata(1000, 42);
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":1000,\"sequence\":42,\"schemaVersion\":\"1.0\","
+            "\"missedTicks\":5,\"worstCaseWakeMicros\":1500,"
+            "\"packetsEnqueued\":100,\"packetsDropped\":2,\"packetsDroppedOldest\":1,"
+            "\"queueHighWaterMark\":8,\"highPriorityEnqueued\":10,\"highPriorityDropped\":0,"
+            "\"highPriorityQueueHighWaterMark\":3,\"sendsSucceeded\":95,\"sendsFailed\":5,"
+            "\"freeHeapBytes\":131072,\"minFreeHeapBytes\":98304,"
+            "\"samplerStackFreeWords\":512,\"networkStackFreeWords\":1024,\"uptimeSeconds\":3600}";
+        assert(json == expected);
+        std::printf("  DiagnosticsTelemetryPackage golden test: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 20: Per-package schema version priority over global (W33)
+    // =========================================================================
+    {
+        // DiagnosticsTelemetryPackage has per-package schema "1.0"
+        DiagnosticsSnapshot snapshot;
+        snapshot.missedTicks = 0; snapshot.worstCaseWakeMicros = 0;
+        snapshot.packetsEnqueued = 0; snapshot.packetsDropped = 0;
+        snapshot.packetsDroppedOldest = 0; snapshot.queueHighWaterMark = 0;
+        snapshot.highPriorityEnqueued = 0; snapshot.highPriorityDropped = 0;
+        snapshot.highPriorityQueueHighWaterMark = 0; snapshot.sendsSucceeded = 0;
+        snapshot.sendsFailed = 0; snapshot.freeHeapBytes = 0;
+        snapshot.minFreeHeapBytes = 0; snapshot.samplerStackFreeWords = 0;
+        snapshot.networkStackFreeWords = 0; snapshot.uptimeSeconds = 0;
+
+        DiagnosticsTelemetryPackage packet(snapshot);
+        packet.setEnvelopeMetadata(100, 1);
+        // setVersionMetadata tries to set global schema "9.9", but per-package "1.0" takes priority
+        packet.setVersionMetadata("9.9", "1.0.0");
+        String json = packet.toJsonString();
+
+        // Per-package schema "1.0" should appear, not global "9.9"
+        assert(std::string(json).find("\"schemaVersion\":\"1.0\"") != std::string::npos);
+        assert(std::string(json).find("\"schemaVersion\":\"9.9\"") == std::string::npos);
+        assert(std::string(json).find("\"firmwareVersion\":\"1.0.0\"") != std::string::npos);
+        std::printf("  Per-package schema priority: PASS\n");
+    }
+
+    // =========================================================================
+    // Test 21: Fallback to global schema when per-package not set (W33)
+    // =========================================================================
+    {
+        SmartBandTelemetryPackage packet(72, 36.5f, 45.2f);
+        packet.setEnvelopeMetadata(100, 1);
+        // No per-package schema set — should fall back to global
+        packet.setVersionMetadata("1.0", "1.0.0");
+        String json = packet.toJsonString();
+
+        std::string expected = "{\"timestamp\":100,\"sequence\":1,\"schemaVersion\":\"1.0\",\"firmwareVersion\":\"1.0.0\",\"heartBeatsPerMinute\":72,\"skinTemperatureInCelsius\":36.50,\"relativeHumidityPercentage\":45.20}";
+        assert(json == expected);
+        std::printf("  Fallback to global schema: PASS\n");
     }
 
     std::printf("All telemetry serialization tests passed.\n");
