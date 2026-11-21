@@ -42,6 +42,9 @@ Git Flow Helper Plugin                    GitHub Actions CI (on release/* push)
    - Create tag vX.X.X                   - Generate Doxygen HTML
    - Push tag to remote                  - Create GitHub Release
                                           - Upload ZIP + Doxygen artifacts
+                                         
+5. Publish to PlatformIO                 (Manual step after tag workflow)
+   - pio pkg publish                     - Library available on PlatformIO Registry
 ```
 
 ## Git Flow Helper Plugin Process
@@ -92,6 +95,11 @@ The Git Flow Helper Plugin in CLion provides the following release commands:
    - Select the release branch (`release/v1.2.0`)
    - This closes the branch, creates the tag (`v1.2.0`), and deletes the branch
    - **The tag push triggers the automated Release workflow**
+
+6. **Publish to PlatformIO Registry**
+   - Wait for the Release workflow to complete (Doxygen + GitHub Release)
+   - Publish to PlatformIO Registry (see [Registry Publishing](#registry-publishing))
+   - Verify the new version is available on both registries
 
 ## Automated Release Workflow
 
@@ -150,6 +158,11 @@ Before starting the release process, verify:
 - [ ] `library.properties` version is updated
 - [ ] `library.json` version is updated
 - [ ] `docs/Doxyfile` `PROJECT_NUMBER` is updated
+- [ ] `CMakeLists.txt` `VERSION` is updated
+- [ ] `README.md` `**Version**` is updated
+- [ ] `README.md` `**Last updated**` date is updated
+- [ ] `SECURITY.md` Supported Versions table is updated
+- [ ] `docs/doxygen-mainpage.md` version reference is updated
 - [ ] No blocking issues or open pull requests
 - [ ] Dependency status badges are current (check README badges)
 
@@ -165,13 +178,25 @@ Before starting the release process, verify:
 
 ## Version Bump
 
-The version is managed in three files. Update all three simultaneously during the release preparation phase:
+The version is managed in four core files, with three additional documentation files that reference the current version. Update all seven simultaneously during the release preparation phase:
+
+**Core version files:**
 
 | File | Field | Example |
 |------|-------|---------|
 | `library.properties` | `version=1.2.0` | Arduino Library Manager |
 | `library.json` | `"version": "1.2.0"` | PlatformIO Registry |
 | `docs/Doxyfile` | `PROJECT_NUMBER = 1.2.0` | Doxygen API reference |
+| `CMakeLists.txt` | `VERSION 1.2.0` | CMake host test builds |
+
+**Documentation version references:**
+
+| File | Field | Example |
+|------|-------|---------|
+| `README.md` | `**Version**: 1.2.0` | Front matter version |
+| `README.md` | `**Last updated**: 2026-11-20` | Front matter date |
+| `SECURITY.md` | Supported Versions table | Current version row |
+| `docs/doxygen-mainpage.md` | `(v1.2.0)` in first paragraph | API reference version |
 
 ### Version Bump Rules
 
@@ -186,11 +211,18 @@ Follow [Semantic Versioning 2.0.0](https://semver.org/):
 After updating the version files, commit:
 
 ```bash
-git add library.properties library.json docs/Doxyfile
+git add library.properties library.json docs/Doxyfile CMakeLists.txt README.md SECURITY.md docs/doxygen-mainpage.md
 git commit -m "chore(release): bump version to 1.2.0"
 ```
 
 ## Registry Publishing
+
+After the Release workflow completes (Doxygen + GitHub Release), publish to both registries:
+
+| Registry | Automation | Timing |
+|----------|-----------|--------|
+| **Arduino Library Manager** | Fully automatic | Within ~1 hour after tag push |
+| **PlatformIO Registry** | **Manual step required** | After Release workflow completes |
 
 ### Arduino Library Manager
 
@@ -204,7 +236,7 @@ git commit -m "chore(release): bump version to 1.2.0"
 
 ### PlatformIO Registry
 
-**Semi-automatic.** PlatformIO requires explicit publishing:
+**Manual step required.** PlatformIO does not auto-index GitHub tags. You must explicitly publish after the Release workflow completes:
 
 #### Option 1: Manual Publish (recommended)
 
@@ -246,11 +278,12 @@ To automate PlatformIO publishing in CI:
 
 After the release is complete:
 
-1. **Verify Arduino Library Manager**: Check that the new version appears in the Library Manager within ~1 hour.
-2. **Verify PlatformIO Registry**: Check that the new version is available at [registry.platformio.org](https://registry.platformio.org/libraries/modest-iot/Modest-IoT-Nano-Framework).
-3. **Update CHANGELOG.md**: Add a new `[Unreleased]` section at the top for future changes.
-4. **Bump develop version**: Update `library.properties`, `library.json`, and `docs/Doxyfile` to the next development version (e.g., `1.3.0-dev`).
-5. **Announce the release**: Update any relevant communication channels (GitHub Discussions, social media, etc.).
+1. **Publish to PlatformIO Registry** (required): Follow the steps in [PlatformIO Registry](#platformio-registry) above. This is the only manual registry step — Arduino Library Manager updates automatically.
+2. **Verify Arduino Library Manager**: Check that the new version appears in the Library Manager within ~1 hour.
+3. **Verify PlatformIO Registry**: Check that the new version is available at [registry.platformio.org](https://registry.platformio.org/libraries/modest-iot/Modest-IoT-Nano-Framework).
+4. **Update CHANGELOG.md**: Add a new `[Unreleased]` section at the top for future changes.
+5. **Bump develop version**: Update `library.properties`, `library.json`, `docs/Doxyfile`, `CMakeLists.txt`, `README.md`, `SECURITY.md`, and `docs/doxygen-mainpage.md` to the next development version (e.g., `1.3.0-dev`).
+6. **Announce the release**: Update any relevant communication channels (GitHub Discussions, social media, etc.).
 
 ### Post-Release Version Bump on develop
 
@@ -258,8 +291,8 @@ After the release, update `develop` to the next development version:
 
 ```bash
 git checkout develop
-# Update version to 1.3.0-dev in library.properties, library.json, and docs/Doxyfile
-git add library.properties library.json docs/Doxyfile
+# Update version to 1.3.0-dev in library.properties, library.json, docs/Doxyfile, CMakeLists.txt, README.md, SECURITY.md, and docs/doxygen-mainpage.md
+git add library.properties library.json docs/Doxyfile CMakeLists.txt README.md SECURITY.md docs/doxygen-mainpage.md
 git commit -m "chore: bump develop version to 1.3.0-dev"
 git push origin develop
 ```
