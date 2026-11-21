@@ -14,6 +14,8 @@
 [![Version](https://img.shields.io/github/v/tag/modest-iot/modest-iot-nano-framework?sort=semver)](https://github.com/modest-iot/modest-iot-nano-framework/releases)
 [![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://librarymanager/all#Modest-IoT-Nano-Framework)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/modest-iot/library/Modest-IoT-Nano-Framework.svg)](https://registry.platformio.org/libraries/modest-iot/Modest-IoT-Nano-Framework)
+[![MQTT](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modest-iot/modest-iot-nano-framework/develop/.badges/mqtt.json)](https://github.com/256dpi/arduino-mqtt)
+[![ESP32](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modest-iot/modest-iot-nano-framework/develop/.badges/esp32.json)](https://github.com/espressif/arduino-esp32)
 
 **Version**: 1.1.2  
 **Author**: Angel Velasquez  
@@ -515,6 +517,7 @@ Documentation is split between architecture artifacts in `docs/` and code-level 
 | [`docs/doxygen-mainpage.md`](docs/doxygen-mainpage.md) | Doxygen API reference main page with module navigation and generation instructions. |
 | [`docs/benchmarks.md`](docs/benchmarks.md) | Performance comparison table with 9 metrics: Flash, RAM, latency, throughput, queue depth, stack, heap, serialization, and power. |
 | [`docs/coverage.md`](docs/coverage.md) | Code coverage guide: local execution with gcov/lcov, CI integration, threshold configuration, and report interpretation. |
+| [`docs/dependencies.md`](docs/dependencies.md) | External dependencies list with update processes: Dependabot for GitHub Actions, manual monitoring for MQTT library and ESP32 core. |
 
 ### Project Standards
 
