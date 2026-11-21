@@ -22,6 +22,16 @@
 #include "Event.h"
 #include <cstdint>
 
+/**
+ * @brief Abstract base class for input devices that emit framework events.
+ * @ingroup sensors_module
+ *
+ * `on()` calls the subclass hook `processEvent()`, drops the event when the hook sets its
+ * identifier to `-1`, and otherwise forwards it to the optional parent `EventHandler`
+ * (usually the owning `Device`). Subclasses report read outcomes through
+ * `reportReadSuccess()` / `reportReadFailure()`, which emit `SENSOR_FAULT_EVENT_IDENTIFIER`
+ * and `SENSOR_RECOVERED_EVENT_IDENTIFIER` once a threshold set with `setFaultThreshold()` is reached.
+ */
 class Sensor : public EventHandler {
 
 protected:

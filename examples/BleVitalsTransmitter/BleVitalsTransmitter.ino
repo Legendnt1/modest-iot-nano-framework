@@ -63,6 +63,21 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@{
 /** @brief Log prefix for all BleVitalsTransmitter serial output. */
 static const char* BLE_VITALS_TRANSMITTER_LOG_PREFIX = "[BleVitalsTransmitter]";
+
+/** @brief Format of the BLE transmission statistics line (prefix, succeeded, failed). */
+static const char* BLE_STATISTICS_FORMAT = "%s BLE stats -> succeeded: %lu, failed: %lu\n";
+
+/** @brief Message printed before BLE advertising starts. */
+static const char* ADVERTISING_STARTING_MESSAGE = " Starting BLE advertising...";
+
+/** @brief Message printed once the transmitter is advertising. */
+static const char* APPLICATION_ONLINE_MESSAGE = " BLE vitals transmitter online. Pair with your phone.";
+
+/** @brief Message printed when the device cannot start. */
+static const char* STARTUP_FAILED_MESSAGE = " Device startup failed.";
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "BVT-100 FW 1.0.0";
 //@} // Serial Output Configuration
 
 /** @name Application Mediator Implementation */
@@ -97,7 +112,7 @@ private:
      */
     void reportStatistics() {
         GatewayStatistics stats = gatewayClient.getStatistics();
-        Serial.printf("%s BLE stats -> succeeded: %lu, failed: %lu\n",
+        Serial.printf(BLE_STATISTICS_FORMAT,
                       BLE_VITALS_TRANSMITTER_LOG_PREFIX,
                       stats.sendsSucceeded, stats.sendsFailed);
     }
@@ -131,10 +146,11 @@ public:
           skinTempSensor(tempPin, DhtSensor::SENSOR_MODEL_DHT22, this),
           gatewayClient(client)
     {
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
         appendSensorToScheduler(&heartRateSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&skinTempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     ~BleVitalsTransmitter() override = default;
@@ -152,10 +168,10 @@ public:
      * @return True if BLE initialization succeeded.
      */
     bool start() {
-        Device::setFirmwareVersion("BVT-100 FW 1.0.0");
-        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + " Starting BLE advertising...").c_str());
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
+        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + ADVERTISING_STARTING_MESSAGE).c_str());
         gatewayClient.service();
-        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + " BLE vitals transmitter online. Pair with your phone.").c_str());
+        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + APPLICATION_ONLINE_MESSAGE).c_str());
         return true;
     }
 };
@@ -191,7 +207,7 @@ void setup() {
     );
 
     if (!vitalsApplication->start()) {
-        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + " Device startup failed.").c_str());
+        Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + STARTUP_FAILED_MESSAGE).c_str());
         return;
     }
 }

@@ -22,3 +22,8 @@ cmake-build-*/
 
 # Junie agent session files
 .junie/
+
+# Documentation site tooling and generated output (not needed by sketches)
+tools/
+mkdocs.yml
+site/

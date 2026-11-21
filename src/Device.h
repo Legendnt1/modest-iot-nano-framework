@@ -61,6 +61,16 @@ struct DiagnosticsSnapshot {
 };
 
 
+// Named constants to avoid magic numbers and strings.
+// MAX_GPIO_INTERRUPTS is at namespace scope because it's used by the file-level isrHandleTable in Device.cpp.
+/**
+ * @brief Namespace-scope constants shared by `Device` and the GPIO ISR table in Device.cpp.
+ * @ingroup core_module
+ */
+namespace DeviceConstants {
+    constexpr uint8_t MAX_GPIO_INTERRUPTS = 64; ///< Maximum GPIO interrupt lines on ESP32.
+}
+
 /**
  * @brief Base class for composed IoT devices with asynchronous sampling and telemetry pipelines.
  * @ingroup core_module
@@ -68,12 +78,6 @@ struct DiagnosticsSnapshot {
  * `Device` coordinates periodic sensor polling, queue-based telemetry handoff, and
  * dispatch hooks implemented by subclasses.
  */
-// Named constants to avoid magic numbers and strings.
-// MAX_GPIO_INTERRUPTS is at namespace scope because it's used by the file-level isrHandleTable in Device.cpp.
-namespace DeviceConstants {
-    constexpr uint8_t MAX_GPIO_INTERRUPTS = 64; ///< Maximum GPIO interrupt lines on ESP32.
-}
-
 class Device : public EventHandler, public CommandHandler {
 private:
     // Named constants to avoid magic numbers and strings

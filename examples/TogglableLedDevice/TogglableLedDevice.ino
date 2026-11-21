@@ -26,10 +26,31 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
+/** @brief Sampler event queue length for the toggle device. */
+static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
+
+/** @brief Hardware timer tick period that drives the sampler task. */
+static const unsigned long SAMPLER_TICK_INTERVAL_IN_MILLISECONDS = 50;
+
+/** @brief Debounce window applied to the toggle button. */
+static const unsigned long BUTTON_DEBOUNCE_DELAY_IN_MILLISECONDS = 200;
+
+/** @brief Initial logical state of the status LED (off). */
+static const bool STATUS_LED_INITIAL_STATE = false;
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "TLD-110 FW 1.0.0";
+
 /** @name Serial Output Configuration */
 //@{
 /** @brief Log prefix for all TogglableLedDevice serial output. */
 static const char* TOGGLABLE_LED_DEVICE_LOG_PREFIX = "[TogglableLedDevice]";
+
+/** @brief Message printed each time a button press toggles the LED. */
+static const char* LED_TOGGLE_DISPATCHED_MESSAGE = " Toggle LED Button press event caught -> LED toggle dispatched.";
+
+/** @brief Message printed once the application has booted. */
+static const char* APPLICATION_ACTIVE_MESSAGE = " Loop-less interactive toggle node active.";
 //@} // Serial Output Configuration
 
 /** @name Application Mediator Implementation */
@@ -47,19 +68,20 @@ class TogglableLedDevice : public Device {
      * @param timerChannel Dedicated hardware 64-bit timer group index (0-3).
      */
     TogglableLedDevice(int buttonPin, int ledPin, uint8_t timerChannel = 0)
-    : Device(50, timerChannel), // Setup polling intervals at a safe 50ms task tick
-    toggleLedButton(buttonPin, 200, this), // Pass pin, 200ms debounce window, and parent context
-    statusLed(ledPin, false, this)              // Pass pin, false initial active state, and parent context
+    : Device(SAMPLER_TICK_INTERVAL_IN_MILLISECONDS, timerChannel),
+    toggleLedButton(buttonPin, BUTTON_DEBOUNCE_DELAY_IN_MILLISECONDS, this), // Pass pin, debounce window, and parent context
+    statusLed(ledPin, STATUS_LED_INITIAL_STATE, this)                         // Pass pin, initial active state, and parent context
     {
-        // 1. Launch internal background task workers with a safe queue boundary depth of 5
-        initializeAsynchronousEngine(5);
-
-        // 2. Register the button for interrupt-driven operation (FALLING edge).
+        // 1. Register the button for interrupt-driven operation (FALLING edge).
         // The GPIO interrupt fires on button press, and the sampler task handles
         // debouncing via processEvent(). This eliminates polling latency.
         appendSensorToTriggeringScheduler(&toggleLedButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
+
+        // 2. Launch internal background task workers
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -76,7 +98,7 @@ class TogglableLedDevice : public Device {
             // The mediator maintains no local state tracking variables or toggles!
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
 
-            Serial.println((String(TOGGLABLE_LED_DEVICE_LOG_PREFIX) + " Toggle LED Button press event caught -> LED toggle dispatched.").c_str());
+            Serial.println((String(TOGGLABLE_LED_DEVICE_LOG_PREFIX) + LED_TOGGLE_DISPATCHED_MESSAGE).c_str());
         }
     }
 };
@@ -87,20 +109,20 @@ class TogglableLedDevice : public Device {
 
 // Clean configuration canvas constants aligned perfectly with member variable naming
 static const int     TOGGLE_BUTTON_PIN  = 26; // Mapped pushbutton GPIO
-static const int     STATUS_LED_PIN     = 27;  // Onboard ESP32 diagnostic blue LED
+static const int     STATUS_LED_PIN     = 27; // Mapped status LED GPIO
 static const uint8_t CORE_TIMER_CHANNEL = 0;
 
 static TogglableLedDevice* togglableLedApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("TLD-110 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
 
     // Boot the framework application.
     // Background execution queues, FreeRTOS tasks, and hardware alarm vectors launch automatically!
     togglableLedApplication = new TogglableLedDevice(TOGGLE_BUTTON_PIN, STATUS_LED_PIN, CORE_TIMER_CHANNEL);
 
-    Serial.println((String(TOGGLABLE_LED_DEVICE_LOG_PREFIX) + " Loop-less interactive toggle node active.").c_str());
+    Serial.println((String(TOGGLABLE_LED_DEVICE_LOG_PREFIX) + APPLICATION_ACTIVE_MESSAGE).c_str());
 }
 
 void loop() {

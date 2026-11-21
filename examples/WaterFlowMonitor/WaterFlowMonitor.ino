@@ -34,6 +34,10 @@ static const int            TIMER_GROUP_INDEX               = 0;
 
 static const char*          SYSTEM_BOOT_MESSAGE             = "[System Boot] Water Flow Monitor active.";
 static const char*          FLOW_RATE_FORMAT                = "Flow rate: %.2f L/min";
+static const size_t         FLOW_RATE_BUFFER_SIZE           = 32; ///< Characters reserved for the formatted flow rate line.
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "WFM-211 FW 1.0.0";
 
 /**
  * @brief Water Flow Monitor Device.
@@ -48,7 +52,7 @@ private:
      * @brief Logs the current flow rate to Serial.
      */
     void logFlowRate() {
-        char buffer[32];
+        char buffer[FLOW_RATE_BUFFER_SIZE];
         snprintf(buffer, sizeof(buffer), FLOW_RATE_FORMAT, flowSensor.getFlowRateInLitersPerMinute());
         Serial.println(buffer);
     }
@@ -58,11 +62,12 @@ public:
         : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, TIMER_GROUP_INDEX),
           flowSensor(signalPin, this)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Hybrid scheduling: interrupt-driven pulse counting via CHANGE edge captures
         // every Hall effect pulse, while periodic sampling computes the flow rate.
         appendToBothSchedulers(&flowSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, CHANGE);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -81,7 +86,7 @@ static WaterFlowMonitor* waterFlowApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("WFM-211 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     waterFlowApplication = new WaterFlowMonitor(WATER_FLOW_SIGNAL_PIN);
     Serial.println(SYSTEM_BOOT_MESSAGE);
 }

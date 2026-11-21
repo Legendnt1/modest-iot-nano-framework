@@ -41,6 +41,50 @@ static const int ASYNC_ENGINE_QUEUE_DEPTH = 8;
 /** @brief Default target temperature (°C). */
 static const int DEFAULT_TARGET_TEMPERATURE = 22;
 
+/** @brief Hardware timer group index used by the device. */
+static const uint8_t TIMER_GROUP_INDEX = 0;
+
+/** @brief Initial servo angle of the air handler vent (degrees). */
+static const int AIR_HANDLER_INITIAL_ANGLE_IN_DEGREES = 0;
+
+/** @brief Initial temperature and humidity before the first reading. */
+static const float INITIAL_MEASUREMENT_VALUE = 0.0f;
+
+/** @name Character LCD Layout */
+//@{
+/** @brief Number of character columns of the LCD. */
+static const int LCD_COLUMNS = 16;
+/** @brief Number of character rows of the LCD. */
+static const int LCD_ROWS = 2;
+/** @brief Characters reserved for one LCD line plus the null terminator. */
+static const size_t LCD_LINE_BUFFER_SIZE = LCD_COLUMNS + 1;
+/** @brief LCD row showing the current temperature and humidity. */
+static const int LCD_CURRENT_MEASURE_ROW = 0;
+/** @brief LCD row showing the target temperature. */
+static const int LCD_TARGET_MEASURE_ROW = 1;
+/** @brief Format of the current measurement line (temperature, humidity). */
+static const char* CURRENT_MEASURE_FORMAT = "Cur: %.1fC  %.0f%%";
+/** @brief Format of the target temperature line. */
+static const char* TARGET_MEASURE_FORMAT = "Target: %dC";
+//@} // Character LCD Layout
+
+/** @name Serial Output Configuration */
+//@{
+/** @brief Button context label for the increase button. */
+static const char* INCREASE_BUTTON_CONTEXT = "Increase";
+/** @brief Button context label for the decrease button. */
+static const char* DECREASE_BUTTON_CONTEXT = "Decrease";
+/** @brief Button context label used when the event source is not a known button. */
+static const char* UNKNOWN_BUTTON_CONTEXT = "Unknown";
+/** @brief Format of the button press line (button context). */
+static const char* TARGET_BUTTON_PRESSED_FORMAT = "[AC Device] Target temperature %s button pressed.\n";
+/** @brief Message printed once the application has booted. */
+static const char* APPLICATION_ACTIVE_MESSAGE = "[System Boot] Loop-less Air Conditioning Orchestrator active.";
+//@} // Serial Output Configuration
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "AC-500 FW 1.0.0";
+
 /** @name Pin Definitions */
 //@{
 
@@ -75,11 +119,11 @@ class AirConditioningDevice : public Device {
      * Focuses strictly on real-time environmental metrics.
      */
     void updateCurrentMeasureDisplay() {
-        char currentMeasureBuffer[17];
-        snprintf(currentMeasureBuffer, sizeof(currentMeasureBuffer), "Cur: %.1fC  %.0f%%",
+        char currentMeasureBuffer[LCD_LINE_BUFFER_SIZE];
+        snprintf(currentMeasureBuffer, sizeof(currentMeasureBuffer), CURRENT_MEASURE_FORMAT,
             currentTemperature, currentHumidity);
 
-        statusDisplay.setLineBuffer(0, currentMeasureBuffer);
+        statusDisplay.setLineBuffer(LCD_CURRENT_MEASURE_ROW, currentMeasureBuffer);
         statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
     }
 
@@ -88,10 +132,10 @@ class AirConditioningDevice : public Device {
      * Focuses strictly on user-targeted baseline configurations.
      */
     void updateTargetMeasureDisplay() {
-        char targetMeasureBuffer[17];
-        snprintf(targetMeasureBuffer, sizeof(targetMeasureBuffer), "Target: %dC", targetTemperature);
+        char targetMeasureBuffer[LCD_LINE_BUFFER_SIZE];
+        snprintf(targetMeasureBuffer, sizeof(targetMeasureBuffer), TARGET_MEASURE_FORMAT, targetTemperature);
 
-        statusDisplay.setLineBuffer(1, targetMeasureBuffer);
+        statusDisplay.setLineBuffer(LCD_TARGET_MEASURE_ROW, targetMeasureBuffer);
         statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
     }
 
@@ -117,29 +161,30 @@ class AirConditioningDevice : public Device {
      * @param servoPin GPIO PWM output pin driving the vent servo.
      */
     AirConditioningDevice(int dhtPin, int upPin, int downPin, uint8_t lcdAddr, int servoPin)
-        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, 0),
+        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, TIMER_GROUP_INDEX),
         humidityAndTemperatureSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT22),
         targetTemperatureUpButton(upPin, BUTTON_DEBOUNCE_IN_MILLISECONDS, this),
         targetTemperatureDownButton(downPin, BUTTON_DEBOUNCE_IN_MILLISECONDS, this),
-        statusDisplay(lcdAddr, 16, 2, this),
-        airHandler(servoPin, 0, this),
-        currentTemperature(0.0f),
-        currentHumidity(0.0f),
+        statusDisplay(lcdAddr, LCD_COLUMNS, LCD_ROWS, this),
+        airHandler(servoPin, AIR_HANDLER_INITIAL_ANGLE_IN_DEGREES, this),
+        currentTemperature(INITIAL_MEASUREMENT_VALUE),
+        currentHumidity(INITIAL_MEASUREMENT_VALUE),
         targetTemperature(DEFAULT_TARGET_TEMPERATURE)
     {
-        // 1. Launch FreeRTOS execution background engines
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
-        // 2. Register the DHT sensor using the baseline scheduler ticker token
+        // 1. Register the DHT sensor using the baseline scheduler ticker token
         appendSensorToScheduler(&humidityAndTemperatureSensor,  Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        // 3. Register buttons for interrupt-driven operation (FALLING edge)
+        // 2. Register buttons for interrupt-driven operation (FALLING edge)
         appendSensorToTriggeringScheduler(&targetTemperatureUpButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
         appendSensorToTriggeringScheduler(&targetTemperatureDownButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
+
+        // 3. Launch FreeRTOS execution background engines
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
 
         // 4. Initial rendering pass to populate both display lines
         updateCurrentMeasureDisplay();
@@ -163,16 +208,16 @@ class AirConditioningDevice : public Device {
 
         // Context B & C: User pressed one ot the buttons
         else if (event.identifier == Button::BUTTON_PRESSED_EVENT_IDENTIFIER) {
-            char* buttonContext = nullptr;
+            const char* buttonContext = UNKNOWN_BUTTON_CONTEXT;
             if (event.sourceId == TARGET_TEMPERATURE_UP_BUTTON_PIN) {
                 targetTemperature++;
-                buttonContext = "Increase";
+                buttonContext = INCREASE_BUTTON_CONTEXT;
             } else if (event.sourceId == TARGET_TEMPERATURE_DOWN_BUTTON_PIN) {
                 targetTemperature--;
-                buttonContext = "Decrease";
+                buttonContext = DECREASE_BUTTON_CONTEXT;
             }
             updateTargetMeasureDisplay();
-            Serial.printf("[AC Device] Target temperature %s button pressed.\n", buttonContext);
+            Serial.printf(TARGET_BUTTON_PRESSED_FORMAT, buttonContext);
         }
         // Optimized Sequence: Evaluate control loops at the very end.
         // Ensures physical updates operate exclusively on fully settled states.
@@ -188,7 +233,7 @@ static AirConditioningDevice* airConditioningController = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("AC-500 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
 
     // Boot complete application context framework dynamically
     airConditioningController = new AirConditioningDevice(
@@ -199,7 +244,7 @@ void setup() {
         AIR_HANDLER_PIN
     );
 
-    Serial.println("[System Boot] Loop-less Air Conditioning Orchestrator active.");
+    Serial.println(APPLICATION_ACTIVE_MESSAGE);
 }
 
 void loop() {

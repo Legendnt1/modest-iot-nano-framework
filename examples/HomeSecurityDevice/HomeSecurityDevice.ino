@@ -32,11 +32,33 @@ static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
 /** @brief Sampling interval for security sensors (ms). */
 static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 200;
 
+/** @brief Hardware timer group index used by the device. */
+static const uint8_t TIMER_GROUP_INDEX = 0;
+
 /** @name Serial Output Configuration */
 //@{
 /** @brief Log prefix for all HomeSecurityDevice serial output. */
 static const char* HOME_SECURITY_LOG_PREFIX = "[HomeSecurity]";
+/** @brief Message printed when a water leak is detected. */
+static const char* WATER_LEAK_DETECTED_MESSAGE = " ⚠️  WATER LEAK DETECTED!";
+/** @brief Message printed when the water leak clears. */
+static const char* WATER_LEAK_CLEARED_MESSAGE = " ✓ Water leak cleared.";
+/** @brief Message printed when the door or window opens. */
+static const char* DOOR_OPENED_MESSAGE = " 🚪 Door/window opened!";
+/** @brief Message printed when the door or window closes. */
+static const char* DOOR_CLOSED_MESSAGE = " 🚪 Door/window closed.";
+/** @brief Message printed when motion starts. */
+static const char* MOTION_DETECTED_MESSAGE = " 🏃 Motion detected!";
+/** @brief Message printed when motion stops. */
+static const char* MOTION_STOPPED_MESSAGE = " Motion stopped.";
+/** @brief Message printed while the system boots. */
+static const char* INITIALIZING_MESSAGE = " Initializing home security system...";
+/** @brief Message printed once the system is armed. */
+static const char* SYSTEM_ARMED_MESSAGE = " System armed. Monitoring...";
 //@} // Serial Output Configuration
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "HSD-700 FW 1.0.0";
 
 /** @name GPIO Pin Assignments */
 //@{
@@ -55,15 +77,12 @@ private:
 
 public:
     HomeSecurityDevice()
-        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, 0)
+        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, TIMER_GROUP_INDEX)
         , waterLeakSensor(WATER_LEAK_SENSOR_PIN, this)
         , doorWindowSensor(DOOR_WINDOW_SENSOR_PIN, this)
         , pirSensor(PIR_SENSOR_PIN, this)
         , buzzer(BUZZER_PIN, this)
     {
-        // Launch internal background task workers
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Register all sensors with interrupt-driven operation (CHANGE edge)
         appendSensorToTriggeringScheduler(
             &waterLeakSensor, WaterLeakSensor::WATER_LEAK_DETECTED_EVENT_IDENTIFIER, CHANGE);
@@ -71,6 +90,10 @@ public:
             &doorWindowSensor, DoorWindowSensor::DOOR_OPENED_EVENT_IDENTIFIER, CHANGE);
         appendSensorToTriggeringScheduler(
             &pirSensor, PassiveInfraredSensor::MOTION_DETECTED_EVENT_IDENTIFIER, CHANGE);
+
+        // Launch internal background task workers
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -82,25 +105,25 @@ protected:
     void on(Event event) override {
         switch (event.identifier) {
             case WaterLeakSensor::WATER_LEAK_DETECTED_EVENT_IDENTIFIER:
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " ⚠️  WATER LEAK DETECTED!").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + WATER_LEAK_DETECTED_MESSAGE).c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 break;
             case WaterLeakSensor::WATER_LEAK_CLEARED_EVENT_IDENTIFIER:
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " ✓ Water leak cleared.").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + WATER_LEAK_CLEARED_MESSAGE).c_str());
                 break;
             case DoorWindowSensor::DOOR_OPENED_EVENT_IDENTIFIER:
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🚪 Door/window opened!").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + DOOR_OPENED_MESSAGE).c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 break;
             case DoorWindowSensor::DOOR_CLOSED_EVENT_IDENTIFIER:
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🚪 Door/window closed.").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + DOOR_CLOSED_MESSAGE).c_str());
                 break;
             case PassiveInfraredSensor::MOTION_DETECTED_EVENT_IDENTIFIER:
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🏃 Motion detected!").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + MOTION_DETECTED_MESSAGE).c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 break;
             case PassiveInfraredSensor::MOTION_STOPPED_EVENT_IDENTIFIER:
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " Motion stopped.").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + MOTION_STOPPED_MESSAGE).c_str());
                 break;
             default:
                 break;
@@ -113,13 +136,13 @@ static HomeSecurityDevice* homeSecurityApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("HSD-700 FW 1.0.0");
-    Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " Initializing home security system...").c_str());
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
+    Serial.println((String(HOME_SECURITY_LOG_PREFIX) + INITIALIZING_MESSAGE).c_str());
 
     // Boot the framework application
     homeSecurityApplication = new HomeSecurityDevice();
 
-    Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " System armed. Monitoring...").c_str());
+    Serial.println((String(HOME_SECURITY_LOG_PREFIX) + SYSTEM_ARMED_MESSAGE).c_str());
 }
 
 void loop() {

@@ -18,6 +18,13 @@
 
 #include "CommandHandler.h"
 
+/**
+ * @brief Abstract base class for output devices that execute framework commands.
+ * @ingroup actuators_module
+ *
+ * `handle()` is final: it calls the subclass hook `executeCommand()` and then forwards the
+ * same command to the optional parent `CommandHandler` for monitoring.
+ */
 class Actuator : public CommandHandler {
 protected:
     int pin; ///< GPIO pin assigned to the actuator.

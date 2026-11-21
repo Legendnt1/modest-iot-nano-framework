@@ -46,6 +46,15 @@ static constexpr unsigned long BUZZER_WARNING_INTERVAL_IN_MILLISECONDS = 2000; /
 /** @brief Sampler event queue length for pipe temperature monitoring. */
 static const int SAMPLER_QUEUE_LENGTH = 10;
 
+/** @brief Consecutive failed readings before the sensor emits a fault event. */
+static const uint8_t SENSOR_FAULT_THRESHOLD = 3;
+
+/** @brief Initial logical state of the RGB status LED (off until start() sets the color). */
+static const bool STATUS_LED_INITIAL_STATE = false;
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "PTM-303 FW 1.0.0";
+
 #include <Arduino.h>
 #include "ModestIoT.h"
 
@@ -59,6 +68,24 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@{
 /** @brief Log prefix for all PipeTemperatureMonitor serial output. */
 static const char* PIPE_TEMPERATURE_MONITOR_LOG_PREFIX = "[PipeTemperatureMonitor]";
+/** @brief Format of the critical alarm line (prefix, alarm threshold). */
+static const char* CRITICAL_TEMPERATURE_FORMAT = "%s CRITICAL: Pipe temperature below %.1f°C!\n";
+/** @brief Format of the warning line (prefix, warning threshold). */
+static const char* WARNING_TEMPERATURE_FORMAT = "%s WARNING: Pipe temperature below %.1f°C\n";
+/** @brief Format of the normal reading line (prefix, temperature). */
+static const char* NORMAL_TEMPERATURE_FORMAT = "%s Normal: Pipe temperature %.1f°C\n";
+/** @brief Format of the sensor fault line (prefix, source identifier). */
+static const char* SENSOR_FAULT_FORMAT = "%s Sensor fault detected (source: %d)\n";
+/** @brief Format of the sensor recovery line (prefix, source identifier). */
+static const char* SENSOR_RECOVERED_FORMAT = "%s Sensor recovered (source: %d)\n";
+/** @brief Message printed once the monitor has started. */
+static const char* APPLICATION_ONLINE_MESSAGE = " Pipe freeze monitor online.";
+/** @brief Format of the configured warning threshold line (prefix, threshold). */
+static const char* WARNING_THRESHOLD_FORMAT = "%s Warning threshold: %.1f°C\n";
+/** @brief Format of the configured alarm threshold line (prefix, threshold). */
+static const char* ALARM_THRESHOLD_FORMAT = "%s Alarm threshold: %.1f°C\n";
+/** @brief Message printed when the device cannot start. */
+static const char* STARTUP_FAILED_MESSAGE = " Device startup failed.";
 //@} // Serial Output Configuration
 
 /** @name Application Mediator Implementation */
@@ -90,7 +117,7 @@ private:
             statusLed.handle(RgbLed::SET_COLOR_COMMAND);
             alarmBuzzer.handle(Buzzer::TURN_ON_COMMAND);
             alarmActive = true;
-            Serial.println((String(PIPE_TEMPERATURE_MONITOR_LOG_PREFIX) + " CRITICAL: Pipe temperature below 2°C!").c_str());
+            Serial.printf(CRITICAL_TEMPERATURE_FORMAT, PIPE_TEMPERATURE_MONITOR_LOG_PREFIX, FREEZE_ALARM_THRESHOLD);
         } else if (temperatureInCelsius < FREEZE_WARNING_THRESHOLD) {
             // Warning: yellow LED, intermittent buzzer
             statusLed.setColor(RgbLed::YELLOW);
@@ -99,14 +126,14 @@ private:
             delay(BUZZER_WARNING_DURATION_IN_MILLISECONDS);
             alarmBuzzer.handle(Buzzer::TURN_OFF_COMMAND);
             alarmActive = false;
-            Serial.println((String(PIPE_TEMPERATURE_MONITOR_LOG_PREFIX) + " WARNING: Pipe temperature below 4°C").c_str());
+            Serial.printf(WARNING_TEMPERATURE_FORMAT, PIPE_TEMPERATURE_MONITOR_LOG_PREFIX, FREEZE_WARNING_THRESHOLD);
         } else {
             // Normal: green LED, no alarm
             statusLed.setColor(RgbLed::GREEN);
             statusLed.handle(RgbLed::SET_COLOR_COMMAND);
             alarmBuzzer.handle(Buzzer::TURN_OFF_COMMAND);
             alarmActive = false;
-            Serial.printf("%s Normal: Pipe temperature %.1f°C\n",
+            Serial.printf(NORMAL_TEMPERATURE_FORMAT,
                           PIPE_TEMPERATURE_MONITOR_LOG_PREFIX,
                           temperatureInCelsius);
         }
@@ -139,16 +166,17 @@ public:
                            uint8_t timerGroupIndex = 0)
         : Device(samplingIntervalInMilliseconds, timerGroupIndex),
           pipeSensor(dataPin, this),
-          statusLed(redPin, greenPin, bluePin, false, this),
+          statusLed(redPin, greenPin, bluePin, STATUS_LED_INITIAL_STATE, this),
           alarmBuzzer(buzzerPin, this),
           alarmActive(false)
     {
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
-        // Configure fault detection: 3 consecutive failures triggers fault event
-        pipeSensor.setFaultThreshold(3);
+        // Configure fault detection: consecutive failures that trigger a fault event
+        pipeSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
 
         appendSensorToScheduler(&pipeSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     ~PipeTemperatureMonitor() override = default;
@@ -164,7 +192,7 @@ public:
             float temp = pipeSensor.getTemperatureInCelsius();
             updateAlarmState(temp);
         } else if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER) {
-            Serial.printf("%s Sensor fault detected (source: %d)\n",
+            Serial.printf(SENSOR_FAULT_FORMAT,
                           PIPE_TEMPERATURE_MONITOR_LOG_PREFIX,
                           event.sourceId);
             // Flash red to indicate sensor fault
@@ -172,7 +200,7 @@ public:
             statusLed.handle(RgbLed::SET_COLOR_COMMAND);
             statusLed.handle(RgbLed::TOGGLE_LED_COMMAND);
         } else if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER) {
-            Serial.printf("%s Sensor recovered (source: %d)\n",
+            Serial.printf(SENSOR_RECOVERED_FORMAT,
                           PIPE_TEMPERATURE_MONITOR_LOG_PREFIX,
                           event.sourceId);
         }
@@ -188,16 +216,16 @@ public:
      * @return True if the sensor is responding.
      */
     bool start() {
-        Device::setFirmwareVersion("PTM-303 FW 1.0.0");
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
         // Set initial LED to green (normal state)
         statusLed.setColor(RgbLed::GREEN);
         statusLed.handle(RgbLed::SET_COLOR_COMMAND);
 
-        Serial.println((String(PIPE_TEMPERATURE_MONITOR_LOG_PREFIX) + " Pipe freeze monitor online.").c_str());
-        Serial.printf("%s Warning threshold: %.1f°C\n",
+        Serial.println((String(PIPE_TEMPERATURE_MONITOR_LOG_PREFIX) + APPLICATION_ONLINE_MESSAGE).c_str());
+        Serial.printf(WARNING_THRESHOLD_FORMAT,
                       PIPE_TEMPERATURE_MONITOR_LOG_PREFIX,
                       FREEZE_WARNING_THRESHOLD);
-        Serial.printf("%s Alarm threshold: %.1f°C\n",
+        Serial.printf(ALARM_THRESHOLD_FORMAT,
                       PIPE_TEMPERATURE_MONITOR_LOG_PREFIX,
                       FREEZE_ALARM_THRESHOLD);
         return true;
@@ -233,7 +261,7 @@ void setup() {
     );
 
     if (!pipeTemperatureApplication->start()) {
-        Serial.println((String(PIPE_TEMPERATURE_MONITOR_LOG_PREFIX) + " Device startup failed.").c_str());
+        Serial.println((String(PIPE_TEMPERATURE_MONITOR_LOG_PREFIX) + STARTUP_FAILED_MESSAGE).c_str());
         return;
     }
 }

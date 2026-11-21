@@ -57,6 +57,13 @@ static const char*          STATUS_DISPLAY_TITLE            = "Smart Scale";
 static const char*          STATUS_DISPLAY_CALIBRATING      = "Calibrating...";
 static const char*          WEIGHT_DISPLAY_FORMAT           = "Weight: %.2f Kg";
 static const char*          SYSTEM_BOOT_MESSAGE             = "[System Boot] Smart Scale active.";
+static const float          GRAMS_PER_KILOGRAM              = 1000.0f; ///< Unit conversion factor for the display.
+static const size_t         LCD_LINE_BUFFER_SIZE            = LCD_COLUMNS + 1; ///< One LCD line plus the null terminator.
+static const int            LCD_TITLE_ROW                   = 0; ///< LCD row with the title.
+static const int            LCD_VALUE_ROW                   = 1; ///< LCD row with the weight or calibration status.
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "SSD-808 FW 1.0.0";
 
 /**
  * @brief Smart Scale Device.
@@ -80,7 +87,7 @@ private:
      * @return Weight in kilograms.
      */
     inline float convertGramsToKilograms(float weightInGrams) const {
-        return weightInGrams / 1000.0f;
+        return weightInGrams / GRAMS_PER_KILOGRAM;
     }
 
     /**
@@ -88,16 +95,16 @@ private:
      * Updates the status display with the total weight on the scale or calibration status.
      */
     void updateStatusDisplay() {
-        char weightBuffer[17];
+        char weightBuffer[LCD_LINE_BUFFER_SIZE];
 
         if (!isCalibrated) {
-            statusDisplay.setLineBuffer(0, STATUS_DISPLAY_TITLE);
-            statusDisplay.setLineBuffer(1, STATUS_DISPLAY_CALIBRATING);
+            statusDisplay.setLineBuffer(LCD_TITLE_ROW, STATUS_DISPLAY_TITLE);
+            statusDisplay.setLineBuffer(LCD_VALUE_ROW, STATUS_DISPLAY_CALIBRATING);
         } else {
             snprintf(weightBuffer, sizeof(weightBuffer), WEIGHT_DISPLAY_FORMAT, convertGramsToKilograms(totalWeightInGrams));
             //snprintf(weightBuffer, sizeof(weightBuffer), WEIGHT_DISPLAY_FORMAT, totalWeightInGrams);
-            statusDisplay.setLineBuffer(0, STATUS_DISPLAY_TITLE);
-            statusDisplay.setLineBuffer(1, weightBuffer);
+            statusDisplay.setLineBuffer(LCD_TITLE_ROW, STATUS_DISPLAY_TITLE);
+            statusDisplay.setLineBuffer(LCD_VALUE_ROW, weightBuffer);
         }
         statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
     }
@@ -121,14 +128,15 @@ public:
           totalWeightInGrams(0.0f),
           isCalibrated(false)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Hybrid scheduling: interrupt-driven data-ready detection eliminates the 100 ms busy-wait.
         // Periodic sampling performs the 24-bit read (~1.2 ms) and change detection.
         appendToBothSchedulers(&frontLeftLoadCell,     Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendToBothSchedulers(&frontRightLoadCell,    Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendToBothSchedulers(&rearLeftLoadCell,      Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendToBothSchedulers(&rearRightLoadCell,     Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
 
         updateStatusDisplay();
         calibrate();
@@ -170,7 +178,7 @@ static SmartScaleDevice* smartScaleApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("SSD-808 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     smartScaleApplication = new SmartScaleDevice(
         FRONT_LEFT_LOAD_CELL_DATA_PIN, FRONT_LEFT_LOAD_CELL_CLOCK_PIN,
         FRONT_RIGHT_LOAD_CELL_DATA_PIN, FRONT_RIGHT_LOAD_CELL_CLOCK_PIN,

@@ -1,0 +1,5 @@
+# Dependencias Python del sitio de documentación (solo herramientas de construcción).
+# No forman parte de la biblioteca Arduino distribuida.
+# Requiere Python >= 3.11. Herramientas externas: Doxygen y Graphviz (ver docs/development.md).
+mkdocs==1.6.1
+mkdocs-material==9.8.0

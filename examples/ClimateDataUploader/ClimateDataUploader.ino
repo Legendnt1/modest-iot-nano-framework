@@ -100,12 +100,57 @@ static const size_t BEARER_TOKEN_MAX_LENGTH = 128;
 static const size_t BEARER_AUTHORIZATION_HEADER_MAX_LENGTH = 150;
 /** @brief Number of characters to preview in the token log message. */
 static const size_t BEARER_TOKEN_PREVIEW_LENGTH = 20;
+/** @brief Format of the authorization header: prefix followed by the first N token characters. */
+static const char* BEARER_AUTHORIZATION_HEADER_FORMAT = "%s%.*s";
 //@} // Bearer Token Parsing Configuration
 
 /** @name Serial Output Configuration */
 //@{
 /** @brief Log prefix for all ClimateDataUploader serial output. */
 static const char* CLIMATE_DATA_UPLOADER_LOG_PREFIX = "[ClimateDataUploader]";
+/** @brief Format of the replay line (prefix, buffered JSON). */
+static const char* REPLAYING_PACKET_FORMAT = "%s Replaying buffered packet: %s\n";
+/** @brief Message printed when the offline buffer has been drained. */
+static const char* REPLAY_COMPLETE_MESSAGE = " Buffered packet replay complete.";
+/** @brief Message printed before requesting the Bearer token. */
+static const char* REQUESTING_TOKEN_MESSAGE = " Requesting Bearer token...";
+/** @brief Message printed when the token request fails. */
+static const char* TOKEN_REQUEST_FAILED_MESSAGE = " Failed to obtain Bearer token";
+/** @brief Format of the token endpoint status line (prefix, HTTP status). */
+static const char* TOKEN_STATUS_FORMAT = "%s Token endpoint responded: %d\n";
+/** @brief Message printed when the token endpoint returns no body. */
+static const char* EMPTY_TOKEN_RESPONSE_MESSAGE = " Empty response from token endpoint";
+/** @brief Format of the response body line (prefix, body). */
+static const char* RESPONSE_BODY_FORMAT = "%s Response body: %s\n";
+/** @brief Message printed when no token can be parsed from the response. */
+static const char* TOKEN_PARSE_FAILED_MESSAGE = " Could not parse token from response";
+/** @brief Format of the configured token preview line (prefix, preview). */
+static const char* TOKEN_CONFIGURED_FORMAT = "%s Bearer token configured: %s...\n";
+/** @brief Message printed when a failed send is stored for replay. */
+static const char* PAYLOAD_BUFFERED_MESSAGE = " Send failed — payload buffered for offline replay.";
+/** @brief Message printed when a failed send cannot be stored. */
+static const char* PAYLOAD_LOST_MESSAGE = " Send failed and buffer is full — payload lost.";
+/** @brief Message printed when LittleFS-backed buffering cannot start. */
+static const char* BUFFER_INIT_FAILED_MESSAGE = " Failed to initialize TelemetryBuffer";
+/** @brief Message printed when the oldest buffered packet is evicted. */
+static const char* PACKET_EVICTED_MESSAGE = " WARNING: Oldest buffered packet evicted due to capacity.";
+/** @brief Format of the pending packets line (prefix, count). */
+static const char* BUFFERED_PACKETS_FOUND_FORMAT = "%s Found %d buffered packets from previous session.\n";
+/** @brief Message printed while connecting to Wi-Fi. */
+static const char* WIFI_CONNECTING_MESSAGE = " Connecting to Wi-Fi...";
+/** @brief Message printed when the Wi-Fi connection times out. */
+static const char* WIFI_TIMEOUT_MESSAGE = " Wi-Fi connection timed out";
+/** @brief Format of the connection line (prefix, IP address, RSSI). */
+static const char* WIFI_CONNECTED_FORMAT = "%s Connected! IP: %s, RSSI: %ld dBm\n";
+/** @brief Message printed when authentication fails. */
+static const char* AUTHENTICATION_FAILED_MESSAGE = " Authentication failed, aborting";
+/** @brief Message printed once telemetry is ready. */
+static const char* APPLICATION_ONLINE_MESSAGE = " HTTP telemetry online with Bearer token authentication.";
+/** @brief Message printed when the device cannot start. */
+static const char* STARTUP_FAILED_MESSAGE = " Device startup failed.";
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "CLD-100 FW 1.1.0";
 //@} // Serial Output Configuration
 
 /**
@@ -170,7 +215,7 @@ public:
         }
 
         // Build the complete "Bearer <token>" authorization header
-        snprintf(outAuthorizationHeader, maxHeaderLength, "%s%.*s",
+        snprintf(outAuthorizationHeader, maxHeaderLength, BEARER_AUTHORIZATION_HEADER_FORMAT,
                  BEARER_AUTHORIZATION_PREFIX, static_cast<int>(tokenLength), tokenStart);
         return true;
     }
@@ -221,10 +266,10 @@ private:
     void replayBufferedPackets() {
         String bufferedPacket;
         while (TelemetryBuffer::retrieveNext(bufferedPacket)) {
-            Serial.printf("%s Replaying buffered packet: %s\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, bufferedPacket.c_str());
+            Serial.printf(REPLAYING_PACKET_FORMAT, CLIMATE_DATA_UPLOADER_LOG_PREFIX, bufferedPacket.c_str());
             gatewayClient.sendRequest(HttpGatewayClient::HttpMethod::Post, bufferedPacket.c_str());
         }
-        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Buffered packet replay complete.").c_str());
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + REPLAY_COMPLETE_MESSAGE).c_str());
     }
 
     /**
@@ -232,38 +277,38 @@ private:
      * @return True if the token was successfully retrieved and configured.
      */
     bool acquireBearerToken() {
-        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Requesting Bearer token...").c_str());
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + REQUESTING_TOKEN_MESSAGE).c_str());
 
         bool tokenReceived = gatewayClient.sendRequest(
             HttpGatewayClient::HttpMethod::Get, nullptr);
 
         if (!tokenReceived) {
-            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Failed to obtain Bearer token").c_str());
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + TOKEN_REQUEST_FAILED_MESSAGE).c_str());
             return false;
         }
 
         int statusCode = gatewayClient.getLastResponseStatusCode();
-        Serial.printf("%s Token endpoint responded: %d\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, statusCode);
+        Serial.printf(TOKEN_STATUS_FORMAT, CLIMATE_DATA_UPLOADER_LOG_PREFIX, statusCode);
 
         const char* responseBody = gatewayClient.getResponseBody();
         if (responseBody == nullptr) {
-            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Empty response from token endpoint").c_str());
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + EMPTY_TOKEN_RESPONSE_MESSAGE).c_str());
             return false;
         }
 
-        Serial.printf("%s Response body: %s\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, responseBody);
+        Serial.printf(RESPONSE_BODY_FORMAT, CLIMATE_DATA_UPLOADER_LOG_PREFIX, responseBody);
 
         char authorizationHeader[BEARER_AUTHORIZATION_HEADER_MAX_LENGTH];
         char tokenPreview[BEARER_TOKEN_MAX_LENGTH];
         if (!BearerTokenParser::buildAuthorizationHeader(responseBody, authorizationHeader,
                                                          sizeof(authorizationHeader), tokenPreview)) {
-            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Could not parse token from response").c_str());
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + TOKEN_PARSE_FAILED_MESSAGE).c_str());
             return false;
         }
 
         gatewayClient.setAuthorizationHeader(authorizationHeader);
 
-        Serial.printf("%s Bearer token configured: %s...\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, tokenPreview);
+        Serial.printf(TOKEN_CONFIGURED_FORMAT, CLIMATE_DATA_UPLOADER_LOG_PREFIX, tokenPreview);
         return true;
     }
 
@@ -275,9 +320,9 @@ protected:
                 // Serialize and buffer the payload for later replay when connectivity is restored
                 String failedPayload = rawQueueItemPayload->toJsonString();
                 if (TelemetryBuffer::store(failedPayload)) {
-                    Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Send failed — payload buffered for offline replay.").c_str());
+                    Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + PAYLOAD_BUFFERED_MESSAGE).c_str());
                 } else {
-                    Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Send failed and buffer is full — payload lost.").c_str());
+                    Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + PAYLOAD_LOST_MESSAGE).c_str());
                 }
             }
         }
@@ -295,9 +340,10 @@ public:
           climateSensor(climatePin, DhtSensor::SENSOR_MODEL_DHT22, this),
           gatewayClient(client)
     {
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
         appendSensorToScheduler(&climateSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     ~ClimateDataUploader() override = default;
@@ -334,31 +380,31 @@ public:
                 unsigned long connectionTimeoutInMilliseconds)
     {
         // Set firmware version for fleet management in telemetry
-        Device::setFirmwareVersion("CLD-100 FW 1.1.0");
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
 
         // Initialize TelemetryBuffer for offline persistence
         if (!TelemetryBuffer::begin()) {
-            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Failed to initialize TelemetryBuffer").c_str());
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + BUFFER_INIT_FAILED_MESSAGE).c_str());
             return false;
         }
         TelemetryBuffer::onEviction([]() {
-            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " WARNING: Oldest buffered packet evicted due to capacity.").c_str());
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + PACKET_EVICTED_MESSAGE).c_str());
         });
 
         // Replay any packets buffered from a previous session
         if (TelemetryBuffer::hasBufferedPackets()) {
             int bufferedCount = TelemetryBuffer::getBufferedPacketCount();
-            Serial.printf("%s Found %d buffered packets from previous session.\n", CLIMATE_DATA_UPLOADER_LOG_PREFIX, bufferedCount);
+            Serial.printf(BUFFERED_PACKETS_FOUND_FORMAT, CLIMATE_DATA_UPLOADER_LOG_PREFIX, bufferedCount);
         }
 
         // Connect to Wi-Fi with timeout
-        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Connecting to Wi-Fi...").c_str());
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + WIFI_CONNECTING_MESSAGE).c_str());
         if (!transport.waitForConnection(connectionTimeoutInMilliseconds)) {
-            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Wi-Fi connection timed out").c_str());
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + WIFI_TIMEOUT_MESSAGE).c_str());
             return false;
         }
 
-        Serial.printf("%s Connected! IP: %s, RSSI: %ld dBm\n",
+        Serial.printf(WIFI_CONNECTED_FORMAT,
                       CLIMATE_DATA_UPLOADER_LOG_PREFIX,
                       transport.getLocalIpAddress().toString().c_str(),
                       transport.getSignalStrengthInDbm());
@@ -374,7 +420,7 @@ public:
 
         // Acquire Bearer token
         if (!acquireBearerToken()) {
-            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Authentication failed, aborting").c_str());
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + AUTHENTICATION_FAILED_MESSAGE).c_str());
             // Reset gateway client to clean state after failed authentication
             gatewayClient.setServiceEndpointUrl(nullptr);
             gatewayClient.setAuthorizationHeader(nullptr);
@@ -385,7 +431,7 @@ public:
         gatewayClient.setServiceEndpointUrl(telemetryEndpointUrl);
         gatewayClient.setHttpMethod(HttpGatewayClient::HttpMethod::Post);
 
-        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " HTTP telemetry online with Bearer token authentication.").c_str());
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + APPLICATION_ONLINE_MESSAGE).c_str());
         return true;
     }
 };
@@ -416,7 +462,7 @@ void setup() {
     if (!climateUploaderApplication->start(*transportDriver, AUTHENTICATION_ENDPOINT_URL,
                                          TELEMETRY_ENDPOINT_URL,
                                          CONNECTION_TIMEOUT_IN_MILLISECONDS)) {
-        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + " Device startup failed.").c_str());
+        Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + STARTUP_FAILED_MESSAGE).c_str());
         return;
     }
 }

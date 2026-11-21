@@ -99,9 +99,10 @@ class MqttTlsDevice : public Device {
           environmentalSensor(sensorPin, PthSensor::DEFAULT_I2C_ADDRESS, this),
           gatewayClient(client)
     {
-        initializeAsynchronousEngine(MQTT_TLS_SAMPLER_QUEUE_LENGTH);
-
         appendSensorToScheduler(&environmentalSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(MQTT_TLS_SAMPLER_QUEUE_LENGTH);
     }
 
     ~MqttTlsDevice() override = default;
@@ -132,6 +133,18 @@ static const uint16_t MQTT_TLS_PORT           = 8883;
 
 static const char* MQTT_PUBLISH_TOPIC         = "nodes/environmental/tls-telemetry";
 
+/** @brief MQTT client identifier presented to the broker. */
+static const char* MQTT_CLIENT_ID             = "MqttTlsDevice_01";
+
+/** @brief CA certificate used to verify the broker (nullptr: none configured). */
+static const char* TLS_CA_CERTIFICATE         = nullptr;
+
+/**
+ * @brief Skips broker certificate verification when true.
+ * @warning Testing only. Set to false and provide TLS_CA_CERTIFICATE in production.
+ */
+static const bool TLS_ALLOW_INSECURE_CONNECTION = true;
+
 static const unsigned long TELEMETRY_POLLING_INTERVAL_IN_MILLISECONDS = 30000;
 static const uint8_t HARDWARE_TIMER_CHANNEL_INDEX = 0;
 
@@ -145,7 +158,13 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@{
 /** @brief Log prefix for all MqttTlsDevice serial output. */
 static const char* MQTT_TLS_DEVICE_LOG_PREFIX = "[MqttTlsDevice]";
+
+/** @brief Message printed once the application has booted. */
+static const char* APPLICATION_ONLINE_MESSAGE = " TLS-encrypted MQTT environmental monitor online.";
 //@} // Serial Output Configuration
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "MTL-900 FW 1.0.0";
 
 static WiFiConnectivityDriver* transportDriver = nullptr;
 static WiFiClientSecure* secureSocket          = nullptr;
@@ -154,7 +173,7 @@ static MqttTlsDevice* tlsApplication           = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("MTL-900 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
 
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);
 
@@ -172,7 +191,7 @@ void setup() {
      *          secureSocket = transportDriver->createSecureSocket(caCert, false);
      *          @endcode
      */
-    secureSocket = transportDriver->createSecureSocket(nullptr, true);
+    secureSocket = transportDriver->createSecureSocket(TLS_CA_CERTIFICATE, TLS_ALLOW_INSECURE_CONNECTION);
 
     /**
      * @brief Construct MqttGatewayClient with the TLS-encrypted socket.
@@ -186,7 +205,7 @@ void setup() {
         MQTT_BROKER_IP,
         MQTT_TLS_PORT,
         MQTT_PUBLISH_TOPIC,
-        "MqttTlsDevice_01"
+        MQTT_CLIENT_ID
     );
 
     tlsApplication = new MqttTlsDevice(
@@ -196,7 +215,7 @@ void setup() {
         HARDWARE_TIMER_CHANNEL_INDEX
     );
 
-    Serial.println((String(MQTT_TLS_DEVICE_LOG_PREFIX) + " TLS-encrypted MQTT environmental monitor online.").c_str());
+    Serial.println((String(MQTT_TLS_DEVICE_LOG_PREFIX) + APPLICATION_ONLINE_MESSAGE).c_str());
 }
 
 void loop() {

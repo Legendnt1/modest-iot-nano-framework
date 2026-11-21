@@ -42,7 +42,15 @@ static const int LCD_ROWS                       = 2;
 // Timing
 static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 100;
 static const int ASYNC_ENGINE_QUEUE_DEPTH = 32;
+static const uint8_t TIMER_GROUP_INDEX = 0;           ///< Hardware timer group index used by the device.
+static const bool ZONE_LED_INITIAL_STATE = false;     ///< Zone LEDs start off (no motion).
+static const bool LCD_BACKLIGHT_INITIAL_STATE = true; ///< LCD backlight starts on.
+static const int LCD_TITLE_ROW = 0;                   ///< LCD row with the title.
+static const int LCD_STATUS_ROW = 1;                  ///< LCD row with the zone status.
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 1000;
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "PMN-202 FW 1.0.0";
 
 /**
  * @brief Perimeter Monitor Device.
@@ -71,25 +79,23 @@ private:
                  eastCornerLed.isActive()   ? MOTION_CHAR : NO_MOTION_CHAR,
                  southCornerLed.isActive()  ? MOTION_CHAR : NO_MOTION_CHAR,
                  westCornerLed.isActive()   ? MOTION_CHAR : NO_MOTION_CHAR);
-        statusDisplay.setLineBuffer(1, buffer);
+        statusDisplay.setLineBuffer(LCD_STATUS_ROW, buffer);
         statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
     }
 
 public:
     PerimeterMonitor()
-        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, 0),
+        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, TIMER_GROUP_INDEX),
           northCornerPir(NORTH_CORNER_PIR_PIN, this),
           eastCornerPir(EAST_CORNER_PIR_PIN, this),
           southCornerPir(SOUTH_CORNER_PIR_PIN, this),
           westCornerPir(WEST_CORNER_PIR_PIN, this),
-          northCornerLed(NORTH_CORNER_LED_PIN, false, this),
-          eastCornerLed(EAST_CORNER_LED_PIN, false, this),
-          southCornerLed(SOUTH_CORNER_LED_PIN, false, this),
-          westCornerLed(WEST_CORNER_LED_PIN, false, this),
-          statusDisplay(LCD_I2C_ADDRESS, LCD_COLUMNS, LCD_ROWS, true, this)
+          northCornerLed(NORTH_CORNER_LED_PIN, ZONE_LED_INITIAL_STATE, this),
+          eastCornerLed(EAST_CORNER_LED_PIN, ZONE_LED_INITIAL_STATE, this),
+          southCornerLed(SOUTH_CORNER_LED_PIN, ZONE_LED_INITIAL_STATE, this),
+          westCornerLed(WEST_CORNER_LED_PIN, ZONE_LED_INITIAL_STATE, this),
+          statusDisplay(LCD_I2C_ADDRESS, LCD_COLUMNS, LCD_ROWS, LCD_BACKLIGHT_INITIAL_STATE, this)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Register PIR sensors for interrupt-driven operation (CHANGE edge)
         // Motion detected (RISING) and motion stopped (FALLING) are both captured
         appendSensorToTriggeringScheduler(&northCornerPir,
@@ -104,11 +110,14 @@ public:
         appendSensorToTriggeringScheduler(&westCornerPir,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           CHANGE);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
         
         static const char* TITLE_MESSAGE = "Perimeter Status";
         static const char* INITIALIZING_MESSAGE = "Initializing...";
-        statusDisplay.setLineBuffer(0, TITLE_MESSAGE);
-        statusDisplay.setLineBuffer(1, INITIALIZING_MESSAGE);
+        statusDisplay.setLineBuffer(LCD_TITLE_ROW, TITLE_MESSAGE);
+        statusDisplay.setLineBuffer(LCD_STATUS_ROW, INITIALIZING_MESSAGE);
         statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
     }
 
@@ -138,7 +147,7 @@ public:
 static PerimeterMonitor* perimeterMonitorApplication = nullptr;
 
 void setup() {
-    Device::setFirmwareVersion("PMN-202 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     perimeterMonitorApplication = new PerimeterMonitor();
 }
 

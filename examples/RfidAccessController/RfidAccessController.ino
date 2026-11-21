@@ -37,6 +37,7 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 
 static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 100;
 static const int ASYNC_ENGINE_QUEUE_DEPTH = 8;
+static const bool ACCESS_LED_INITIAL_STATE = false; ///< Access LED starts off (locked).
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 
 /** @name Serial Output Configuration */
@@ -45,7 +46,32 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 static const char* RFID_ACCESS_LOG_PREFIX = "[RFID]";
 /** @brief Log prefix for access control messages. */
 static const char* RFID_ACCESS_CONTROL_PREFIX = "[Access]";
+/** @brief Format of the tag detection line (prefix, UID). */
+static const char* TAG_DETECTED_FORMAT = "%s Tag detected: %s\n";
+/** @brief Message printed when the scanned UID is authorized. */
+static const char* ACCESS_GRANTED_MESSAGE = " ACCESS GRANTED";
+/** @brief Message printed when the scanned UID is not authorized. */
+static const char* ACCESS_DENIED_MESSAGE = " ACCESS DENIED";
+/** @brief Message printed when the tag leaves the reader field. */
+static const char* TAG_REMOVED_MESSAGE = " Tag removed from reader field.";
+/** @brief Message printed once the application has booted. */
+static const char* APPLICATION_ACTIVE_MESSAGE = " Access Controller active.";
 //@} // Serial Output Configuration
+
+/** @name Buzzer Feedback Tones */
+//@{
+/** @brief Tone frequency played when access is granted. */
+static const int ACCESS_GRANTED_TONE_FREQUENCY_IN_HERTZ = 2000;
+/** @brief Tone duration played when access is granted. */
+static const unsigned long ACCESS_GRANTED_TONE_DURATION_IN_MILLISECONDS = 200;
+/** @brief Tone frequency played when access is denied. */
+static const int ACCESS_DENIED_TONE_FREQUENCY_IN_HERTZ = 500;
+/** @brief Tone duration played when access is denied. */
+static const unsigned long ACCESS_DENIED_TONE_DURATION_IN_MILLISECONDS = 500;
+//@} // Buzzer Feedback Tones
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "RAC-505 FW 1.0.0";
 
 /**
  * @brief Access Control Device managing an RFID reader, feedback LED, and buzzer.
@@ -60,11 +86,13 @@ public:
     RfidAccessController(int csPin, int rstPin, int ledPin, int buzzerPin)
         : Device(SAMPLING_INTERVAL_IN_MILLISECONDS),
           rfidReader(csPin, rstPin, this),
-          accessLed(ledPin, false, this),
+          accessLed(ledPin, ACCESS_LED_INITIAL_STATE, this),
           feedbackBuzzer(buzzerPin, this)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
         appendSensorToScheduler(&rfidReader, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -75,21 +103,21 @@ public:
     void on(Event event) override {
         if (event.identifier == RfidSensor::TAG_DETECTED_EVENT_IDENTIFIER) {
             const char* scannedUid = rfidReader.getUid();
-            Serial.printf("%s Tag detected: %s\n", RFID_ACCESS_LOG_PREFIX, scannedUid);
+            Serial.printf(TAG_DETECTED_FORMAT, RFID_ACCESS_LOG_PREFIX, scannedUid);
 
             if (strcmp(scannedUid, AUTHORIZED_UID) == 0) {
-                Serial.println((String(RFID_ACCESS_CONTROL_PREFIX) + " ACCESS GRANTED").c_str());
+                Serial.println((String(RFID_ACCESS_CONTROL_PREFIX) + ACCESS_GRANTED_MESSAGE).c_str());
                 accessLed.handle(Led::TURN_ON_COMMAND);
-                feedbackBuzzer.setTone(2000, 200);
+                feedbackBuzzer.setTone(ACCESS_GRANTED_TONE_FREQUENCY_IN_HERTZ, ACCESS_GRANTED_TONE_DURATION_IN_MILLISECONDS);
                 feedbackBuzzer.handle(Buzzer::PLAY_TONE_COMMAND);
             } else {
-                Serial.println((String(RFID_ACCESS_CONTROL_PREFIX) + " ACCESS DENIED").c_str());
+                Serial.println((String(RFID_ACCESS_CONTROL_PREFIX) + ACCESS_DENIED_MESSAGE).c_str());
                 accessLed.handle(Led::TURN_OFF_COMMAND);
-                feedbackBuzzer.setTone(500, 500);
+                feedbackBuzzer.setTone(ACCESS_DENIED_TONE_FREQUENCY_IN_HERTZ, ACCESS_DENIED_TONE_DURATION_IN_MILLISECONDS);
                 feedbackBuzzer.handle(Buzzer::PLAY_TONE_COMMAND);
             }
         } else if (event.identifier == RfidSensor::TAG_REMOVED_EVENT_IDENTIFIER) {
-            Serial.println((String(RFID_ACCESS_LOG_PREFIX) + " Tag removed from reader field.").c_str());
+            Serial.println((String(RFID_ACCESS_LOG_PREFIX) + TAG_REMOVED_MESSAGE).c_str());
             accessLed.handle(Led::TURN_OFF_COMMAND);
         }
     }
@@ -99,9 +127,9 @@ static RfidAccessController* rfidAccessApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("RAC-505 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     rfidAccessApplication = new RfidAccessController(RFID_CS_PIN, RFID_RST_PIN, ACCESS_LED_PIN, BUZZER_PIN);
-    Serial.println((String(RFID_ACCESS_LOG_PREFIX) + " Access Controller active.").c_str());
+    Serial.println((String(RFID_ACCESS_LOG_PREFIX) + APPLICATION_ACTIVE_MESSAGE).c_str());
 }
 
 void loop() {

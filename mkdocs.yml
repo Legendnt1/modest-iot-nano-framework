@@ -1,0 +1,130 @@
+# Sitio de documentación de Modest-IoT Nano.
+# Construcción completa (Doxygen + MkDocs + validación):  python tools/docs/build_docs.py
+# `mkdocs build` por sí solo requiere que la salida de Doxygen exista en build/docs/doxygen/.
+
+site_name: Modest-IoT Nano
+site_description: >-
+  Documentación del framework Modest IoT Nano (C++ Edition): guías, catálogo de componentes,
+  ejemplos y referencia de API generada desde el código.
+# URL prevista para GitHub Pages del repositorio declarado en library.json.
+# El sitio NO está publicado todavía; ajusta DOCS_SITE_URL si se aloja en otro lugar.
+site_url: !ENV [DOCS_SITE_URL, "https://modest-iot.github.io/modest-iot-nano-framework/"]
+repo_url: https://github.com/modest-iot/modest-iot-nano-framework
+repo_name: modest-iot/modest-iot-nano-framework
+edit_uri: edit/main/docs/
+copyright: >-
+  Copyright © 2025-2026 Angel Velasquez · Licencia Apache 2.0 (ver LICENSE.md y NOTICE)
+
+docs_dir: docs
+site_dir: site
+use_directory_urls: true
+strict: true
+
+# Archivos de docs/ que existen para otras herramientas y no se publican como páginas.
+exclude_docs: |
+  Doxyfile
+  *.dox
+  *.puml
+  doxygen-mainpage.md
+  improvements.md
+  evolution.md
+  user-stories.md
+  build/
+  components/catalog.yml
+  diagrams/
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+hooks:
+  - tools/docs/mkdocs_hooks.py
+
+theme:
+  name: material
+  language: es
+  logo: assets/branding/logo.png
+  favicon: assets/branding/logo.png
+  # Fuentes del sistema: evita descargar fuentes desde un CDN externo.
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Cambiar a modo oscuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Cambiar a modo claro
+  features:
+    - navigation.tabs
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.view
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search:
+      lang: es
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Enlace a esta sección
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path:
+        - !relative $config_dir
+      check_paths: true
+
+nav:
+  - Inicio: index.md
+  - Primeros pasos:
+      - getting-started.md
+      - Guía rápida original (inglés): quick-start.md
+      - Migrar un sketch con loop() (inglés): migration.md
+  - Arquitectura:
+      - architecture.md
+      - Decisiones de arquitectura (inglés): adrs.md
+  - Componentes: components/index.md
+  - Ejemplos: examples/index.md
+  - Referencia de API: api.md
+  - Desarrollo:
+      - Extender el framework: extending.md
+      - Generar y validar la documentación: development.md
+      - Contribuir: contributing.md
+  - Ayuda:
+      - Limitaciones y compatibilidad: limitations.md
+      - Resolución de problemas: troubleshooting-es.md
+      - Guía de problemas original (inglés): troubleshooting.md

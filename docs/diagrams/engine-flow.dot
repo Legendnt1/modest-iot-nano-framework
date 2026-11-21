@@ -1,0 +1,63 @@
+// Flujo en tiempo de ejecución del motor asíncrono.
+// Fuente: Device::executeHardwareSamplingContext, Device::executeNetworkDispatchContext,
+// Device::processTriggeredSensors, Device::processPendingCommands (src/Device.cpp)
+// y SamplingScheduler::advance (src/SamplingScheduler.cpp).
+digraph EngineFlow {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica,Arial,sans-serif", fontsize=11,
+         nodesep=0.3, ranksep=0.45, compound=true];
+  node  [shape=box, style="rounded,filled", fontname="Helvetica,Arial,sans-serif", fontsize=10,
+         fillcolor="#ffffff", color="#555555"];
+  edge  [fontname="Helvetica,Arial,sans-serif", fontsize=9, color="#555555"];
+
+  subgraph cluster_isr {
+    label="Interrupciones"; style="rounded,dashed"; color="#999999";
+    timer_isr [label="ISR del temporizador\nhandleHardwareTimerInterrupt()"];
+    gpio_isr  [label="ISR GPIO\nonSensorTrigger()"];
+  }
+
+  subgraph cluster_other {
+    label="Cualquier tarea"; style="rounded,dashed"; color="#999999";
+    enqueue_cmd [label="enqueueCommand(handler, command)"];
+  }
+
+  subgraph cluster_sampler {
+    label="Tarea de muestreo (\"HardwareWorker\")"; style="rounded,filled"; fillcolor="#eef5fb"; color="#7a9cc6";
+    wait      [label="xTaskNotifyWait()\nespera bits de notificación"];
+    advance   [label="TimerTickArrived:\nscheduler.advance(ticks)"];
+    sleep     [label="Tickless / DeepSleep:\nre-armar temporizador y dormir"];
+    triggered [label="SensorTrigger:\nprocessTriggeredSensors()"];
+    commands  [label="CommandAvailable:\nprocessPendingCommands()"];
+    sensor_on [label="Sensor::on(event)\n→ processEvent(event)"];
+    device_on [label="Device::on(event)\n(si el id no es -1)"];
+    act       [label="handle(command)\nActuator u otro CommandHandler"];
+    enq       [label="enqueueTelemetryPayload()\n(descarta el más antiguo si la cola está llena)"];
+  }
+
+  queue [label="Cola de telemetría", shape=cylinder];
+
+  subgraph cluster_network {
+    label="Tarea de red (\"NetworkWorker\")"; style="rounded,filled"; fillcolor="#fbeef3"; color="#c67a9c";
+    receive  [label="xQueueReceive()\n(espera hasta 100 ms)"];
+    process  [label="processQueuedTelemetryData(packet)\ny delete packet"];
+    maintain [label="maintainNetworkServices()"];
+  }
+
+  timer_isr -> wait      [label="notifica"];
+  gpio_isr  -> wait      [label="notifica"];
+  enqueue_cmd -> wait    [label="cola de comandos\n+ notifica"];
+  wait -> advance;
+  advance -> sleep       [style=dashed, label="según PowerMode"];
+  wait -> triggered;
+  wait -> commands;
+  advance   -> sensor_on [label="on(Event(id))\npor ranura vencida"];
+  triggered -> sensor_on;
+  sensor_on -> device_on;
+  device_on -> act;
+  commands  -> act;
+  device_on -> enq       [style=dashed, label="si la aplicación\nenvía telemetría"];
+  enq -> queue;
+  queue -> receive;
+  receive -> process;
+  process -> maintain;
+  maintain -> receive    [style=dashed, label="bucle"];
+}

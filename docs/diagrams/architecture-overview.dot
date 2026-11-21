@@ -1,0 +1,30 @@
+// Vista estática de un dispositivo construido con el framework.
+// Cada relación está respaldada por src/Device.h, src/Sensor.h, src/Actuator.h y src/GatewayClient.h.
+digraph ArchitectureOverview {
+  graph [rankdir=LR, bgcolor="white", fontname="Helvetica,Arial,sans-serif", fontsize=11,
+         nodesep=0.35, ranksep=0.7, label="Vista estática: un Device mediador y sus colaboradores", labelloc=t];
+  node  [shape=box, style="rounded,filled", fontname="Helvetica,Arial,sans-serif", fontsize=10,
+         fillcolor="#f5f5f5", color="#555555"];
+  edge  [fontname="Helvetica,Arial,sans-serif", fontsize=9, color="#555555"];
+
+  sketch    [label="Sketch .ino\nsetup() / loop()", fillcolor="#ffffff"];
+  device    [label="Subclase de Device\n(mediador de la aplicación)", fillcolor="#dbe9f6"];
+  scheduler [label="SamplingScheduler\n(miembro privado de Device)", fillcolor="#dbe9f6"];
+  sensor    [label="Sensor\n(subclases concretas)", fillcolor="#e3f2e1"];
+  actuator  [label="Actuator\n(subclases concretas)", fillcolor="#fdebd3"];
+  queue     [label="Cola FreeRTOS\nde TelemetryPackage*", shape=cylinder, fillcolor="#ffffff"];
+  package   [label="TelemetryPackage\n(subclase definida por la aplicación)", fillcolor="#dbe9f6"];
+  gateway   [label="GatewayClient\nMqtt / Http / Ble", fillcolor="#f6e3ea"];
+  transport [label="ConnectivityDriver\nWiFi / Ble", fillcolor="#efe3f6"];
+
+  sketch    -> device    [label="crea en setup()"];
+  device    -> scheduler [label="appendSensorToScheduler()"];
+  scheduler -> sensor    [label="on(Event 21)\nMEASURE_DATA_REQUESTED"];
+  sensor    -> device    [label="on(Event)\nmanejador padre"];
+  device    -> actuator  [label="handle(Command)"];
+  actuator  -> device    [label="propaga el comando\nal manejador padre", style=dashed];
+  device    -> package   [label="crea"];
+  package   -> queue     [label="enqueueTelemetryPayload()"];
+  queue     -> gateway   [label="processQueuedTelemetryData()\n(implementado por la subclase)"];
+  gateway   -> transport [label="usa"];
+}

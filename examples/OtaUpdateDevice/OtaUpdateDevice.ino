@@ -75,6 +75,38 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 static const char* OTA_UPDATE_DEVICE_LOG_PREFIX = "[OtaUpdateDevice]";
 /** @brief Buffer size for formatted sensor readings. */
 static const size_t SERIAL_OUTPUT_BUFFER_SIZE = 128;
+/** @brief Message printed when a telemetry package reaches the network task. */
+static const char* TELEMETRY_READY_MESSAGE = " Telemetry ready (logged locally only).";
+/** @brief Format of the sensor reading line (prefix, temperature, humidity). */
+static const char* SENSOR_READING_FORMAT = "%s Temp: %.1f°C, Humidity: %.1f%%";
+/** @brief Format of the OTA progress line (prefix, percentage). */
+static const char* OTA_PROGRESS_FORMAT = "%s OTA Progress: %.1f%%\r";
+/** @brief Format of the OTA error line (prefix, error code). */
+static const char* OTA_ERROR_FORMAT = "%s OTA Error: %d\n";
+/** @brief Message printed when an OTA update starts. */
+static const char* OTA_STARTED_MESSAGE = " OTA Update started...";
+/** @brief Message printed when an OTA update ends. */
+static const char* OTA_ENDED_MESSAGE = " OTA Update ended.";
+/** @brief Line break printed before OTA start/end messages (the progress line ends with '\r'). */
+static const char* LINE_BREAK = "\n";
+/** @brief Format of the OTA hostname line (prefix, hostname). */
+static const char* OTA_ENABLED_FORMAT = "%s OTA updates enabled on hostname: %s\n";
+/** @brief Instructions printed after OTA is configured. */
+static const char* OTA_INSTRUCTIONS_MESSAGE = " To update firmware, select this device from Arduino IDE > Tools > Port";
+/** @brief Message printed while connecting to Wi-Fi. */
+static const char* WIFI_CONNECTING_MESSAGE = " Connecting to Wi-Fi...";
+/** @brief Message printed when the Wi-Fi connection times out. */
+static const char* WIFI_TIMEOUT_MESSAGE = " Wi-Fi connection timed out";
+/** @brief Format of the connection line (prefix, IP address). */
+static const char* WIFI_CONNECTED_FORMAT = "%s Connected! IP: %s\n";
+/** @brief Message printed when the device cannot start. */
+static const char* STARTUP_FAILED_MESSAGE = " Device startup failed.";
+
+/** @brief Scale factor that converts a 0–1 ratio to a percentage. */
+static const float PERCENTAGE_SCALE = 100.0f;
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "MOD-OTA-01 FW 1.0.0";
 //@} // Serial Output Configuration
 
 /**
@@ -92,7 +124,7 @@ protected:
         // No gateway client in this example — telemetry is logged to Serial only.
         // In a real device, you would send the payload via MQTT or HTTP.
         if (rawQueueItemPayload != nullptr) {
-            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Telemetry ready (logged locally only).").c_str());
+            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + TELEMETRY_READY_MESSAGE).c_str());
         }
     }
 
@@ -112,8 +144,10 @@ public:
         : Device(samplingIntervalInMilliseconds, timerGroupIndex),
           dhtSensor(dhtPin, DhtSensor::SENSOR_MODEL_DHT22, this)
     {
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
         appendSensorToScheduler(&dhtSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     ~OtaUpdateDevice() override = default;
@@ -127,7 +161,7 @@ public:
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             char buffer[SERIAL_OUTPUT_BUFFER_SIZE];
             snprintf(buffer, sizeof(buffer),
-                     "%s Temp: %.1f°C, Humidity: %.1f%%",
+                     SENSOR_READING_FORMAT,
                      OTA_UPDATE_DEVICE_LOG_PREFIX,
                      dhtSensor.getTemperatureInCelsius(),
                      dhtSensor.getRelativeHumidityInPercentage());
@@ -150,27 +184,27 @@ public:
         OtaUpdateHandler::onProgress([](uint32_t progressInNumberOfBytesWritten,
                                          uint32_t totalNumberOfBytes) {
             float percent = static_cast<float>(progressInNumberOfBytesWritten)
-                           / static_cast<float>(totalNumberOfBytes) * 100.0f;
-            Serial.printf("%s OTA Progress: %.1f%%\r",
+                           / static_cast<float>(totalNumberOfBytes) * PERCENTAGE_SCALE;
+            Serial.printf(OTA_PROGRESS_FORMAT,
                           OTA_UPDATE_DEVICE_LOG_PREFIX, percent);
         });
 
         OtaUpdateHandler::onError([](int errorCode) {
-            Serial.printf("%s OTA Error: %d\n",
+            Serial.printf(OTA_ERROR_FORMAT,
                           OTA_UPDATE_DEVICE_LOG_PREFIX, errorCode);
         });
 
         OtaUpdateHandler::onStart([]() {
-            Serial.println((String("\n") + OTA_UPDATE_DEVICE_LOG_PREFIX + " OTA Update started...").c_str());
+            Serial.println((String(LINE_BREAK) + OTA_UPDATE_DEVICE_LOG_PREFIX + OTA_STARTED_MESSAGE).c_str());
         });
 
         OtaUpdateHandler::onEnd([]() {
-            Serial.println((String("\n") + OTA_UPDATE_DEVICE_LOG_PREFIX + " OTA Update ended.").c_str());
+            Serial.println((String(LINE_BREAK) + OTA_UPDATE_DEVICE_LOG_PREFIX + OTA_ENDED_MESSAGE).c_str());
         });
 
-        Serial.printf("%s OTA updates enabled on hostname: %s\n",
+        Serial.printf(OTA_ENABLED_FORMAT,
                       OTA_UPDATE_DEVICE_LOG_PREFIX, hostname);
-        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " To update firmware, select this device from Arduino IDE > Tools > Port").c_str());
+        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + OTA_INSTRUCTIONS_MESSAGE).c_str());
     }
 
     /**
@@ -189,16 +223,16 @@ public:
                 unsigned long connectionTimeoutInMilliseconds)
     {
         // Set firmware version for fleet management in telemetry
-        Device::setFirmwareVersion("MOD-OTA-01 FW 1.0.0");
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
 
         // Connect to Wi-Fi with timeout
-        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Connecting to Wi-Fi...").c_str());
+        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + WIFI_CONNECTING_MESSAGE).c_str());
         if (!transport.waitForConnection(connectionTimeoutInMilliseconds)) {
-            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Wi-Fi connection timed out").c_str());
+            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + WIFI_TIMEOUT_MESSAGE).c_str());
             return false;
         }
 
-        Serial.printf("%s Connected! IP: %s\n",
+        Serial.printf(WIFI_CONNECTED_FORMAT,
                       OTA_UPDATE_DEVICE_LOG_PREFIX,
                       transport.getLocalIpAddress().toString().c_str());
 
@@ -228,7 +262,7 @@ void setup() {
 
     if (!otaDeviceApplication->start(*transportDriver, OTA_HOSTNAME, OTA_PASSWORD,
                                      CONNECTION_TIMEOUT_IN_MILLISECONDS)) {
-        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + " Device startup failed.").c_str());
+        Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + STARTUP_FAILED_MESSAGE).c_str());
         return;
     }
 }

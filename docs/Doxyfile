@@ -14,6 +14,16 @@ EXCLUDE                = cmake cmake-build-debug cmake-build-test examples tests
 EXCLUDE_PATTERNS       = */docs/build/* */cmake-build-*/*
 USE_MDFILE_AS_MAINPAGE = docs/doxygen-mainpage.md
 
+# Arduino sketches (.ino) are C++ translation units for documentation purposes.
+# They are not parsed as API (examples/ stays in EXCLUDE); instead they are exposed
+# as Doxygen examples so their code is cross-linked to the classes it uses.
+# The documentation site build (tools/docs/build_docs.py) generates the matching
+# @example index automatically. Doxygen does not run the Arduino preprocessor.
+EXTENSION_MAPPING      = ino=C++
+EXAMPLE_PATH           = examples
+EXAMPLE_PATTERNS       = *.ino
+EXAMPLE_RECURSIVE      = YES
+
 # Parsing and extraction
 EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO

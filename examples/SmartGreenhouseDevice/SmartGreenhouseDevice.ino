@@ -39,6 +39,7 @@ static constexpr float TEMPERATURE_HIGH_THRESHOLD = 30.0f; ///< Celsius above wh
 
 static constexpr int VENT_CLOSED_ANGLE = 0;
 static constexpr int VENT_OPEN_ANGLE   = 90;
+static constexpr bool WATER_PUMP_INITIAL_STATE = false; ///< Pump relay starts off.
 
 // Timing constants
 
@@ -56,6 +57,9 @@ static const char*          PUMP_ON_MESSAGE             = "[Irrigation] Pump ON 
 static const char*          PUMP_OFF_MESSAGE            = "[Irrigation] Pump OFF — soil moist.";
 static const char*          VENT_ON_MESSAGE             = "[Ventilation] Vent OPEN — temperature high.";
 static const char*          VENT_OFF_MESSAGE            = "[Ventilation] Vent CLOSED — temperature normal.";
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "SGD-707 FW 1.0.0";
 
 /**
  * @brief Mediator for the Smart Greenhouse Device.
@@ -82,13 +86,14 @@ public:
         : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, TIMER_GROUP_INDEX),
           soilSensor(SOIL_MOISTURE_PIN, this),
           temperatureSensor(DHT_DATA_PIN, DhtSensor::SENSOR_MODEL_DHT22, this),
-          waterPump(RELAY_PUMP_PIN, false, this),
+          waterPump(RELAY_PUMP_PIN, WATER_PUMP_INITIAL_STATE, this),
           ventMotor(SERVO_VENT_PIN, VENT_CLOSED_ANGLE, this)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         appendSensorToScheduler(&soilSensor,        Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&temperatureSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -127,7 +132,7 @@ static SmartGreenhouseDevice* smartGreenhouseApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("SGD-707 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     smartGreenhouseApplication = new SmartGreenhouseDevice();
     Serial.println(SYSTEM_BOOT_MESSAGE);
 }

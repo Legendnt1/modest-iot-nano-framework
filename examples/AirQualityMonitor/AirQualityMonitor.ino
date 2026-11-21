@@ -41,6 +41,41 @@ static const unsigned long BUZZER_TONE_FREQ = 2000;
 /** @brief Buzzer tone duration (ms). */
 static const unsigned long BUZZER_TONE_DURATION_IN_MILLISECONDS = 100;
 
+/** @brief Sampling interval of the gas sensor. */
+static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 1000;
+
+/** @brief LCD backlight starts on. */
+static const bool LCD_BACKLIGHT_INITIAL_STATE = true;
+
+/** @name Character LCD Text Layout */
+//@{
+/** @brief Number of text lines written to the LCD. */
+static const int LCD_TEXT_LINE_COUNT = 2;
+/** @brief Characters reserved per LCD line (up to 20 visible characters plus the null terminator). */
+static const size_t LCD_TEXT_LINE_BUFFER_SIZE = 21;
+/** @brief Index of the operating mode line. */
+static const int LCD_MODE_LINE_INDEX = 0;
+/** @brief Index of the measurement line. */
+static const int LCD_VALUE_LINE_INDEX = 1;
+/** @brief Mode line shown in raw mode. */
+static const char* RAW_MODE_TEXT = "Mode: RAW";
+/** @brief Measurement line format in raw mode (raw ADC value). */
+static const char* RAW_VALUE_FORMAT = "Raw Val: %d";
+/** @brief Mode line shown while calibrating. */
+static const char* CALIBRATING_MODE_TEXT = "Mode: CALIBRATING";
+/** @brief Instruction shown while calibrating. */
+static const char* CALIBRATING_INSTRUCTION_TEXT = "Keep in clean air!";
+/** @brief Mode line shown in accurate mode. */
+static const char* ACCURATE_MODE_TEXT = "Mode: ACCURATE";
+/** @brief Measurement line format in accurate mode (gas name, PPM). */
+static const char* GAS_CONCENTRATION_FORMAT = "%s: %.1f PPM";
+/** @brief Measurement line format when no target gas is set (Rs/R0 ratio). */
+static const char* RS_R0_RATIO_FORMAT = "Rs/R0: %.2f";
+//@} // Character LCD Text Layout
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "AQM-200 FW 1.0.0";
+
 /** @name Telemetry JSON Keys */
 //@{
 /** @brief JSON key for gas concentration in PPM. */
@@ -113,32 +148,34 @@ private:
      * Also controls the backlight based on whether gas is detected.
      */
     void updateOperationStatusDisplay() {
-        char textBufferInternal[2][21]; // Max 20 chars + null terminator for 2 lines
-        const char* textBufferPtrs[2];
+        char textBufferInternal[LCD_TEXT_LINE_COUNT][LCD_TEXT_LINE_BUFFER_SIZE];
+        const char* textBufferPtrs[LCD_TEXT_LINE_COUNT];
+        char* modeLine = textBufferInternal[LCD_MODE_LINE_INDEX];
+        char* valueLine = textBufferInternal[LCD_VALUE_LINE_INDEX];
 
         switch (gasSensor.getOperatingMode()) {
             case GasSensor::OperatingMode::RawMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: RAW");
-                snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Raw Val: %d", gasSensor.getRawAnalogValue());
+                snprintf(modeLine, LCD_TEXT_LINE_BUFFER_SIZE, "%s", RAW_MODE_TEXT);
+                snprintf(valueLine, LCD_TEXT_LINE_BUFFER_SIZE, RAW_VALUE_FORMAT, gasSensor.getRawAnalogValue());
                 break;
             case GasSensor::OperatingMode::CalibratingMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: CALIBRATING");
-                snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Keep in clean air!");
+                snprintf(modeLine, LCD_TEXT_LINE_BUFFER_SIZE, "%s", CALIBRATING_MODE_TEXT);
+                snprintf(valueLine, LCD_TEXT_LINE_BUFFER_SIZE, "%s", CALIBRATING_INSTRUCTION_TEXT);
                 break;
             case GasSensor::OperatingMode::AccurateMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: ACCURATE");
+                snprintf(modeLine, LCD_TEXT_LINE_BUFFER_SIZE, "%s", ACCURATE_MODE_TEXT);
                 if (gasSensor.getTargetGasType() != GasSensor::GasType::None) {
-                    snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "%s: %.1f PPM",
+                    snprintf(valueLine, LCD_TEXT_LINE_BUFFER_SIZE, GAS_CONCENTRATION_FORMAT,
                              getGasTypeName(gasSensor.getTargetGasType()),
                              gasSensor.getGasConcentrationInPpm());
                 } else {
-                    snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Rs/R0: %.2f", gasSensor.getRsR0Ratio());
+                    snprintf(valueLine, LCD_TEXT_LINE_BUFFER_SIZE, RS_R0_RATIO_FORMAT, gasSensor.getRsR0Ratio());
                 }
                 break;
         }
 
-        textBufferPtrs[0] = textBufferInternal[0];
-        textBufferPtrs[1] = textBufferInternal[1];
+        textBufferPtrs[LCD_MODE_LINE_INDEX] = modeLine;
+        textBufferPtrs[LCD_VALUE_LINE_INDEX] = valueLine;
 
         statusDisplay.setLineBuffer(textBufferPtrs); // Use the overloaded method
         statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
@@ -211,17 +248,18 @@ public:
         : Device(samplingIntervalInMilliseconds, timerGroupIndex),
           gasSensor(gasAnalogPin, gasDigitalPin, this, GasSensor::OperatingMode::RawMode), // Start in RawMode
           alarmBuzzer(buzzerPin, this),
-          statusDisplay(lcdI2CAddress, lcdColumns, lcdRows, true, this), // Backlight on initially
+          statusDisplay(lcdI2CAddress, lcdColumns, lcdRows, LCD_BACKLIGHT_INITIAL_STATE, this),
           gatewayClient(client)
     {
         // Set handlers for sensors (this device acts as the EventHandler)
         gasSensor.setHandler(this);
 
-        // Initialize asynchronous engine
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Append sensors to the scheduler
         appendSensorToScheduler(&gasSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Initialize asynchronous engine
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -325,6 +363,10 @@ static AirQualityMonitorDevice* airQualityApplication = nullptr;
 //@{
 /** @brief Log prefix for all AirQualityMonitor serial output. */
 static const char* AIR_QUALITY_MONITOR_LOG_PREFIX = "[AirQualityMonitor]";
+/** @brief Message printed when setup begins. */
+static const char* STARTING_MESSAGE = " Starting up...";
+/** @brief Message printed when setup finishes. */
+static const char* SETUP_COMPLETE_MESSAGE = " Setup complete. Monitoring started.";
 //@} // Serial Output Configuration
 
 /**
@@ -332,9 +374,9 @@ static const char* AIR_QUALITY_MONITOR_LOG_PREFIX = "[AirQualityMonitor]";
  */
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("AQM-200 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     while (!Serial && millis() < SERIAL_TIMEOUT_IN_MILLISECONDS) { /* wait for serial port to connect */ }
-    Serial.println((String(AIR_QUALITY_MONITOR_LOG_PREFIX) + " Starting up...").c_str());
+    Serial.println((String(AIR_QUALITY_MONITOR_LOG_PREFIX) + STARTING_MESSAGE).c_str());
 
     // 1. Initialize Connectivity
     transportDriver = new WiFiConnectivityDriver(WIFI_SSID, WIFI_PASSWORD);
@@ -359,7 +401,7 @@ void setup() {
         LCD_COLUMNS,
         LCD_ROWS,
         *gatewayClient,
-        1000 // Sample every 1 second
+        SAMPLING_INTERVAL_IN_MILLISECONDS
     );
 
     // 4. Configure Gas Sensor Calibration and Target Gas
@@ -367,7 +409,7 @@ void setup() {
     airQualityApplication->startGasSensorCalibration();
     airQualityApplication->setGasSensorTargetGas(GasSensor::GasType::LPG); // Example: Target LPG for PPM calculation
 
-    Serial.println((String(AIR_QUALITY_MONITOR_LOG_PREFIX) + " Setup complete. Monitoring started.").c_str());
+    Serial.println((String(AIR_QUALITY_MONITOR_LOG_PREFIX) + SETUP_COMPLETE_MESSAGE).c_str());
 }
 
 /**

@@ -53,6 +53,9 @@ static constexpr int SET_COLOR_WHITE_COMMAND_IDENTIFIER = 404;
 /** @brief Sampler event queue length for remote LED control. */
 static const int SAMPLER_QUEUE_LENGTH = 10;
 
+/** @brief Initial logical state of the smart lamp (off until start() sets the color). */
+static const bool SMART_LAMP_INITIAL_STATE = false;
+
 #include <Arduino.h>
 #include "ModestIoT.h"
 
@@ -66,6 +69,37 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@{
 /** @brief Log prefix for all RemoteLedController serial output. */
 static const char* REMOTE_LED_CONTROLLER_LOG_PREFIX = "[RemoteLedController]";
+/** @brief Message printed when a cloud command sets the LED to red. */
+static const char* LED_SET_TO_RED_MESSAGE = " Cloud command -> LED set to RED";
+/** @brief Message printed when a cloud command sets the LED to green. */
+static const char* LED_SET_TO_GREEN_MESSAGE = " Cloud command -> LED set to GREEN";
+/** @brief Message printed when a cloud command sets the LED to blue. */
+static const char* LED_SET_TO_BLUE_MESSAGE = " Cloud command -> LED set to BLUE";
+/** @brief Message printed when a cloud command sets the LED to orange. */
+static const char* LED_SET_TO_ORANGE_MESSAGE = " Cloud command -> LED set to ORANGE";
+/** @brief Message printed when a cloud command sets the LED to white. */
+static const char* LED_SET_TO_WHITE_MESSAGE = " Cloud command -> LED set to WHITE";
+/** @brief Message printed when a cloud command turns the LED on. */
+static const char* LED_TURNED_ON_MESSAGE = " Cloud command -> LED turned ON";
+/** @brief Message printed when a cloud command turns the LED off. */
+static const char* LED_TURNED_OFF_MESSAGE = " Cloud command -> LED turned OFF";
+/** @brief Format of the brightness adjustment line (prefix, brightness payload). */
+static const char* BRIGHTNESS_ADJUSTED_FORMAT = "%s Cloud command -> LED brightness adjusted to %ld\n";
+/** @brief Format of the unknown command line (prefix, command identifier). */
+static const char* UNKNOWN_COMMAND_FORMAT = "%s Unknown cloud command: %d\n";
+/** @brief Message printed while connecting to Wi-Fi. */
+static const char* WIFI_CONNECTING_MESSAGE = " Connecting to WiFi...";
+/** @brief Message printed when the Wi-Fi connection times out. */
+static const char* WIFI_TIMEOUT_MESSAGE = " WiFi connection timed out";
+/** @brief Format of the connection line (prefix, IP address, RSSI). */
+static const char* WIFI_CONNECTED_FORMAT = "%s Connected! IP: %s, RSSI: %ld dBm\n";
+/** @brief Message printed once the controller is ready for commands. */
+static const char* APPLICATION_ONLINE_MESSAGE = " Remote LED controller online. Awaiting cloud commands.";
+/** @brief Message printed when the device cannot start. */
+static const char* STARTUP_FAILED_MESSAGE = " Device startup failed.";
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "RLC-404 FW 1.0.0";
 //@} // Serial Output Configuration
 
 /** @name Application Mediator Implementation */
@@ -108,7 +142,7 @@ public:
                         unsigned long samplingIntervalInMilliseconds,
                         uint8_t timerGroupIndex = 0)
         : Device(samplingIntervalInMilliseconds, timerGroupIndex),
-          smartLamp(redPin, greenPin, bluePin, false, this)
+          smartLamp(redPin, greenPin, bluePin, SMART_LAMP_INITIAL_STATE, this)
     {
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
@@ -140,50 +174,50 @@ public:
             case SET_COLOR_RED_COMMAND_IDENTIFIER:
                 smartLamp.setColor(RgbLed::RED);
                 smartLamp.handle(RgbLed::SET_COLOR_COMMAND);
-                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Cloud command -> LED set to RED").c_str());
+                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + LED_SET_TO_RED_MESSAGE).c_str());
                 break;
 
             case SET_COLOR_GREEN_COMMAND_IDENTIFIER:
                 smartLamp.setColor(RgbLed::GREEN);
                 smartLamp.handle(RgbLed::SET_COLOR_COMMAND);
-                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Cloud command -> LED set to GREEN").c_str());
+                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + LED_SET_TO_GREEN_MESSAGE).c_str());
                 break;
 
             case SET_COLOR_BLUE_COMMAND_IDENTIFIER:
                 smartLamp.setColor(RgbLed::BLUE);
                 smartLamp.handle(RgbLed::SET_COLOR_COMMAND);
-                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Cloud command -> LED set to BLUE").c_str());
+                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + LED_SET_TO_BLUE_MESSAGE).c_str());
                 break;
 
             case SET_COLOR_ORANGE_COMMAND_IDENTIFIER:
                 smartLamp.setColor(RgbLed::ORANGE);
                 smartLamp.handle(RgbLed::SET_COLOR_COMMAND);
-                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Cloud command -> LED set to ORANGE").c_str());
+                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + LED_SET_TO_ORANGE_MESSAGE).c_str());
                 break;
 
             case SET_COLOR_WHITE_COMMAND_IDENTIFIER:
                 smartLamp.setColor(RgbLed::WHITE);
                 smartLamp.handle(RgbLed::SET_COLOR_COMMAND);
-                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Cloud command -> LED set to WHITE").c_str());
+                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + LED_SET_TO_WHITE_MESSAGE).c_str());
                 break;
 
             case RgbLed::TURN_ON_COMMAND_IDENTIFIER:
                 smartLamp.handle(RgbLed::TURN_ON_COMMAND);
-                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Cloud command -> LED turned ON").c_str());
+                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + LED_TURNED_ON_MESSAGE).c_str());
                 break;
 
             case RgbLed::TURN_OFF_COMMAND_IDENTIFIER:
                 smartLamp.handle(RgbLed::TURN_OFF_COMMAND);
-                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Cloud command -> LED turned OFF").c_str());
+                Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + LED_TURNED_OFF_MESSAGE).c_str());
                 break;
 
             case RgbLed::ADJUST_BRIGHTNESS_COMMAND_IDENTIFIER:
                 smartLamp.handle(Command{RgbLed::ADJUST_BRIGHTNESS_COMMAND_IDENTIFIER, command.payload});
-                Serial.printf("%s Cloud command -> LED brightness adjusted to %ld\n", REMOTE_LED_CONTROLLER_LOG_PREFIX, command.payload);
+                Serial.printf(BRIGHTNESS_ADJUSTED_FORMAT, REMOTE_LED_CONTROLLER_LOG_PREFIX, command.payload);
                 break;
 
             default:
-                Serial.printf("%s Unknown cloud command: %d\n", REMOTE_LED_CONTROLLER_LOG_PREFIX, command.identifier);
+                Serial.printf(UNKNOWN_COMMAND_FORMAT, REMOTE_LED_CONTROLLER_LOG_PREFIX, command.identifier);
                 break;
         }
     }
@@ -198,15 +232,15 @@ public:
     bool start(WiFiConnectivityDriver& transport,
                unsigned long connectionTimeoutMs)
     {
-        Device::setFirmwareVersion("RLC-404 FW 1.0.0");
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
         // Connect to WiFi with timeout
-        Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Connecting to WiFi...").c_str());
+        Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + WIFI_CONNECTING_MESSAGE).c_str());
         if (!transport.waitForConnection(connectionTimeoutMs)) {
-            Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " WiFi connection timed out").c_str());
+            Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + WIFI_TIMEOUT_MESSAGE).c_str());
             return false;
         }
 
-        Serial.printf("%s Connected! IP: %s, RSSI: %ld dBm\n",
+        Serial.printf(WIFI_CONNECTED_FORMAT,
                       REMOTE_LED_CONTROLLER_LOG_PREFIX,
                       transport.getLocalIpAddress().toString().c_str(),
                       transport.getSignalStrengthInDbm());
@@ -214,7 +248,7 @@ public:
         // Set initial color to orange
         smartLamp.setColor(RgbLed::ORANGE);
         smartLamp.handle(RgbLed::SET_COLOR_COMMAND);
-        Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Remote LED controller online. Awaiting cloud commands.").c_str());
+        Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + APPLICATION_ONLINE_MESSAGE).c_str());
         return true;
     }
 };
@@ -266,7 +300,7 @@ void setup() {
     remoteLedApplication->setTelemetryGateway(gatewayClient);
 
     if (!remoteLedApplication->start(*transportDriver, CONNECTION_TIMEOUT_IN_MILLISECONDS)) {
-        Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + " Device startup failed.").c_str());
+        Serial.println((String(REMOTE_LED_CONTROLLER_LOG_PREFIX) + STARTUP_FAILED_MESSAGE).c_str());
         return;
     }
 }

@@ -30,11 +30,29 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 /** @brief Sampler event queue length for status indicator. */
 static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
 
+/** @brief Initial logical state of the status LED (off). */
+static const bool STATUS_LED_INITIAL_STATE = false;
+
+/** @brief Value for appendSensorToScheduler(): no minimum sampling interval is enforced. */
+static const uint32_t NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS = 0;
+
 /** @name Serial Output Configuration */
 //@{
 /** @brief Log prefix for all StatusIndicator serial output. */
 static const char* STATUS_INDICATOR_LOG_PREFIX = "[StatusIndicator]";
+
+/** @brief Message printed when the timer event cannot be registered in the scheduler. */
+static const char* REGISTRATION_FAILED_MESSAGE = "[ERROR] Blinker registration failed (engine already started or scheduler full)";
+
+/** @brief Message printed each time a timer event toggles the LED. */
+static const char* LED_TOGGLE_DISPATCHED_MESSAGE = " Timer event caught -> LED toggle dispatched.";
+
+/** @brief Message printed once the application has booted. */
+static const char* APPLICATION_ACTIVE_MESSAGE = " Loop-less, event-driven command routing active.";
 //@} // Serial Output Configuration
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "STI-909 FW 1.0.0";
 
 /** @name Application Mediator Implementation */
 //@{
@@ -73,20 +91,22 @@ class StatusIndicator : public Device {
      */
     StatusIndicator(int ledPin, unsigned long blinkIntervalInMilliseconds, uint8_t timerChannel = 0)
     : Device(blinkIntervalInMilliseconds, timerChannel),
-    statusLed(ledPin, false, this) // Pass pin, initial active state (false), and set parent handler
+    statusLed(ledPin, STATUS_LED_INITIAL_STATE, this) // Pass pin, initial active state, and set parent handler
     {
-        // 1. Launch internal background task workers
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
-        // 2. Register this device context to receive automated clock alarm notifications
-        // mapped directly to our clean event identity token
-        // Capture and evaluate scheduler capacity bounds gracefully
+        // 1. Register this device context to receive automated clock alarm notifications
+        // mapped directly to our clean event identity token.
+        // Registration must happen BEFORE the engine starts: Device rejects any
+        // scheduler registration once initializeAsynchronousEngine() has run.
         // Note: `this` is a Device, not a Sensor, so the EventHandler* overload is used with
         // an explicit period matching the timer tick interval.
-        bool registered = appendSensorToScheduler(this, StatusIndicator::TIMER_EVENT_IDENTIFIER, blinkIntervalInMilliseconds, 0);
+        bool registered = appendSensorToScheduler(this, StatusIndicator::TIMER_EVENT_IDENTIFIER, blinkIntervalInMilliseconds,
+                                                  NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
         if (!registered) {
-            Serial.println(F("[ERROR] Blinker registration failed: Scheduler capacity full!"));
+            Serial.println(REGISTRATION_FAILED_MESSAGE);
         }
+
+        // 2. Launch internal background task workers
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -107,7 +127,7 @@ class StatusIndicator : public Device {
             // Route the pre-instantiated static toggle command directly to the actuator.
             // No local state tracking variables or toggles are written here!
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
-            Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + " Timer event caught -> LED toggle dispatched.").c_str());
+            Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + LED_TOGGLE_DISPATCHED_MESSAGE).c_str());
         }
     }
 };
@@ -151,7 +171,7 @@ static StatusIndicator* statusIndicatorApplication = nullptr;
  */
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("STI-909 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
 
     // Boot the framework application.
     // Background execution queues, FreeRTOS tasks, and hardware alarm vectors launch automatically!
@@ -160,7 +180,7 @@ void setup() {
     BLINK_RATE_IN_MILLISECONDS,
     CORE_TIMER_CHANNEL);
 
-    Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + " Loop-less, event-driven command routing active.").c_str());
+    Serial.println((String(STATUS_INDICATOR_LOG_PREFIX) + APPLICATION_ACTIVE_MESSAGE).c_str());
 }
 
 /**

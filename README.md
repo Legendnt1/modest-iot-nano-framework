@@ -518,6 +518,21 @@ doxygen docs/Doxyfile
 
 Then open `docs/build/html/index.html` in your browser.
 
+### Documentation Website (Spanish)
+
+A static documentation website combines the Doxygen API reference with guides, a component catalog (one page per class, generated from the Doxygen XML, `examples/` and `tests/`), example pages, and architecture diagrams. Its editorial content is written in Spanish; sources live in `docs/` and `mkdocs.yml`, tooling in `tools/docs/`.
+
+Requirements: Python 3.11+, Doxygen, and Graphviz (`dot`). Then, from the repository root:
+
+```sh
+python -m pip install -r tools/docs/requirements.txt
+python tools/docs/build_docs.py          # Doxygen + MkDocs (strict) + link/HTTP validation -> site/
+python tools/docs/build_docs.py serve    # preview at http://127.0.0.1:8000/modest-iot-nano-framework/
+python tools/docs/build_docs.py clean    # remove site/ and build/docs/
+```
+
+The `Documentation` workflow (`.github/workflows/docs.yml`) builds and validates the site on every push and pull request, and can deploy it to GitHub Pages from `main` once Pages is enabled with "GitHub Actions" as the source. The site is not published yet. See `docs/development.md` for details.
+
 ## Getting Started
 
 ### Prerequisites
@@ -560,7 +575,7 @@ Then open `docs/build/html/index.html` in your browser.
    │   ├── Actuator.h / Actuator.cpp
    │   ├── Device.h / Device.cpp
    │   ├── SamplingScheduler.h / SamplingScheduler.cpp
-   │   ├── TelemetryPackage.h / TelemetryPackage.cpp
+   │   ├── TelemetryPackage.h
    │   ├── GatewayClient.h
    │   ├── MqttGatewayClient.h / MqttGatewayClient.cpp
    │   ├── HttpGatewayClient.h / HttpGatewayClient.cpp
@@ -572,52 +587,83 @@ Then open `docs/build/html/index.html` in your browser.
    ```
 5. **Integration**: Include the library from your sketch with `#include <ModestIoT.h>`.
 
+**Option 3: PlatformIO**
+
+The PlatformIO Registry lists `modest-iot/Modest-IoT-Nano-Framework` (checked on 2026-11-20 at version 1.1.2):
+
+```ini
+[env:esp32]
+platform = espressif32
+framework = arduino
+board = esp32dev   ; example board, choose yours
+lib_deps = modest-iot/Modest-IoT-Nano-Framework@1.1.2
+```
+
 ### Usage
 
 Every device in the Modest-IoT Nano-Framework extends the `Device` base class, which manages the asynchronous engine, sensor scheduling, and event dispatch. The framework is loop-less: all execution is event-driven, with sensor readings dispatched as `Event` objects to your device's `on()` handler.
 
-The example below demonstrates a minimal status indicator that toggles an LED at a fixed interval using a hardware timer event:
+The example below is an excerpt of [`examples/StatusIndicator/StatusIndicator.ino`](examples/StatusIndicator/StatusIndicator.ino) (Doxygen comments and serial log messages removed): a status indicator that toggles an LED at a fixed interval using a scheduled timer event.
 
 ```cpp
+#include <Arduino.h>
 #include <ModestIoT.h>
+
+static const unsigned long SERIAL_BAUD_RATE = 115200;
+static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
+static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
+static const bool STATUS_LED_INITIAL_STATE = false;
+static const uint32_t NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS = 0;
+static const char* REGISTRATION_FAILED_MESSAGE = "[ERROR] Blinker registration failed (engine already started or scheduler full)";
+static const char* FIRMWARE_VERSION = "STI-909 FW 1.0.0";
 
 class StatusIndicator : public Device {
     private:
-    static constexpr int STATUS_LED_PIN = 2;
-    static constexpr unsigned long BLINK_INTERVAL_IN_MILLISECONDS = 500;
-    static constexpr int TIMER_EVENT_IDENTIFIER = 300;
-
     Led statusLed;
 
-    StatusIndicator()
-    : Device(BLINK_INTERVAL_IN_MILLISECONDS),
-    statusLed(STATUS_LED_PIN, false, this)
+    public:
+    static constexpr int TIMER_EVENT_IDENTIFIER = 300;
+
+    StatusIndicator(int ledPin, unsigned long blinkIntervalInMilliseconds, uint8_t timerChannel = 0)
+    : Device(blinkIntervalInMilliseconds, timerChannel),
+    statusLed(ledPin, STATUS_LED_INITIAL_STATE, this)
     {
-        initializeAsynchronousEngine(5);
-        appendSensorToScheduler(this, TIMER_EVENT_IDENTIFIER,
-                                 BLINK_INTERVAL_IN_MILLISECONDS, 0);
+        // Register BEFORE starting the engine: registrations are rejected afterwards.
+        bool registered = appendSensorToScheduler(this, StatusIndicator::TIMER_EVENT_IDENTIFIER, blinkIntervalInMilliseconds,
+                                                  NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
+        if (!registered) {
+            Serial.println(REGISTRATION_FAILED_MESSAGE);
+        }
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     void on(Event event) override {
-        if (event.identifier == TIMER_EVENT_IDENTIFIER) {
+        if (event.identifier == StatusIndicator::TIMER_EVENT_IDENTIFIER) {
             statusLed.handle(Led::TOGGLE_LED_COMMAND);
         }
     }
 };
 
-StatusIndicator* indicator;
+static const int SYSTEM_DIAGNOSTIC_LED_PIN = 2;
+static const unsigned long BLINK_RATE_IN_MILLISECONDS = 500;
+static const uint8_t CORE_TIMER_CHANNEL = 0;
+
+static StatusIndicator* statusIndicatorApplication = nullptr;
 
 void setup() {
-    Serial.begin(115200);
-    Device::setFirmwareVersion("STI-909 FW 1.0.0");
-    indicator = new StatusIndicator();
+    Serial.begin(SERIAL_BAUD_RATE);
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
+    statusIndicatorApplication = new StatusIndicator(SYSTEM_DIAGNOSTIC_LED_PIN, BLINK_RATE_IN_MILLISECONDS, CORE_TIMER_CHANNEL);
 }
 
 void loop() {
-    // Framework handles everything asynchronously
-    vTaskDelay(portTICK_PERIOD_MS);
+    vTaskDelay(pdMS_TO_TICKS(MAIN_LOOP_DELAY_IN_MILLISECONDS));
 }
 ```
+
+> **Note (registration order):** in `src/Device.cpp`, `initializeAsynchronousEngine()` sets `engineStarted = true`, and every `appendSensorToScheduler()` / `appendSensorToTriggeringScheduler()` / `appendToBothSchedulers()` call made afterwards returns `false` (or handle `0`). Always register sensors and timer events **before** starting the engine, and check the return value. All sketches in `examples/` follow this order.
+
+> **Note (named constants):** examples avoid magic numbers and strings. Pins, intervals, queue depths, initial states, firmware versions, MQTT client IDs, display layout values and serial messages are declared as documented `static const` values at the top of each sketch. Format strings passed to `MODEST_LOG_*` / `MIOT_LOG_*` are `#define` macros instead, because on ESP32 those macros concatenate string literals at compile time.
 
 For complete, grounded examples with connectivity, telemetry, and cloud integration, see the [Examples](#examples) section (23 sketches covering MQTT, HTTP, BLE, TLS, deep sleep, battery monitoring, offline buffering, and OTA updates).
 

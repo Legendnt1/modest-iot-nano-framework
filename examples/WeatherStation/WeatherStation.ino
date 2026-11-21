@@ -74,6 +74,32 @@ static const float BATTERY_DIVIDER_RATIO = 2.0f;
 static const size_t SERIAL_OUTPUT_BUFFER_SIZE = 128;
 /** @brief Log prefix for all WeatherStation serial output. */
 static const char* WEATHER_STATION_LOG_PREFIX = "[WeatherStation]";
+/** @brief Format of the boot announcement line (prefix, boot count). */
+static const char* BOOT_ANNOUNCEMENT_FORMAT = "%s Boot #%lu | Deep Sleep: ~10µA (10,000x energy saving)";
+/** @brief Format of the weather readings line (prefix, temperature, humidity, pressure, light). */
+static const char* WEATHER_READINGS_FORMAT = "%s Temp: %.1f°C, Humidity: %.1f%%, Pressure: %.1f hPa, Light: %.1f lux";
+/** @brief Format of the battery status line (prefix, millivolts, percentage). */
+static const char* BATTERY_STATUS_FORMAT = "%s Battery: %lu mV (%.1f%%)";
+/** @brief Format of the low battery warning (prefix). */
+static const char* LOW_BATTERY_FORMAT = "%s WARNING: Low battery detected!\n";
+/** @brief Format of the power mode switch notice (prefix). */
+static const char* DEEP_SLEEP_SWITCH_FORMAT = "%s Switched to DeepSleep mode to conserve power.\n";
+/** @brief Format printed before entering deep sleep (prefix). */
+static const char* ENTERING_DEEP_SLEEP_FORMAT = "%s Entering deep sleep (~10µA) until next sample...\n";
+/** @brief Format printed while waiting in periodic mode (prefix). */
+static const char* WAITING_PERIODIC_FORMAT = "%s Waiting for next sample (Periodic mode)...\n";
+/** @brief Format printed when the low battery state is restored from RTC memory (prefix). */
+static const char* LOW_BATTERY_RESTORED_FORMAT = "%s Low battery detected previously — running in DeepSleep mode.\n";
+
+/**
+ * @brief Event source identifier for the I2C sensors (PthSensor, DigitalLightIntensitySensor).
+ *
+ * I2C sensors do not use a dedicated signal GPIO; this value only identifies the event source.
+ */
+static const int I2C_SENSOR_SOURCE_ID = 0;
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "WS-3200 FW 1.1.0";
 //@} // Serial Output Configuration
 
 /** @name RTC Memory Variables */
@@ -107,7 +133,7 @@ private:
     void announceBoot() {
         char buffer[SERIAL_OUTPUT_BUFFER_SIZE];
         snprintf(buffer, sizeof(buffer),
-                 "%s Boot #%lu | Deep Sleep: ~10µA (10,000x energy saving)",
+                 BOOT_ANNOUNCEMENT_FORMAT,
                  WEATHER_STATION_LOG_PREFIX, rtcBootCount);
         Serial.println(buffer);
     }
@@ -118,7 +144,7 @@ private:
     void displayWeatherReadings() {
         char buffer[SERIAL_OUTPUT_BUFFER_SIZE];
         snprintf(buffer, sizeof(buffer),
-                 "%s Temp: %.1f°C, Humidity: %.1f%%, Pressure: %.1f hPa, Light: %.1f lux",
+                 WEATHER_READINGS_FORMAT,
                  WEATHER_STATION_LOG_PREFIX,
                  dhtSensor.getTemperatureInCelsius(),
                  dhtSensor.getRelativeHumidityInPercentage(),
@@ -138,18 +164,18 @@ private:
         float batteryLevel = PowerManager::getBatteryLevelInPercentage();
         char buffer[SERIAL_OUTPUT_BUFFER_SIZE];
         snprintf(buffer, sizeof(buffer),
-                 "%s Battery: %lu mV (%.1f%%)",
+                 BATTERY_STATUS_FORMAT,
                  WEATHER_STATION_LOG_PREFIX, batteryVoltage, batteryLevel);
         Serial.println(buffer);
 
         if (PowerManager::isLowBattery()) {
             rtcLowBatteryDetected = true;
-            Serial.printf("%s WARNING: Low battery detected!\n",
+            Serial.printf(LOW_BATTERY_FORMAT,
                           WEATHER_STATION_LOG_PREFIX);
 
             if (getPowerMode() != PowerMode::DeepSleep) {
                 setPowerMode(PowerMode::DeepSleep);
-                Serial.printf("%s Switched to DeepSleep mode to conserve power.\n",
+                Serial.printf(DEEP_SLEEP_SWITCH_FORMAT,
                               WEATHER_STATION_LOG_PREFIX);
             }
         }
@@ -168,8 +194,8 @@ public:
         uint8_t timerChannel = DEFAULT_TIMER_CHANNEL)
         : Device(deepSleepIntervalInMilliseconds, timerChannel),
           dhtSensor(dhtSensorPin, DhtSensor::SENSOR_MODEL_DHT22, this),
-          pthSensor(0, PthSensor::DEFAULT_I2C_ADDRESS, this),
-          lightSensor(0, DigitalLightIntensitySensor::DEFAULT_I2C_ADDRESS,
+          pthSensor(I2C_SENSOR_SOURCE_ID, PthSensor::DEFAULT_I2C_ADDRESS, this),
+          lightSensor(I2C_SENSOR_SOURCE_ID, DigitalLightIntensitySensor::DEFAULT_I2C_ADDRESS,
                       DigitalLightIntensitySensor::DEFAULT_LIGHT_DETECTED_THRESHOLD_IN_LUX, this)
     {
         // Start in Periodic mode; switch to DeepSleep when low battery is detected
@@ -188,10 +214,10 @@ public:
             displayWeatherReadings();
             displayBatteryStatus();
             if (getPowerMode() == PowerMode::DeepSleep) {
-                Serial.printf("%s Entering deep sleep (~10µA) until next sample...\n",
+                Serial.printf(ENTERING_DEEP_SLEEP_FORMAT,
                               WEATHER_STATION_LOG_PREFIX);
             } else {
-                Serial.printf("%s Waiting for next sample (Periodic mode)...\n",
+                Serial.printf(WAITING_PERIODIC_FORMAT,
                               WEATHER_STATION_LOG_PREFIX);
             }
         }
@@ -215,9 +241,6 @@ public:
         // Announce boot with energy saving status
         announceBoot();
 
-        // Launch internal background task workers with a small queue for battery operation
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
         // Register the DHT sensor for temperature and humidity
         appendSensorToScheduler(&dhtSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
@@ -226,6 +249,10 @@ public:
 
         // Register the light sensor for ambient light detection
         appendSensorToScheduler(&lightSensor, DigitalLightIntensitySensor::LIGHT_DETECTED_EVENT_IDENTIFIER);
+
+        // Launch internal background task workers with a small queue for battery operation
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     /**
@@ -235,7 +262,7 @@ public:
      */
     void initializeAndStart() {
         // Set firmware version for fleet management in telemetry
-        Device::setFirmwareVersion("WS-3200 FW 1.1.0");
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
 
         // Initialize NTP time synchronization for absolute timestamps
         TimeSynchronizationDriver::initialize(WEATHER_STATION_TIMEZONE, WEATHER_STATION_NTP_SERVER);
@@ -246,7 +273,7 @@ public:
         // Restore DeepSleep mode if low battery was detected in a previous cycle
         if (rtcLowBatteryDetected) {
             setPowerMode(PowerMode::DeepSleep);
-            Serial.printf("%s Low battery detected previously — running in DeepSleep mode.\n",
+            Serial.printf(LOW_BATTERY_RESTORED_FORMAT,
                           WEATHER_STATION_LOG_PREFIX);
         }
 

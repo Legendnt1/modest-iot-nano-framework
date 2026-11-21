@@ -1,0 +1,115 @@
+# Configuración del catálogo de componentes (no se publica como página).
+#
+# El contenido de cada ficha se extrae del código (XML de Doxygen), de examples/ y de tests/.
+# Este archivo solo decide la agrupación y los textos de cada categoría.
+#
+# Reglas:
+#   - `members`: clases asignadas explícitamente (tienen prioridad).
+#   - `derives_from`: cualquier clase que herede, directa o indirectamente, de estas bases.
+#   - Una clase nueva sin categoría hace fallar la construcción estricta del sitio,
+#     para que nadie olvide catalogarla.
+
+categories:
+  - id: core
+    title: Núcleo
+    description: >-
+      Contratos de eventos y comandos, la clase mediadora `Device`, el planificador de
+      muestreo y el contrato de serialización de telemetría.
+    hardware: >-
+      La lógica se compila y prueba en el host con dobles de prueba (`tests/fakes`);
+      la ejecución real requiere un ESP32 con el core Arduino-ESP32.
+    members:
+      - Device
+      - Event
+      - Command
+      - EventHandler
+      - CommandHandler
+      - TelemetryPackage
+      - SamplingScheduler
+
+  - id: types
+    title: Tipos de datos
+    description: >-
+      Estructuras de valor públicas usadas para configuración, diagnóstico y datos de lectura.
+    hardware: No aplica (estructuras de datos).
+    members:
+      - EngineConfiguration
+      - DiagnosticsSnapshot
+      - GatewayStatistics
+      - LocationData
+      - RgbColor
+
+  - id: sensors
+    title: Sensores
+    description: >-
+      Clase base `Sensor` y adaptadores de entrada que emiten eventos hacia el `Device`.
+    hardware: >-
+      Requiere el periférico físico indicado en la descripción de la clase. Esta
+      documentación no valida cableado, tensiones ni modelos concretos.
+    members:
+      - Sensor
+    derives_from:
+      - Sensor
+
+  - id: actuators
+    title: Actuadores
+    description: >-
+      Clase base `Actuator` y adaptadores de salida que ejecutan comandos.
+    hardware: >-
+      Requiere el periférico físico indicado. No se documentan esquemas eléctricos: verifica
+      la etapa de potencia (relés, motores, cargas) con la hoja de datos de tu hardware.
+    members:
+      - Actuator
+    derives_from:
+      - Actuator
+
+  - id: display-drivers
+    title: Controladores de pantalla
+    description: >-
+      Controladores de bajo nivel I²C que utilizan internamente los actuadores de pantalla.
+    hardware: Requiere la pantalla compatible conectada por I²C.
+    members:
+      - Hd44780Driver
+      - Ssd1306Driver
+
+  - id: connectivity
+    title: Conectividad
+    description: >-
+      Interfaz `ConnectivityDriver` y transportes concretos (Wi-Fi y BLE).
+    hardware: Requiere un ESP32 con la radio correspondiente.
+    members:
+      - ConnectivityDriver
+    derives_from:
+      - ConnectivityDriver
+
+  - id: gateways
+    title: Gateways de telemetría
+    description: >-
+      Clase base `GatewayClient` y clientes que envían `TelemetryPackage` por MQTT, HTTP o BLE.
+    hardware: >-
+      Requiere conectividad real y un servicio de destino (broker, servidor o central BLE).
+    members:
+      - GatewayClient
+    derives_from:
+      - GatewayClient
+
+  - id: services
+    title: Servicios del sistema
+    description: >-
+      Servicios estáticos de soporte: configuración persistente, hora, energía, búfer
+      persistente de telemetría y actualizaciones OTA.
+    hardware: >-
+      Dependen de APIs del ESP32 (NVS, LittleFS, ADC, Wi-Fi/OTA); en el host se prueban con dobles.
+    members:
+      - ConfigurationStore
+      - TimeSynchronizationDriver
+      - PowerManager
+      - TelemetryBuffer
+      - OtaUpdateHandler
+
+# Componentes sin clase, documentados a partir de un archivo de cabecera.
+file_components:
+  - name: ModestLog
+    title: ModestLog (macros de registro)
+    file: ModestLog.h
+    category: core

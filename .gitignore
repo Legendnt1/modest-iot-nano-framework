@@ -10,3 +10,6 @@
 *.so
 *.dylib
 *.log
+/site/
+/.venv-docs/
+__pycache__/

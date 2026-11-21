@@ -64,7 +64,6 @@ bool OneWireTemperatureSensor::sendResetPulse() const {
  * For bit 0: pull LOW for the full slot duration (60µs).
  * For bit 1: pull LOW for 6µs, then release HIGH.
  *
- * @param bitValue Bit to write (0 or 1).
  * @runs_on{sampler}
  */
 void OneWireTemperatureSensor::writeBit(const bool bitValue) const {

@@ -46,6 +46,47 @@
 /** @brief Log tag for this device component. */
 static const char* EQUIP_HEALTH_LOG_TAG = "EquipHealth";
 
+/**
+ * @name Structured Log Formats
+ *
+ * Defined as macros on purpose: on ESP32, `MIOT_LOG_*` expands to
+ * `log_x("[%s] " fmt, ...)`, which concatenates string literals at compile time.
+ * A `const char*` variable would not compile there.
+ */
+//@{
+#define DIAGNOSTICS_HEADER_LOG_FORMAT "=== Diagnostics Report (sample #%lu) ==="
+#define UPTIME_LOG_FORMAT "Uptime: %lu seconds"
+#define MISSED_TICKS_LOG_FORMAT "Missed ticks: %lu"
+#define PACKETS_LOG_FORMAT "Packets enqueued: %lu, dropped: %lu"
+#define QUEUE_HIGH_WATER_MARK_LOG_FORMAT "Queue high water mark: %u"
+#define FREE_HEAP_LOG_FORMAT "Free heap: %lu bytes (min: %lu)"
+#define SAMPLER_STACK_LOG_FORMAT "Sampler stack free: %u words"
+#define NETWORK_STACK_LOG_FORMAT "Network stack free: %u words"
+#define DIAGNOSTICS_FOOTER_LOG_FORMAT "=== End Diagnostics ==="
+#define ENGINE_CONFIGURED_LOG_FORMAT "Engine configured: sampler stack %lu bytes, queue length %u"
+#define SAMPLE_LOG_FORMAT "Sample #%lu -> Vibration: %.2f g, Temp: %.1f°C"
+#define HIGH_VIBRATION_LOG_FORMAT "High vibration detected: %.2f g (sample #%lu)"
+#define STARTING_LOG_FORMAT "Equipment health monitor starting..."
+#define RECALIBRATION_LOG_FORMAT "Load cell amplifier may need recalibration on pin %d"
+#define MONITORING_ACTIVE_LOG_FORMAT "Monitoring active. Diagnostics every %u samples."
+//@} // Structured Log Formats
+
+/** @name Engine Configuration */
+//@{
+/** @brief Sampler task stack size (larger for sensor processing). */
+static const uint32_t SAMPLER_STACK_SIZE_IN_BYTES = 8192;
+/** @brief Network task stack size (smaller: this device has no network). */
+static const uint32_t NETWORK_STACK_SIZE_IN_BYTES = 4096;
+/** @brief FreeRTOS priority of the sampler task. */
+static const uint8_t SAMPLER_TASK_PRIORITY = 3;
+//@} // Engine Configuration
+
+/** @brief Weight below which the load cell is considered miscalibrated after tare (grams). */
+static const float MINIMUM_VALID_WEIGHT_IN_GRAMS = 0.0f;
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "EHM-600 FW 1.0.0";
+
 /** @brief Number of samples between diagnostics reports. */
 static const uint32_t DIAGNOSTICS_REPORT_INTERVAL_SAMPLES = 10;
 
@@ -62,6 +103,10 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@{
 /** @brief Log prefix for all EquipmentHealthMonitor serial output. */
 static const char* EQUIPMENT_HEALTH_LOG_PREFIX = "[EquipmentHealthMonitor]";
+/** @brief Message printed once the monitor has started. */
+static const char* APPLICATION_ONLINE_MESSAGE = " Equipment health monitor online.";
+/** @brief Message printed when the device cannot start. */
+static const char* STARTUP_FAILED_MESSAGE = " Device startup failed.";
 //@} // Serial Output Configuration
 
 /** @name Application Mediator Implementation */
@@ -106,19 +151,19 @@ private:
     void reportDiagnostics() {
         DiagnosticsSnapshot diag = diagnostics();
 
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "=== Diagnostics Report (sample #%lu) ===", sampleCount);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Uptime: %lu seconds", diag.uptimeSeconds);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Missed ticks: %lu", diag.missedTicks);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Packets enqueued: %lu, dropped: %lu",
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, DIAGNOSTICS_HEADER_LOG_FORMAT, sampleCount);
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, UPTIME_LOG_FORMAT, diag.uptimeSeconds);
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, MISSED_TICKS_LOG_FORMAT, diag.missedTicks);
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, PACKETS_LOG_FORMAT,
                    diag.packetsEnqueued, diag.packetsDropped);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Queue high water mark: %u", diag.queueHighWaterMark);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Free heap: %lu bytes (min: %lu)",
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, QUEUE_HIGH_WATER_MARK_LOG_FORMAT, diag.queueHighWaterMark);
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, FREE_HEAP_LOG_FORMAT,
                    diag.freeHeapBytes, diag.minFreeHeapBytes);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Sampler stack free: %u words",
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, SAMPLER_STACK_LOG_FORMAT,
                    diag.samplerStackFreeWords);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Network stack free: %u words",
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, NETWORK_STACK_LOG_FORMAT,
                    diag.networkStackFreeWords);
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "=== End Diagnostics ===");
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, DIAGNOSTICS_FOOTER_LOG_FORMAT);
     }
 
 protected:
@@ -155,17 +200,18 @@ public:
     {
         // Custom engine configuration for industrial monitoring workload
         EngineConfiguration config;
-        config.samplerStackBytes = 8192;    ///< Larger stack for sensor processing
-        config.networkStackBytes = 4096;    ///< Smaller stack (no network)
-        config.samplerPriority = 3;
+        config.samplerStackBytes = SAMPLER_STACK_SIZE_IN_BYTES;
+        config.networkStackBytes = NETWORK_STACK_SIZE_IN_BYTES;
+        config.samplerPriority = SAMPLER_TASK_PRIORITY;
         config.queueLength = SAMPLER_QUEUE_LENGTH;
-        initializeAsynchronousEngine(config);
-
         // Hybrid scheduling: interrupt-driven data-ready detection eliminates the 100 ms busy-wait.
         appendToBothSchedulers(&vibrationSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendSensorToScheduler(&tempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Engine configured: sampler stack %lu bytes, queue length %u",
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(config);
+
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, ENGINE_CONFIGURED_LOG_FORMAT,
                    config.samplerStackBytes, config.queueLength);
     }
 
@@ -184,12 +230,12 @@ public:
             float vibration = vibrationSensor.getWeightInGrams();
             float temperature = tempSensor.getTemperatureInCelsius();
 
-            MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Sample #%lu -> Vibration: %.2f g, Temp: %.1f°C",
+            MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, SAMPLE_LOG_FORMAT,
                        sampleCount, vibration, temperature);
 
             // Check for abnormal vibration levels
             if (vibration > VIBRATION_WARNING_THRESHOLD_IN_GRAMS) {
-                MIOT_LOG_W(EQUIP_HEALTH_LOG_TAG, "High vibration detected: %.2f g (sample #%lu)",
+                MIOT_LOG_W(EQUIP_HEALTH_LOG_TAG, HIGH_VIBRATION_LOG_FORMAT,
                            vibration, sampleCount);
             }
 
@@ -210,17 +256,17 @@ public:
      * @return True if sensors are responding.
      */
     bool start() {
-        Device::setFirmwareVersion("EHM-600 FW 1.0.0");
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Equipment health monitor starting...");
+        Device::setFirmwareVersion(FIRMWARE_VERSION);
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, STARTING_LOG_FORMAT);
 
         vibrationSensor.tare();
-        if (vibrationSensor.getWeightInGrams() < 0.0f) {
-            MIOT_LOG_W(EQUIP_HEALTH_LOG_TAG, "Load cell amplifier may need recalibration on pin %d",
+        if (vibrationSensor.getWeightInGrams() < MINIMUM_VALID_WEIGHT_IN_GRAMS) {
+            MIOT_LOG_W(EQUIP_HEALTH_LOG_TAG, RECALIBRATION_LOG_FORMAT,
                        vibrationSensor.getSignalGpioPin());
         }
 
-        Serial.println((String(EQUIPMENT_HEALTH_LOG_PREFIX) + " Equipment health monitor online.").c_str());
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Monitoring active. Diagnostics every %u samples.",
+        Serial.println((String(EQUIPMENT_HEALTH_LOG_PREFIX) + APPLICATION_ONLINE_MESSAGE).c_str());
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, MONITORING_ACTIVE_LOG_FORMAT,
                    DIAGNOSTICS_REPORT_INTERVAL_SAMPLES);
         return true;
     }
@@ -251,7 +297,7 @@ void setup() {
     );
 
     if (!equipmentHealthApplication->start()) {
-        Serial.println((String(EQUIPMENT_HEALTH_LOG_PREFIX) + " Device startup failed.").c_str());
+        Serial.println((String(EQUIPMENT_HEALTH_LOG_PREFIX) + STARTUP_FAILED_MESSAGE).c_str());
         return;
     }
 }

@@ -32,6 +32,24 @@
 #define JSON_KEY_RELATIVE_HUMIDITY_PERCENTAGE "relativeHumidityPercentage"
 //@} // Telemetry JSON Keys
 
+/** @name Device Engine Configuration */
+//@{
+/** @brief Sampler event queue length for the smart band. */
+static const int ASYNC_ENGINE_QUEUE_DEPTH = 10;
+
+/** @brief Debounce window applied to the user action button. */
+static const unsigned long BUTTON_DEBOUNCE_DELAY_IN_MILLISECONDS = 50;
+//@} // Device Engine Configuration
+
+/** @name Serial Output Configuration */
+//@{
+/** @brief Message printed when the action button press is handled on the sampler task. */
+static const char* BUTTON_PRESSED_MESSAGE = "[SmartBand UI] Action button click registered safely out of ISR!";
+
+/** @brief Message printed once the application has booted. */
+static const char* APPLICATION_ONLINE_MESSAGE = "[SmartBand Core] Thread execution loop online. Architecture finalized.";
+//@} // Serial Output Configuration
+
 /** @name Concrete Application Data Schema Specification */
 //@{
 
@@ -93,14 +111,12 @@ class SmartBandDevice : public Device {
     : Device(samplingIntervalInMilliseconds, timerGroupIndex),
     heartRateSensor(pulsePin, nullptr),
     ambientClimateSensor(climatePin, DhtSensor::SENSOR_MODEL_DHT22, nullptr),
-    userActionButton(buttonPin, 50, nullptr),
+    userActionButton(buttonPin, BUTTON_DEBOUNCE_DELAY_IN_MILLISECONDS, nullptr),
     gatewayClient(client)
     {
         heartRateSensor.setHandler(this);
         ambientClimateSensor.setHandler(this);
         userActionButton.setHandler(this);
-
-        initializeAsynchronousEngine(10);
 
         // Sensors are registered for periodic polling; the button uses interrupt-driven mode
         appendSensorToScheduler(&heartRateSensor,       Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
@@ -108,6 +124,9 @@ class SmartBandDevice : public Device {
         appendSensorToTriggeringScheduler(&userActionButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     ~SmartBandDevice() override = default;
@@ -122,7 +141,7 @@ class SmartBandDevice : public Device {
             packageAndQueueTelemetrySnapshot();
         }
         else if (event.identifier == Button::BUTTON_PRESSED_EVENT_IDENTIFIER) {
-            Serial.println("[SmartBand UI] Action button click registered safely out of ISR!");
+            Serial.println(BUTTON_PRESSED_MESSAGE);
         }
     }
 
@@ -147,6 +166,10 @@ static const char* WIRELESS_PASSWORD         = "TelemetryNodePass2026";
 static const char* MQTT_BROKER_IP            = "192.168.1.200";
 static const uint16_t MQTT_BROKER_PORT       = 1883;
 static const char* MQTT_PUBLISH_TOPIC        = "nodes/smartband/vitals";
+static const char* MQTT_CLIENT_ID            = "SmartBand_Wrist_01";
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "SBM-606 FW 1.0.0";
 
 static const unsigned long TELEMETRY_POLLING_INTERVAL_IN_MILLISECONDS = 1000;
 static const uint8_t HARDWARE_TIMER_CHANNEL_INDEX = 0;
@@ -163,7 +186,7 @@ static SmartBandDevice* smartBandApplication   = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("SBM-606 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
 
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);
 
@@ -173,7 +196,7 @@ void setup() {
         MQTT_BROKER_IP,
         MQTT_BROKER_PORT,
         MQTT_PUBLISH_TOPIC,
-        "SmartBand_Wrist_01"
+        MQTT_CLIENT_ID
     );
 
     smartBandApplication = new SmartBandDevice(
@@ -185,7 +208,7 @@ void setup() {
         HARDWARE_TIMER_CHANNEL_INDEX
     );
 
-    Serial.println("[SmartBand Core] Thread execution loop online. Architecture finalized.");
+    Serial.println(APPLICATION_ONLINE_MESSAGE);
 }
 
 void loop() {

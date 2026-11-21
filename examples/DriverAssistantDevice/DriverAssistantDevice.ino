@@ -57,6 +57,46 @@ static const unsigned long  SAMPLING_INTERVAL_IN_MILLISECONDS        = 1000;
 static const unsigned long  MAIN_LOOP_DELAY_IN_MILLISECONDS          = 60000;
 static const int            TIMER_GROUP_INDEX           = 0;
 
+/** @brief GPS fix quality value meaning "no fix" (see LocationData::fixQuality). */
+static const int GPS_NO_FIX_QUALITY = 0;
+
+/** @brief Decimal places printed for latitude and longitude. */
+static const int COORDINATE_DECIMAL_PLACES = 6;
+
+/** @brief Initial distance before the first ultrasonic reading (meters). */
+static const float INITIAL_DISTANCE_IN_METERS = 0.0f;
+
+/** @name Character LCD Layout */
+//@{
+/** @brief Characters reserved for one LCD line plus the null terminator. */
+static const size_t LCD_LINE_BUFFER_SIZE = LCD_COLUMNS + 1;
+/** @brief LCD row showing GPS status or speed. */
+static const int LCD_LOCATION_ROW = 0;
+/** @brief LCD row showing front and rear distances. */
+static const int LCD_DISTANCE_ROW = 1;
+/** @brief Text shown while the GPS has no fix. */
+static const char* NO_GPS_FIX_TEXT = "No GPS Fix";
+/** @brief Format of the speed line (km/h). */
+static const char* SPEED_FORMAT = "S:%.1fKmph";
+/** @brief Format of the distance line (front and rear meters). */
+static const char* DISTANCE_FORMAT = "F:%.1fm R:%.1fm";
+//@} // Character LCD Layout
+
+/** @name Serial Output Configuration */
+//@{
+/** @brief Label printed before the latitude. */
+static const char* LATITUDE_LABEL = "Latitude: ";
+/** @brief Label printed before the longitude. */
+static const char* LONGITUDE_LABEL = "Longitude: ";
+/** @brief Label printed before the GPS milliseconds field. */
+static const char* MILLISECONDS_LABEL = "Milliseconds: ";
+/** @brief Message printed once the application has booted. */
+static const char* APPLICATION_ACTIVE_MESSAGE = "[System Boot] Driver Assistant active.";
+//@} // Serial Output Configuration
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "DAD-400 FW 1.0.0";
+
 /**
  * @brief Mediator for the Driver Assistant Device.
  * Coordinates Geolocation and Ultrasonic sensors to provide navigation
@@ -83,29 +123,29 @@ private:
      * Updates the status display with the last known position and sensor metrics.
      */
     void updateStatusDisplay() {
-        char locationStatusBuffer[17];
-        char measureStatusBuffer[17];
+        char locationStatusBuffer[LCD_LINE_BUFFER_SIZE];
+        char measureStatusBuffer[LCD_LINE_BUFFER_SIZE];
 
         // Speed in km/h: knots * factor
         float speedInKph = lastLocation.speedInKnots * KNOTS_TO_KPH_CONVERSION_FACTOR;
 
-        if (lastLocation.fixQuality == 0) {
-        snprintf(locationStatusBuffer, sizeof(locationStatusBuffer), "No GPS Fix");
+        if (lastLocation.fixQuality == GPS_NO_FIX_QUALITY) {
+        snprintf(locationStatusBuffer, sizeof(locationStatusBuffer), "%s", NO_GPS_FIX_TEXT);
     } else {
         // snprintf(locationStatusBuffer, sizeof(locationStatusBuffer), "Pos:%.1f,%.1f",
         //    lastLocation.latitudeInDegrees, lastLocation.longitudeInDegrees);
-        snprintf(locationStatusBuffer, sizeof(locationStatusBuffer), "S:%.1fKmph", speedInKph);
+        snprintf(locationStatusBuffer, sizeof(locationStatusBuffer), SPEED_FORMAT, speedInKph);
         // Show additional information by console
-        Serial.print(F("Latitude: ")); Serial.println(lastLocation.latitudeInDegrees, 6);
-        Serial.print(F("Longitude: "));Serial.println(lastLocation.longitudeInDegrees, 6);
-        Serial.print(F("Milliseconds: "));Serial.println(lastLocation.milliseconds, 6);
+        Serial.print(LATITUDE_LABEL); Serial.println(lastLocation.latitudeInDegrees, COORDINATE_DECIMAL_PLACES);
+        Serial.print(LONGITUDE_LABEL); Serial.println(lastLocation.longitudeInDegrees, COORDINATE_DECIMAL_PLACES);
+        Serial.print(MILLISECONDS_LABEL); Serial.println(lastLocation.milliseconds); // int: printed in base 10
     }
 
-        snprintf(measureStatusBuffer, sizeof(measureStatusBuffer), "F:%.1fm R:%.1fm",
+        snprintf(measureStatusBuffer, sizeof(measureStatusBuffer), DISTANCE_FORMAT,
         frontDistanceInMeters, rearDistanceInMeters);
 
-        statusDisplay.setLineBuffer(0, locationStatusBuffer);
-        statusDisplay.setLineBuffer(1, measureStatusBuffer);
+        statusDisplay.setLineBuffer(LCD_LOCATION_ROW, locationStatusBuffer);
+        statusDisplay.setLineBuffer(LCD_DISTANCE_ROW, measureStatusBuffer);
         statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
     }
 
@@ -127,14 +167,15 @@ public:
           rearSensor(rearTriggerPin, rearEchoPin, this),
           statusDisplay(lcdI2cAddress, LCD_COLUMNS, LCD_ROWS, this),
           lastLocation(),
-          frontDistanceInMeters(0.0f),
-          rearDistanceInMeters(0.0f)
+          frontDistanceInMeters(INITIAL_DISTANCE_IN_METERS),
+          rearDistanceInMeters(INITIAL_DISTANCE_IN_METERS)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         appendSensorToScheduler(&gpsSensor,     Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&frontSensor,   Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToScheduler(&rearSensor,    Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -161,7 +202,7 @@ static DriverAssistantDevice* driverAssistantApplication = nullptr;
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("DAD-400 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     driverAssistantApplication = new DriverAssistantDevice(
         Serial2,
         GPS_RX_PIN, GPS_TX_PIN,
@@ -169,7 +210,7 @@ void setup() {
         REAR_TRIGGER_PIN, REAR_ECHO_PIN,
         LCD_I2C_ADDRESS
     );
-    Serial.println("[System Boot] Driver Assistant active.");
+    Serial.println(APPLICATION_ACTIVE_MESSAGE);
 }
 
 void loop() {

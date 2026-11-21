@@ -46,6 +46,9 @@ static const bool SECURITY_LED_INITIAL_STATE   = false;
 static const bool INITIAL_IS_DARK              = false;
 static const bool INITIAL_IS_MOTION_PRESENT    = false;
 
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "OSL-101 FW 1.0.0";
+
 /**
  * @brief Outdoor Security Light Controller Device.
  */
@@ -81,8 +84,6 @@ public:
           isDark(INITIAL_IS_DARK),
           isMotionPresent(INITIAL_IS_MOTION_PRESENT)
     {
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
         // Enable fault detection on both sensors
         lightSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         motionSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
@@ -92,6 +93,9 @@ public:
         appendSensorToTriggeringScheduler(&motionSensor,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           CHANGE);
+
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**
@@ -139,7 +143,7 @@ public:
 static OutdoorSecurityLightController* outdoorSecurityApplication = nullptr;
 
 void setup() {
-    Device::setFirmwareVersion("OSL-101 FW 1.0.0");
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
     outdoorSecurityApplication = new OutdoorSecurityLightController();
 }
 

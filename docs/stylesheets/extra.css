@@ -1,0 +1,38 @@
+/* Ajustes mínimos sobre Material for MkDocs. */
+
+/* Diagramas Graphviz incrustados: fondo claro propio para mantener el contraste en modo oscuro. */
+.mi-diagram {
+  background: #ffffff;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.3rem;
+  padding: 0.6rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.mi-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Las tablas largas del catálogo se desplazan horizontalmente en móvil en vez de desbordar. */
+.md-typeset table:not([class]) {
+  display: table;
+}
+
+.md-typeset__table {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Firmas largas en tablas: permitir el salto de línea dentro del código. */
+.md-typeset table:not([class]) td code {
+  word-break: break-word;
+}
+
+/* Foco visible para navegación por teclado. */
+.md-typeset a:focus-visible,
+.md-nav__link:focus-visible {
+  outline: 2px solid var(--md-accent-fg-color);
+  outline-offset: 2px;
+}

@@ -43,6 +43,16 @@ static const uint8_t DEFAULT_TIMER_CHANNEL = 0;
 
 /** @brief Sampler event queue length for battery operation. */
 static const int SAMPLER_QUEUE_LENGTH = 5;
+
+/** @brief Value for appendSensorToScheduler(): no minimum sampling interval is enforced. */
+static const uint32_t NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS = 0;
+
+/**
+ * @brief Event source identifier for the I2C light sensor.
+ *
+ * I2C sensors do not use a dedicated signal GPIO; this value only identifies the event source.
+ */
+static const int I2C_LIGHT_SENSOR_SOURCE_ID = 0;
 //@} // Default Configuration Constants
 
 /** @name Telemetry JSON Keys */
@@ -214,7 +224,7 @@ class CropMonitoringStation : public Device {
     : Device(soilSamplingIntervalInMilliseconds, timerChannel),
     soilSensor(soilSensorPin, this),
     airSensor(dhtSensorPin, DhtSensor::SENSOR_MODEL_DHT22, this),
-    lightSensor(0, DigitalLightIntensitySensor::DEFAULT_I2C_ADDRESS,
+    lightSensor(I2C_LIGHT_SENSOR_SOURCE_ID, DigitalLightIntensitySensor::DEFAULT_I2C_ADDRESS,
                 DigitalLightIntensitySensor::DEFAULT_LIGHT_DETECTED_THRESHOLD_IN_LUX, this),
     gatewayClient(client)
     {
@@ -223,22 +233,26 @@ class CropMonitoringStation : public Device {
         // enters light sleep between sensor samples
         setPowerMode(PowerMode::Tickless);
 
-        // Launch internal background task workers with a small queue for battery operation
-        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
-
         // Set sampling intervals before registration so the scheduler uses the correct periods
         soilSensor.setSamplingIntervalInMilliseconds(soilSamplingIntervalInMilliseconds);
         airSensor.setSamplingIntervalInMilliseconds(airSamplingIntervalInMilliseconds);
         lightSensor.setSamplingIntervalInMilliseconds(lightSamplingIntervalInMilliseconds);
 
         // Register the soil moisture sensor (most frequent: every 30s)
-        appendSensorToScheduler(&soilSensor, SOIL_MOISTURE_EVENT_IDENTIFIER, soilSamplingIntervalInMilliseconds, 0);
+        appendSensorToScheduler(&soilSensor, SOIL_MOISTURE_EVENT_IDENTIFIER, soilSamplingIntervalInMilliseconds,
+                                NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Register the DHT air sensor (every 60s)
-        appendSensorToScheduler(&airSensor, AIR_TEMPERATURE_EVENT_IDENTIFIER, airSamplingIntervalInMilliseconds, 0);
+        appendSensorToScheduler(&airSensor, AIR_TEMPERATURE_EVENT_IDENTIFIER, airSamplingIntervalInMilliseconds,
+                                NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Register the light intensity sensor (least frequent: every 120s)
-        appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds, 0);
+        appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds,
+                                NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
+
+        // Launch internal background task workers with a small queue for battery operation
+        // Start the engine only after all registrations: Device rejects registrations once it is running.
+        initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
     }
 
     /**
@@ -317,7 +331,13 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@{
 /** @brief Log prefix for all CropMonitoringStation serial output. */
 static const char* CROP_MONITORING_LOG_PREFIX = "[CropMonitoringStation]";
+
+/** @brief Message printed when the station starts booting. */
+static const char* STARTING_MESSAGE = " Starting...";
 //@} // Serial Output Configuration
+
+/** @brief Firmware version reported in the telemetry envelope. */
+static const char* FIRMWARE_VERSION = "CMS-300 FW 1.0.0";
 
 /** @name Network Configuration */
 //@{
@@ -377,8 +397,8 @@ static CropMonitoringStation* cropMonitoringApplication = nullptr;
  */
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    Device::setFirmwareVersion("CMS-300 FW 1.0.0");
-    Serial.println((String(CROP_MONITORING_LOG_PREFIX) + " Starting...").c_str());
+    Device::setFirmwareVersion(FIRMWARE_VERSION);
+    Serial.println((String(CROP_MONITORING_LOG_PREFIX) + STARTING_MESSAGE).c_str());
 
     // Set up Wi-Fi connectivity
     transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);

@@ -1,0 +1,99 @@
+name: Documentation
+
+# Construye y valida el sitio de documentación en cada push y pull request.
+# Solo despliega en GitHub Pages desde `main` (push o ejecución manual), nunca desde pull requests.
+# Requisito previo para el despliegue: Settings > Pages > Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [ main, develop, "release/*", "feature/*" ]
+  pull_request:
+    branches: [ main, develop, "release/*", "feature/*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOXYGEN_VERSION: "1.18.0"
+
+jobs:
+  build:
+    name: Build and validate documentation site
+    runs-on: ubuntu-24.04
+    env:
+      ACTIONS_RUNNER_NODE_VERSION: 24
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/docs/requirements.txt
+
+      - name: Install Python dependencies
+        run: python -m pip install -r tools/docs/requirements.txt
+
+      - name: Install Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+          dot -V
+
+      - name: Install Doxygen ${{ env.DOXYGEN_VERSION }}
+        run: |
+          tag="Release_${DOXYGEN_VERSION//./_}"
+          curl -fsSL -o "$RUNNER_TEMP/doxygen.tar.gz" \
+            "https://github.com/doxygen/doxygen/releases/download/${tag}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          tar -xzf "$RUNNER_TEMP/doxygen.tar.gz" -C "$RUNNER_TEMP"
+          echo "DOXYGEN=$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}/bin/doxygen" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}/bin/doxygen" --version
+
+      - name: Build and validate site
+        run: python tools/docs/build_docs.py --zip --base-path "/${{ github.event.repository.name }}/"
+
+      - name: Upload build logs and validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-logs
+          path: |
+            build/docs/*.log
+            build/docs/validation-report.*
+          if-no-files-found: ignore
+
+      - name: Upload static site
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: build/docs/modest-iot-nano-docs-site.zip
+
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
