@@ -137,10 +137,13 @@ public:
         appendToBothSchedulers(&rearLeftLoadCell,      Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
         appendToBothSchedulers(&rearRightLoadCell,     Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
 
-        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
-
-        updateStatusDisplay();
+        // Tare and draw the LCD before the engine starts, so only the sampler task touches
+        // the HX711 and I2C lines afterwards.
+        updateStatusDisplay();   // "Calibrating..."
         calibrate();
+        updateStatusDisplay();   // "Weight: 0.00 Kg"
+
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**

@@ -21,7 +21,6 @@ LoadCellAmplifier::LoadCellAmplifier(const int dataGpioPin, const int clockGpioP
       maxRawValue(maxRawValue),
       tareOffsetRaw(0),
       gainPulses(1),
-      dataReady(false),
       filterDepth(filterDepth > MAX_FILTER_SIZE ? MAX_FILTER_SIZE : filterDepth < 1 ? 1 : filterDepth) {
     pinMode(dataGpioPin, INPUT);
     pinMode(clockGpioPin, OUTPUT);
@@ -30,8 +29,8 @@ LoadCellAmplifier::LoadCellAmplifier(const int dataGpioPin, const int clockGpioP
 
 void LoadCellAmplifier::processEvent(Event& event) {
     if (event.identifier == MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER) {
-        // Check if data is ready (set by interrupt when data pin goes LOW)
-        if (!dataReady) {
+        // The HX711 holds DOUT LOW while a new conversion is ready to be shifted out
+        if (!isDataReady()) {
             // Data not ready yet; suppress propagation to avoid stale reads
             reportReadSuccess(event);
             event.identifier = PROPAGATION_SUPPRESSION_IDENTIFIER;
@@ -39,7 +38,6 @@ void LoadCellAmplifier::processEvent(Event& event) {
         }
 
         // Data is ready; perform the 24-bit read (no busy-wait needed)
-        dataReady = false; // Clear the flag for next cycle
         const long rawValue = readRawValue();
         if (rawValue == -1) {
             reportReadFailure(event);
@@ -97,16 +95,20 @@ void LoadCellAmplifier::reset() {
     cachedWeightInGrams = INITIAL_CACHED_WEIGHT;
     lastNotifiedWeightInGrams = INITIAL_LAST_NOTIFIED_WEIGHT;
     bufferIndex = 0;
-    dataReady = false;
     for (int i = 0; i < filterDepth; ++i) {
         rawValueBuffer[i] = 0;
     }
 }
 
-long LoadCellAmplifier::readRawValue() const {
-    // Perform the 24-bit HX711 read protocol (assumes data is ready).
-    // This takes ~1.2 ms of delayMicroseconds() but no busy-wait.
+bool LoadCellAmplifier::isDataReady() const {
+    return digitalRead(pin) == LOW;
+}
+
+long LoadCellAmplifier::shiftInConversion() const {
+    // The HX711 enters power-down if SCK stays HIGH for more than 60 us, so the frame
+    // (~50 us) is clocked out with interrupts disabled to keep every pulse short.
     long value = 0;
+    noInterrupts();
     for (int i = 0; i < HX711_BIT_COUNT; ++i) {
         digitalWrite(clockGpioPin, HIGH);
         delayMicroseconds(HX711_CLOCK_PULSE_DELAY_US);
@@ -125,13 +127,18 @@ long LoadCellAmplifier::readRawValue() const {
         digitalWrite(clockGpioPin, LOW);
         delayMicroseconds(HX711_CLOCK_PULSE_DELAY_US);
     }
+    interrupts();
 
     // Sign extension for 24-bit to 32-bit (if negative)
     if (value & HX711_SIGN_BIT_MASK) {
         value |= HX711_SIGN_EXTENSION_MASK;
     }
-    
-    return value - tareOffsetRaw;
+    return value;
+}
+
+long LoadCellAmplifier::readRawValue() const {
+    // Perform the 24-bit HX711 read protocol (assumes data is ready, no busy-wait).
+    return shiftInConversion() - tareOffsetRaw;
 }
 
 long LoadCellAmplifier::readRawValueWithWait() const {
@@ -139,39 +146,12 @@ long LoadCellAmplifier::readRawValueWithWait() const {
     // Used only during calibration when the sensor may not be registered
     // with the triggering scheduler.
     const unsigned long startTime = millis();
-    while (digitalRead(pin) != LOW) {
+    while (!isDataReady()) {
         if (millis() - startTime > READ_TIMEOUT_IN_MILLISECONDS) {
-            return -1; // Timeout
+            return READ_TIMEOUT_SENTINEL;
         }
     }
-
-    // Perform the 24-bit read (same as readRawValue)
-    long value = 0;
-    for (int i = 0; i < HX711_BIT_COUNT; ++i) {
-        digitalWrite(clockGpioPin, HIGH);
-        delayMicroseconds(HX711_CLOCK_PULSE_DELAY_US);
-        value <<= 1;
-        digitalWrite(clockGpioPin, LOW);
-        if (digitalRead(pin) == HIGH) {
-            value++;
-        }
-        delayMicroseconds(HX711_CLOCK_PULSE_DELAY_US);
-    }
-
-    // HX711 pulse for gain/channel selection
-    for (int i = 0; i < gainPulses; ++i) {
-        digitalWrite(clockGpioPin, HIGH);
-        delayMicroseconds(HX711_CLOCK_PULSE_DELAY_US);
-        digitalWrite(clockGpioPin, LOW);
-        delayMicroseconds(HX711_CLOCK_PULSE_DELAY_US);
-    }
-
-    // Sign extension for 24-bit to 32-bit (if negative)
-    if (value & HX711_SIGN_BIT_MASK) {
-        value |= HX711_SIGN_EXTENSION_MASK;
-    }
-    
-    return value - tareOffsetRaw;
+    return shiftInConversion() - tareOffsetRaw;
 }
 
 void LoadCellAmplifier::setGain(const int gain) {
@@ -194,8 +174,9 @@ void LoadCellAmplifier::powerUp() {
 void LoadCellAmplifier::tare() {
     // Current raw value (already tared by offset)
     // To set current weight to 0, I need to add current reading as offset
-    if (const long currentRaw = readRawValueWithWait() + tareOffsetRaw; currentRaw != -1) {
-        tareOffsetRaw = currentRaw;
+    // Check the timeout before adding the current offset back
+    if (const long taredRaw = readRawValueWithWait(); taredRaw != READ_TIMEOUT_SENTINEL) {
+        tareOffsetRaw = taredRaw + tareOffsetRaw;
         reset();
     }
 }

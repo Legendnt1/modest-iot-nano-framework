@@ -487,6 +487,11 @@ void IRAM_ATTR Device::onSensorTrigger(const uint32_t handle) {
     if (activeDevice != nullptr && handle > 0 && handle <= MAX_TRIGGERED_SENSORS) {
         const auto index = static_cast<uint8_t>(handle - 1);
         activeDevice->triggerTable[index].wasTriggered = true;
+        // Interrupts are attached at registration time, before the sampler task exists:
+        // keep the flag and let the first sampler wake-up process it.
+        if (activeDevice->hardwareSamplingTaskHandle == nullptr) {
+            return;
+        }
         BaseType_t higherPriorityTaskWoken = pdFALSE;
         xTaskNotifyFromISR(activeDevice->hardwareSamplingTaskHandle,
                            static_cast<uint32_t>(NotificationBitFlag::SensorTrigger),

@@ -33,9 +33,6 @@ private:
     long    tareOffsetRaw; ///< Offset for taring the sensor.
     int     gainPulses; ///< Number of pulses for gain/channel selection.
 
-    // Data-ready state (interrupt-driven, replaces busy-wait)
-    volatile bool dataReady; ///< True when HX711 data pin goes LOW (new conversion ready).
-
     static constexpr int    PROPAGATION_SUPPRESSION_IDENTIFIER  = -1; ///< Identifier used to suppress error events.
     static constexpr float  WEIGHT_CHANGE_EPSILON               = 0.1f; ///< Epsilon for weight change detection.
     static constexpr int    CALIBRATION_STABILITY_THRESHOLD     = 20; ///< Threshold for calibration stability.
@@ -49,6 +46,7 @@ private:
     static constexpr float  INITIAL_LAST_NOTIFIED_WEIGHT        = -1.0f; ///< Initial value for the last notified weight.
     static constexpr int    MAX_FILTER_SIZE                     = 10; ///< Maximum size of the moving average filter.
     static constexpr unsigned long READ_TIMEOUT_IN_MILLISECONDS       = 100; ///< Timeout for sensor readiness (legacy, kept for calibration).
+    static constexpr long   READ_TIMEOUT_SENTINEL               = -1; ///< readRawValueWithWait() result when the HX711 never became ready.
 
     /// Default sampling interval in milliseconds.
     /// @note HX711 output rate is typically 10 SPS (100 ms) or 80 SPS (12.5 ms) depending on RATE pin wiring.
@@ -62,9 +60,22 @@ private:
     int     filterDepth; ///< Current depth of the moving average filter.
 
     /**
+     * @brief Reports whether the HX711 has a conversion ready (DOUT held LOW).
+     * @return True when a new 24-bit value can be shifted out.
+     */
+    [[nodiscard]] bool isDataReady() const;
+
+    /**
+     * @brief Clocks the 24-bit conversion and the gain pulses out of the HX711.
+     * Runs with interrupts disabled so SCK never stays HIGH long enough to power the chip down.
+     * @return The sign-extended raw value, without the tare offset applied.
+     */
+    [[nodiscard]] long shiftInConversion() const;
+
+    /**
      * @brief Performs the HX711 bit-banging protocol to read the 24-bit raw value.
-     * @return The 24-bit raw value read from the HX711.
-     * @note Assumes data is ready (dataReady is true). Does not busy-wait.
+     * @return The 24-bit raw value read from the HX711, minus the tare offset.
+     * @note Assumes data is ready (isDataReady() is true). Does not busy-wait.
      */
     [[nodiscard]] long readRawValue() const;
 
