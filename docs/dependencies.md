@@ -6,9 +6,18 @@ This document lists all external dependencies of the Modest IoT Nano Framework a
 
 | Dependency | Type | Version | Monitored By |
 |------------|------|---------|--------------|
-| **MQTT** | Arduino Library | ≥2.5.3 | Manual |
-| **ESP32 Arduino Core** | Platform Core | Latest | Manual (CI installs latest) |
+| **MQTT** | Arduino Library | ≥2.5.3 | Automated (weekly status badge) |
+| **ESP32 Arduino Core** | Platform Core | Latest | Automated (weekly status badge) |
 | **GitHub Actions** | CI/CD | Various | Dependabot (automated) |
+
+### Status Badges
+
+The README displays two dynamic shields.io badges that are updated weekly by the [Dependency Status](../../.github/workflows/dependency-status.yml) workflow:
+
+- **MQTT badge**: Shows the current minimum version. Turns orange if a newer release is available on GitHub.
+- **ESP32 badge**: Shows the latest ESP32 Arduino core release version. CI always installs the latest, so this is informational.
+
+Badges are stored as JSON files in `.badges/` and updated automatically by the workflow.
 
 ## External Arduino Dependencies
 
@@ -60,6 +69,18 @@ GitHub Actions are monitored automatically by Dependabot (`.github/dependabot.ym
 | `arduino/setup-arduino-cli` | v1 | compile-examples.yml |
 
 Dependabot checks for updates monthly. Review the Dependabot PR changelog for breaking changes before merging. CI validates all changes automatically.
+
+## Dependency Status Workflow
+
+The [Dependency Status](../../.github/workflows/dependency-status.yml) workflow runs weekly (Monday at 09:00 UTC) and can also be triggered manually via `workflow_dispatch`. It:
+
+1. Fetches the latest MQTT release version from the [256dpi/arduino-mqtt](https://github.com/256dpi/arduino-mqtt) GitHub API.
+2. Fetches the latest ESP32 Arduino core release version from the [espressif/arduino-esp32](https://github.com/espressif/arduino-esp32) GitHub API.
+3. Compares the MQTT version against the minimum version in `library.properties`.
+4. Updates `.badges/mqtt.json` and `.badges/esp32.json` with the current status.
+5. Commits the changes and posts a summary to the GitHub Actions run.
+
+The badges in the README are powered by shields.io endpoint badges that read these JSON files directly.
 
 ## Build Tool Dependencies
 
