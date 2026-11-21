@@ -134,7 +134,7 @@ class SmartBandDevice : public Device {
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
 
-        initializeAsynchronousEngine(10);
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     ~SmartBandDevice() override {

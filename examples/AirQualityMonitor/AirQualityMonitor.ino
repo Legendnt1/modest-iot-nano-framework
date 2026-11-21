@@ -57,16 +57,12 @@ static const size_t LCD_TEXT_LINE_BUFFER_SIZE = 21;
 static const int LCD_MODE_LINE_INDEX = 0;
 /** @brief Index of the measurement line. */
 static const int LCD_VALUE_LINE_INDEX = 1;
-/** @brief Mode line shown in raw mode. */
-static const char* RAW_MODE_TEXT = "Mode: RAW";
+/** @brief Mode line format (operating mode name from `GasSensor::operatingModeName()`). */
+static const char* MODE_LINE_FORMAT = "Mode: %s";
 /** @brief Measurement line format in raw mode (raw ADC value). */
 static const char* RAW_VALUE_FORMAT = "Raw Val: %d";
-/** @brief Mode line shown while calibrating. */
-static const char* CALIBRATING_MODE_TEXT = "Mode: CALIBRATING";
 /** @brief Instruction shown while calibrating. */
 static const char* CALIBRATING_INSTRUCTION_TEXT = "Keep in clean air!";
-/** @brief Mode line shown in accurate mode. */
-static const char* ACCURATE_MODE_TEXT = "Mode: ACCURATE";
 /** @brief Measurement line format in accurate mode (gas name, PPM). */
 static const char* GAS_CONCENTRATION_FORMAT = "%s: %.1f PPM";
 /** @brief Measurement line format when no target gas is set (Rs/R0 ratio). */
@@ -153,22 +149,19 @@ private:
         char* modeLine = textBufferInternal[LCD_MODE_LINE_INDEX];
         char* valueLine = textBufferInternal[LCD_VALUE_LINE_INDEX];
 
+        snprintf(modeLine, LCD_TEXT_LINE_BUFFER_SIZE, MODE_LINE_FORMAT,
+                 GasSensor::operatingModeName(gasSensor.getOperatingMode()));
+
         switch (gasSensor.getOperatingMode()) {
             case GasSensor::OperatingMode::RawMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: %s",
-                         GasSensor::operatingModeName(gasSensor.getOperatingMode()));
-                snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Raw Val: %d", gasSensor.getRawAnalogValue());
+                snprintf(valueLine, LCD_TEXT_LINE_BUFFER_SIZE, RAW_VALUE_FORMAT, gasSensor.getRawAnalogValue());
                 break;
             case GasSensor::OperatingMode::CalibratingMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: %s",
-                         GasSensor::operatingModeName(gasSensor.getOperatingMode()));
-                snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "Keep in clean air!");
+                snprintf(valueLine, LCD_TEXT_LINE_BUFFER_SIZE, "%s", CALIBRATING_INSTRUCTION_TEXT);
                 break;
             case GasSensor::OperatingMode::AccurateMode:
-                snprintf(textBufferInternal[0], sizeof(textBufferInternal[0]), "Mode: %s",
-                         GasSensor::operatingModeName(gasSensor.getOperatingMode()));
                 if (gasSensor.getTargetGasType() != GasSensor::GasType::None) {
-                    snprintf(textBufferInternal[1], sizeof(textBufferInternal[1]), "%s: %.1f PPM",
+                    snprintf(valueLine, LCD_TEXT_LINE_BUFFER_SIZE, GAS_CONCENTRATION_FORMAT,
                              GasSensor::gasTypeName(gasSensor.getTargetGasType()),
                              gasSensor.getGasConcentrationInPpm());
                 } else {

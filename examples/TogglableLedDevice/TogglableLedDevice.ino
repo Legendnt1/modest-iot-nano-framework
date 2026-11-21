@@ -81,8 +81,8 @@ class TogglableLedDevice : public Device {
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
                                           FALLING);
 
-        // 2. Launch internal background task workers with a safe queue boundary depth of 5
-        initializeAsynchronousEngine(5);
+        // 2. Launch internal background task workers
+        initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
     }
 
     /**

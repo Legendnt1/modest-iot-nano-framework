@@ -213,7 +213,7 @@ public:
 
         initializeAsynchronousEngine(config);
 
-        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, "Engine configured: sampler stack %lu bytes, queue length %u",
+        MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, ENGINE_CONFIGURED_LOG_FORMAT,
                    config.samplerStackBytes, config.queueLength);
     }
 

@@ -47,7 +47,7 @@ static constexpr unsigned long BUZZER_WARNING_INTERVAL_IN_MILLISECONDS = 2000; /
 static const int SAMPLER_QUEUE_LENGTH = 10;
 
 /** @brief Consecutive failed readings before the sensor emits a fault event. */
-static const uint8_t SENSOR_FAULT_THRESHOLD = 3;
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
 
 /** @brief Initial logical state of the RGB status LED (off until start() sets the color). */
 static const bool STATUS_LED_INITIAL_STATE = false;
@@ -170,8 +170,8 @@ public:
           alarmBuzzer(buzzerPin, this),
           alarmActive(false)
     {
-        // Configure fault detection: 3 consecutive failures triggers fault event
-        pipeSensor.setFaultThreshold(3);
+        // Configure fault detection: consecutive failures that trigger a fault event
+        pipeSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
 
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.

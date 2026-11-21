@@ -41,6 +41,8 @@
 static const unsigned long SAMPLING_INTERVAL_IN_MILLISECONDS = 200;
 /** @brief Sampler event queue length. */
 static const int ASYNC_ENGINE_QUEUE_DEPTH = 5;
+/** @brief Hardware timer group index used by the device. */
+static const uint8_t TIMER_GROUP_INDEX = 0;
 //@} // Engine Configuration
 
 /** @name GPIO Pin Assignments */
@@ -83,6 +85,22 @@ static const char* MQTT_CLIENT_ID = "HomeSecurity_Node_01";
 static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Log prefix for all HomeSecurityDevice serial output. */
 static const char* HOME_SECURITY_LOG_PREFIX = "[HomeSecurity]";
+/** @brief Message printed when a water leak is detected. */
+static const char* WATER_LEAK_DETECTED_MESSAGE = " ⚠️  WATER LEAK DETECTED!";
+/** @brief Message printed when the water leak clears. */
+static const char* WATER_LEAK_CLEARED_MESSAGE = " ✓ Water leak cleared.";
+/** @brief Message printed when the door or window opens. */
+static const char* DOOR_OPENED_MESSAGE = " 🚪 Door/window opened!";
+/** @brief Message printed when the door or window closes. */
+static const char* DOOR_CLOSED_MESSAGE = " 🚪 Door/window closed.";
+/** @brief Message printed when motion starts. */
+static const char* MOTION_DETECTED_MESSAGE = " 🏃 Motion detected!";
+/** @brief Message printed when motion stops. */
+static const char* MOTION_STOPPED_MESSAGE = " Motion stopped.";
+/** @brief Message printed while the system boots. */
+static const char* INITIALIZING_MESSAGE = " Initializing home security system...";
+/** @brief Message printed once the system is armed. */
+static const char* SYSTEM_ARMED_MESSAGE = " System armed. Monitoring...";
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@} // Serial Output Configuration
@@ -234,7 +252,7 @@ protected:
 
 public:
     HomeSecurityDevice(int waterLeakPin, int doorPin, int pirPin, int buzzerPin)
-        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, 0)
+        : Device(SAMPLING_INTERVAL_IN_MILLISECONDS, TIMER_GROUP_INDEX)
         , waterLeakSensor(waterLeakPin, this)
         , doorWindowSensor(doorPin, this)
         , pirSensor(pirPin, this)
@@ -263,7 +281,7 @@ public:
      */
     void start() {
         Device::setFirmwareVersion(HOME_SECURITY_FIRMWARE_VERSION);
-        Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " Initializing home security system...").c_str());
+        Serial.println((String(HOME_SECURITY_LOG_PREFIX) + INITIALIZING_MESSAGE).c_str());
 
         transportDriver = new WiFiConnectivityDriver(WIRELESS_SSID, WIRELESS_PASSWORD);
 
@@ -298,40 +316,40 @@ public:
         switch (event.identifier) {
             case WaterLeakSensor::WATER_LEAK_DETECTED_EVENT_IDENTIFIER:
                 waterLeakState = true;
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " ⚠️  WATER LEAK DETECTED!").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + WATER_LEAK_DETECTED_MESSAGE).c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 // CRITICAL: Water leak bypasses standard queue via high-priority lane
                 enqueueAlert(ALERT_TYPE_WATER_LEAK, true);
                 break;
             case WaterLeakSensor::WATER_LEAK_CLEARED_EVENT_IDENTIFIER:
                 waterLeakState = false;
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " ✓ Water leak cleared.").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + WATER_LEAK_CLEARED_MESSAGE).c_str());
                 // ROUTINE: Leak cleared is a status update, not an alert
                 enqueueStatusUpdate();
                 break;
             case DoorWindowSensor::DOOR_OPENED_EVENT_IDENTIFIER:
                 doorOpenState = true;
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🚪 Door/window opened!").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + DOOR_OPENED_MESSAGE).c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 // CRITICAL: Door opened bypasses standard queue via high-priority lane
                 enqueueAlert(ALERT_TYPE_DOOR_OPENED, true);
                 break;
             case DoorWindowSensor::DOOR_CLOSED_EVENT_IDENTIFIER:
                 doorOpenState = false;
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🚪 Door/window closed.").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + DOOR_CLOSED_MESSAGE).c_str());
                 // ROUTINE: Door closed is a status update, not an alert
                 enqueueStatusUpdate();
                 break;
             case PassiveInfraredSensor::MOTION_DETECTED_EVENT_IDENTIFIER:
                 motionDetectedState = true;
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " 🏃 Motion detected!").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + MOTION_DETECTED_MESSAGE).c_str());
                 buzzer.handle(Buzzer::PLAY_TONE_COMMAND);
                 // ROUTINE: Motion detected is a status update (not critical)
                 enqueueStatusUpdate();
                 break;
             case PassiveInfraredSensor::MOTION_STOPPED_EVENT_IDENTIFIER:
                 motionDetectedState = false;
-                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + " Motion stopped.").c_str());
+                Serial.println((String(HOME_SECURITY_LOG_PREFIX) + MOTION_STOPPED_MESSAGE).c_str());
                 // ROUTINE: Motion stopped is a status update
                 enqueueStatusUpdate();
                 break;

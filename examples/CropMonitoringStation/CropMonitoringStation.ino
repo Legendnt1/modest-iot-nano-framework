@@ -249,7 +249,8 @@ class CropMonitoringStation : public Device {
                                 NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Register the light intensity sensor (least frequent: every 120s)
-        appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds, 0);
+        appendSensorToScheduler(&lightSensor, LIGHT_INTENSITY_EVENT_IDENTIFIER, lightSamplingIntervalInMilliseconds,
+                                NO_MINIMUM_SAMPLING_INTERVAL_IN_MILLISECONDS);
 
         // Launch internal background task workers with a small queue for battery operation
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
