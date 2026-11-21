@@ -14,6 +14,8 @@
 [![Version](https://img.shields.io/github/v/tag/modest-iot/modest-iot-nano-framework?sort=semver)](https://github.com/modest-iot/modest-iot-nano-framework/releases)
 [![Arduino Library Manager](https://img.shields.io/badge/Arduino-Library%20Manager-blue.svg)](https://librarymanager/all#Modest-IoT-Nano-Framework)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/modest-iot/library/Modest-IoT-Nano-Framework.svg)](https://registry.platformio.org/libraries/modest-iot/Modest-IoT-Nano-Framework)
+[![MQTT](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modest-iot/modest-iot-nano-framework/develop/.badges/mqtt.json)](https://github.com/256dpi/arduino-mqtt)
+[![ESP32](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modest-iot/modest-iot-nano-framework/develop/.badges/esp32.json)](https://github.com/espressif/arduino-esp32)
 
 **Version**: 1.1.2  
 **Author**: Angel Velasquez  
