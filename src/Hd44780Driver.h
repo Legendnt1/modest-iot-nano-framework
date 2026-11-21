@@ -16,8 +16,10 @@
 /**
  * @brief Low-level HD44780 LCD controller driver over I2C with PCF8574 I/O expander.
  * Implements the HD44780 4-bit mode protocol directly, eliminating the LiquidCrystal_I2C
- * external dependency. The PCF8574 backpack maps P0-P3 to HD44780 data lines D4-D7,
- * P4 to backlight, P5 to enable, and P0 to register select (RS).
+ * external dependency. The PCF8574 backpack maps P4-P7 to HD44780 data lines D4-D7,
+ * P0 to register select (RS), P2 to enable and P3 to backlight.
+ * @note initialize() calls Wire.begin(), which initializes the shared Arduino Wire bus
+ *       on the default SDA/SCL pins (GPIO 21/22 on ESP32 DevKit boards).
  * @ingroup actuators_module
  */
 class Hd44780Driver {

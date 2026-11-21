@@ -16,17 +16,20 @@ Hd44780Driver::Hd44780Driver(const uint8_t i2cAddress, const bool backlightIniti
 
 void Hd44780Driver::write4Bit(const uint8_t value) const {
     // Send a single 4-bit nibble to the HD44780 via PCF8574.
-    // The PCF8574 maps P0-P3 to HD44780 data lines D4-D7.
-    // P4 is the backlight, P5 is the enable pulse, P0 is RS (register select).
+    // The PCF8574 maps P4-P7 to HD44780 data lines D4-D7 (high nibble of `value`).
+    // P0 is RS (register select), P2 is the enable pulse and P3 is the backlight.
+    // Every write ends with a STOP condition: on ESP32, endTransmission(false) only queues
+    // the bytes for a later requestFrom() and the next beginTransmission() discards them,
+    // so the data setup and the enable-high edge would never reach the bus.
     Wire.beginTransmission(i2cAddress);
     Wire.write(value);
-    (void)Wire.endTransmission(false);
+    (void)Wire.endTransmission(true);
     delayMicroseconds(HD44780_ENABLE_SETUP_TIME_IN_MICROSECONDS);
 
-    // Generate enable pulse: toggle P5 (enable bit)
+    // Generate enable pulse: toggle P2 (enable bit); the HD44780 latches on the falling edge
     Wire.beginTransmission(i2cAddress);
     Wire.write(value | PCF8574_ENABLE_BIT);
-    (void)Wire.endTransmission(false);
+    (void)Wire.endTransmission(true);
     delayMicroseconds(HD44780_ENABLE_PULSE_WIDTH_IN_MICROSECONDS);
 
     Wire.beginTransmission(i2cAddress);
@@ -63,28 +66,26 @@ void Hd44780Driver::initialize() const {
     // HD44780 initialization sequence for 4-bit mode.
     // The LCD starts in 8-bit mode; we must transition to 4-bit mode.
 
+    // Initialize the shared I2C bus (idempotent), like the other I2C components of the framework.
+    Wire.begin();
+
     delayMicroseconds(HD44780_POWER_ON_STABILIZE_TIME_IN_MICROSECONDS);
 
-    // Initial function set: HD44780_FUNCTION_SET_8BIT sent three times to enter 4-bit mode
-    Wire.beginTransmission(i2cAddress);
-    Wire.write(HD44780_FUNCTION_SET_8BIT | (backlightEnabled ? PCF8574_BACKLIGHT_BIT : HD44780_NO_BACKLIGHT));
-    (void)Wire.endTransmission(true);
+    const uint8_t backlightBit = backlightEnabled ? PCF8574_BACKLIGHT_BIT : HD44780_NO_BACKLIGHT;
+
+    // Initial function set: HD44780_FUNCTION_SET_8BIT sent three times to enter 4-bit mode.
+    // Each nibble needs an enable pulse (write4Bit); writing the PCF8574 pins alone latches nothing.
+    write4Bit(HD44780_FUNCTION_SET_8BIT | backlightBit);
     delayMicroseconds(HD44780_FIRST_FUNCTION_SET_DELAY_IN_MICROSECONDS);
 
-    Wire.beginTransmission(i2cAddress);
-    Wire.write(HD44780_FUNCTION_SET_8BIT | (backlightEnabled ? PCF8574_BACKLIGHT_BIT : HD44780_NO_BACKLIGHT));
-    (void)Wire.endTransmission(true);
+    write4Bit(HD44780_FUNCTION_SET_8BIT | backlightBit);
     delayMicroseconds(HD44780_SECOND_FUNCTION_SET_DELAY_IN_MICROSECONDS);
 
-    Wire.beginTransmission(i2cAddress);
-    Wire.write(HD44780_FUNCTION_SET_8BIT | (backlightEnabled ? PCF8574_BACKLIGHT_BIT : HD44780_NO_BACKLIGHT));
-    (void)Wire.endTransmission(true);
+    write4Bit(HD44780_FUNCTION_SET_8BIT | backlightBit);
     delayMicroseconds(HD44780_THIRD_FUNCTION_SET_DELAY_IN_MICROSECONDS);
 
     // Set 4-bit mode: HD44780_FUNCTION_SET_4BIT
-    Wire.beginTransmission(i2cAddress);
-    Wire.write(HD44780_FUNCTION_SET_4BIT | (backlightEnabled ? PCF8574_BACKLIGHT_BIT : HD44780_NO_BACKLIGHT));
-    (void)Wire.endTransmission(true);
+    write4Bit(HD44780_FUNCTION_SET_4BIT | backlightBit);
     delayMicroseconds(HD44780_SET_4BIT_MODE_DELAY_IN_MICROSECONDS);
 
     // Now in 4-bit mode, use normal command sequence.
