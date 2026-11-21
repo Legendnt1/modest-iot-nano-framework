@@ -48,15 +48,17 @@ private:
     static constexpr uint32_t DEFAULT_SAMPLING_INTERVAL_IN_MILLISECONDS = 2000;
 
     // DHT single-wire protocol timing constants (microseconds)
-    static constexpr uint32_t DHT22_START_SIGNAL_LOW_TIME_IN_MICROSECONDS = 1000; ///< DHT22 start signal LOW duration.
+    static constexpr uint32_t DHT22_START_SIGNAL_LOW_TIME_IN_MICROSECONDS = 1100; ///< DHT22 start LOW (spec: at least 1 ms).
     static constexpr uint32_t DHT11_START_SIGNAL_LOW_TIME_IN_MICROSECONDS = 18000; ///< DHT11 start signal LOW duration.
-    static constexpr uint32_t DHT_START_SIGNAL_HIGH_TIME_IN_MICROSECONDS = 40; ///< MCU release HIGH duration after start.
-    static constexpr uint32_t DHT_RESPONSE_LOW_TIME_IN_MICROSECONDS = 80; ///< Sensor response LOW duration.
-    static constexpr uint32_t DHT_RESPONSE_HIGH_TIME_IN_MICROSECONDS = 80; ///< Sensor response HIGH duration.
-    static constexpr uint32_t DHT_BIT_LOW_TIME_IN_MICROSECONDS = 50; ///< Bit start LOW duration.
-    static constexpr uint32_t DHT_BIT_0_HIGH_MAX_TIME_IN_MICROSECONDS = 40; ///< Maximum HIGH duration for bit 0.
-    static constexpr uint32_t DHT_BIT_1_HIGH_MAX_TIME_IN_MICROSECONDS = 70; ///< Minimum HIGH duration for bit 1.
-    static constexpr uint32_t DHT_BIT_TIMEOUT_IN_MICROSECONDS = 120; ///< Maximum time to wait for a bit.
+    static constexpr uint32_t DHT_LINE_RELEASE_TIME_IN_MICROSECONDS = 55; ///< Wait after releasing the line (sensor answers in 20-40 µs).
+    static constexpr uint32_t DHT_PULSE_TIMEOUT_IN_MICROSECONDS = 1000; ///< Maximum duration of any protocol pulse.
+    static constexpr uint32_t DHT_PULSE_TIMEOUT_SENTINEL = UINT32_MAX; ///< measurePulse() result when the pulse timed out.
+
+    // DHT22 value encoding constants
+    static constexpr uint8_t DHT_BITS_PER_BYTE = 8; ///< Bits per data byte.
+    static constexpr uint8_t DHT22_TEMPERATURE_SIGN_BIT = 0x80; ///< Sign flag in the DHT22 temperature high byte.
+    static constexpr uint8_t DHT22_TEMPERATURE_MAGNITUDE_MASK = 0x7F; ///< Magnitude bits of the DHT22 temperature high byte.
+    static constexpr float DHT22_DECIMAL_SCALE = 10.0f; ///< DHT22/DHT21 values are transmitted × 10.
 
     // DHT data format constants
     static constexpr uint8_t DHT_DATA_BYTE_COUNT = 5; ///< Total bytes in DHT response (humidity×2 + temp×2 + checksum).
@@ -68,26 +70,32 @@ private:
     static constexpr uint8_t DHT_CHECKSUM_BYTE_INDEX = 4; ///< Index of checksum byte.
 
     /**
-     * @brief Sends the start signal to initiate DHT communication.
-     * @return true if the sensor responded with the expected LOW+HIGH pulse, false otherwise.
+     * @brief Pulls the data line LOW for the model-specific start time.
      * @runs_on{sampler}
      */
-    bool sendStartSignal();
+    void sendStartSignal() const;
 
     /**
-     * @brief Reads a single bit from the DHT data line by measuring HIGH pulse width.
-     * @return 0 if the HIGH pulse was short (~26-28µs), 1 if long (~70µs).
+     * @brief Measures how long the data line stays at a given level.
+     * @param level Logic level to measure (LOW or HIGH).
+     * @return Pulse duration in microseconds, or DHT_PULSE_TIMEOUT_SENTINEL on timeout.
      * @runs_on{sampler}
      */
-    uint8_t readBit();
+    uint32_t measurePulse(int level) const;
 
     /**
-     * @brief Reads all 40 bits from the DHT sensor and stores them in the provided buffer.
+     * @brief Releases the line, waits for the sensor response and reads the 40-bit frame.
+     *
+     * Each bit is decoded by comparing its HIGH pulse against its preceding LOW pulse
+     * (~50 µs): a longer HIGH (~70 µs) is a 1 and a shorter one (~26 µs) is a 0. Comparing
+     * the two pulses keeps the decoding independent of the absolute timing overhead.
+     * Must run with interrupts disabled so the pulse measurements are not stretched.
+     *
      * @param data Buffer of 5 bytes to store the raw DHT data.
-     * @return true if all 40 bits were read successfully, false on timeout.
+     * @return true if the response and all 40 bits were received, false on timeout.
      * @runs_on{sampler}
      */
-    bool readData(uint8_t* data);
+    bool readData(uint8_t* data) const;
 
 protected:
     /**

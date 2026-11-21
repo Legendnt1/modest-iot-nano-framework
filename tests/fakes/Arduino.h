@@ -157,6 +157,8 @@ inline void digitalWrite(const std::uint8_t pin, const std::uint8_t val) {
 }
 inline int digitalRead(const std::uint8_t pin) { (void)pin; return fakeDigitalReadValue; }
 inline void yield() {}
+inline void noInterrupts() {}
+inline void interrupts() {}
 
 // Mock analog input
 extern int fakeAnalogRead[64];

@@ -17,64 +17,58 @@ DhtSensor::DhtSensor(const int signalGpioPin, const uint8_t dhtModelType, EventH
     pinMode(pin, INPUT_PULLUP);
 }
 
-bool DhtSensor::sendStartSignal() {
-    // MCU pulls the data line LOW to initiate communication
+void DhtSensor::sendStartSignal() const {
+    // MCU pulls the data line LOW to wake the sensor up
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
     delayMicroseconds(dhtModelType == SENSOR_MODEL_DHT11
             ? DHT11_START_SIGNAL_LOW_TIME_IN_MICROSECONDS
             : DHT22_START_SIGNAL_LOW_TIME_IN_MICROSECONDS);
-
-    // MCU releases the line HIGH
-    digitalWrite(pin, HIGH);
-    delayMicroseconds(DHT_START_SIGNAL_HIGH_TIME_IN_MICROSECONDS);
-
-    // Switch back to input to read sensor response
-    pinMode(pin, INPUT_PULLUP);
-
-    // Wait for sensor to pull the line LOW (response start)
-    unsigned long start = micros();
-    while (digitalRead(pin) == HIGH) {
-        if (micros() - start > DHT_BIT_TIMEOUT_IN_MICROSECONDS)
-            return false;
-    }
-
-    // Wait for sensor to release the line HIGH (response end)
-    while (digitalRead(pin) == LOW) {
-        if (micros() - start > DHT_BIT_TIMEOUT_IN_MICROSECONDS)
-            return false;
-    }
-
-    return true;
 }
 
-uint8_t DhtSensor::readBit() {
-    // Wait for the bit start LOW pulse
-    while (digitalRead(pin) == HIGH) {
-        // Should not happen in normal operation
-    }
-    while (digitalRead(pin) == LOW) {
-        // Wait for LOW pulse to end
-    }
-
-    // Measure the HIGH pulse width to determine bit value
-    unsigned long highStart = micros();
-    while (digitalRead(pin) == HIGH) {
-        if (micros() - highStart > DHT_BIT_TIMEOUT_IN_MICROSECONDS)
-            return 0;
-    }
-
-    const unsigned long highDuration = micros() - highStart;
-    return (highDuration > DHT_BIT_0_HIGH_MAX_TIME_IN_MICROSECONDS) ? 1 : 0;
-}
-
-bool DhtSensor::readData(uint8_t* data) {
-    for (uint8_t byteIndex = 0; byteIndex < DHT_DATA_BYTE_COUNT; ++byteIndex) {
-        uint8_t byteValue = 0;
-        for (uint8_t bitIndex = 0; bitIndex < 8; ++bitIndex) {
-            byteValue = (byteValue << 1) | readBit();
+uint32_t DhtSensor::measurePulse(const int level) const {
+    const unsigned long pulseStart = micros();
+    while (digitalRead(pin) == level) {
+        if (micros() - pulseStart > DHT_PULSE_TIMEOUT_IN_MICROSECONDS) {
+            return DHT_PULSE_TIMEOUT_SENTINEL;
         }
-        data[byteIndex] = byteValue;
+    }
+    return static_cast<uint32_t>(micros() - pulseStart);
+}
+
+bool DhtSensor::readData(uint8_t* data) const {
+    // Release the line (never drive it HIGH: the sensor answers by pulling it LOW)
+    pinMode(pin, INPUT_PULLUP);
+    delayMicroseconds(DHT_LINE_RELEASE_TIME_IN_MICROSECONDS);
+
+    // Sensor response: ~80 µs LOW followed by ~80 µs HIGH
+    if (measurePulse(LOW) == DHT_PULSE_TIMEOUT_SENTINEL ||
+        measurePulse(HIGH) == DHT_PULSE_TIMEOUT_SENTINEL) {
+        return false;
+    }
+
+    // Capture every pulse first and decode afterwards to keep the timing loop tight
+    uint32_t lowPulseDurations[DHT_DATA_BIT_COUNT];
+    uint32_t highPulseDurations[DHT_DATA_BIT_COUNT];
+    for (uint8_t bitIndex = 0; bitIndex < DHT_DATA_BIT_COUNT; ++bitIndex) {
+        lowPulseDurations[bitIndex] = measurePulse(LOW);
+        highPulseDurations[bitIndex] = measurePulse(HIGH);
+    }
+
+    for (uint8_t byteIndex = 0; byteIndex < DHT_DATA_BYTE_COUNT; ++byteIndex) {
+        data[byteIndex] = 0;
+    }
+    for (uint8_t bitIndex = 0; bitIndex < DHT_DATA_BIT_COUNT; ++bitIndex) {
+        const uint32_t lowPulse = lowPulseDurations[bitIndex];
+        const uint32_t highPulse = highPulseDurations[bitIndex];
+        if (lowPulse == DHT_PULSE_TIMEOUT_SENTINEL || highPulse == DHT_PULSE_TIMEOUT_SENTINEL) {
+            return false;
+        }
+        const uint8_t byteIndex = bitIndex / DHT_BITS_PER_BYTE;
+        data[byteIndex] = static_cast<uint8_t>(data[byteIndex] << 1);
+        if (highPulse > lowPulse) {
+            data[byteIndex] |= 1;
+        }
     }
     return true;
 }
@@ -92,7 +86,13 @@ void DhtSensor::processEvent(Event& event) {
     if (event.identifier == MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER) {
         uint8_t rawData[DHT_DATA_BYTE_COUNT] = {};
 
-        if (!sendStartSignal() || !readData(rawData) || !validateChecksum(rawData)) {
+        sendStartSignal();
+        // The frame is timing-critical (~4 ms): keep interrupts and task switches out of it
+        noInterrupts();
+        const bool frameReceived = readData(rawData);
+        interrupts();
+
+        if (!frameReceived || !validateChecksum(rawData)) {
             reportReadFailure(event);
             if (event.identifier != Sensor::SENSOR_FAULT_EVENT_IDENTIFIER) {
                 event.identifier = SENSOR_ERROR_SUPPRESSION_IDENTIFIER;
@@ -100,30 +100,44 @@ void DhtSensor::processEvent(Event& event) {
             return;
         }
 
-        // Parse humidity and temperature based on sensor model
-        const float rawHumidity = static_cast<float>(
-                (rawData[DHT_HUMIDITY_HIGH_BYTE_INDEX] << 8) | rawData[DHT_HUMIDITY_LOW_BYTE_INDEX]);
-        const float rawTemperature = static_cast<float>(
-                (rawData[DHT_TEMPERATURE_HIGH_BYTE_INDEX] << 8) | rawData[DHT_TEMPERATURE_LOW_BYTE_INDEX]);
+        float humidity;
+        float temperature;
+        if (dhtModelType == SENSOR_MODEL_DHT11) {
+            // DHT11 transmits integer values in the high bytes
+            humidity = static_cast<float>(rawData[DHT_HUMIDITY_HIGH_BYTE_INDEX]);
+            temperature = static_cast<float>(rawData[DHT_TEMPERATURE_HIGH_BYTE_INDEX]);
+        } else {
+            // DHT22/DHT21 transmit values x 10; bit 7 of the temperature high byte is the sign
+            const uint16_t rawHumidity = static_cast<uint16_t>(
+                    (rawData[DHT_HUMIDITY_HIGH_BYTE_INDEX] << DHT_BITS_PER_BYTE) |
+                    rawData[DHT_HUMIDITY_LOW_BYTE_INDEX]);
+            const uint16_t rawTemperatureMagnitude = static_cast<uint16_t>(
+                    ((rawData[DHT_TEMPERATURE_HIGH_BYTE_INDEX] & DHT22_TEMPERATURE_MAGNITUDE_MASK) << DHT_BITS_PER_BYTE) |
+                    rawData[DHT_TEMPERATURE_LOW_BYTE_INDEX]);
+            humidity = static_cast<float>(rawHumidity) / DHT22_DECIMAL_SCALE;
+            temperature = static_cast<float>(rawTemperatureMagnitude) / DHT22_DECIMAL_SCALE;
+            if ((rawData[DHT_TEMPERATURE_HIGH_BYTE_INDEX] & DHT22_TEMPERATURE_SIGN_BIT) != 0) {
+                temperature = -temperature;
+            }
+        }
 
-        // DHT22/DHT21 return values × 10 (one decimal place); DHT11 returns integer values
-        const float humidity = (dhtModelType == SENSOR_MODEL_DHT11)
-                ? static_cast<float>(rawData[DHT_HUMIDITY_HIGH_BYTE_INDEX])
-                : rawHumidity / 10.0f;
-        const float temperature = (dhtModelType == SENSOR_MODEL_DHT11)
-                ? static_cast<float>(rawData[DHT_TEMPERATURE_HIGH_BYTE_INDEX])
-                : rawTemperature / 10.0f;
+        reportReadSuccess(event);
+        if (event.identifier == SENSOR_RECOVERED_EVENT_IDENTIFIER) {
+            // First valid reading after a fault: refresh the cache and emit the recovery event
+            // (with sourceId = pin) so the application can log it and refresh its outputs.
+            cachedTemperatureInCelsius = temperature;
+            cachedRelativeHumidityInPercentage = humidity;
+            return;
+        }
 
         if (temperature == cachedTemperatureInCelsius && humidity == cachedRelativeHumidityInPercentage) {
-            reportReadSuccess(event);
             event.identifier = SENSOR_ERROR_SUPPRESSION_IDENTIFIER;
             return;
         }
 
-        reportReadSuccess(event);
         cachedTemperatureInCelsius = temperature;
         cachedRelativeHumidityInPercentage = humidity;
-        event = Event(DATA_READ_EVENT_IDENTIFIER);
+        event = Event(DATA_READ_EVENT_IDENTIFIER, pin);
     }
 }
 
