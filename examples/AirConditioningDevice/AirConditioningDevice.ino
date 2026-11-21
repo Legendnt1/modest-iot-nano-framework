@@ -47,6 +47,9 @@ static const uint8_t TIMER_GROUP_INDEX = 0;
 /** @brief Initial servo angle of the air handler vent (degrees). */
 static const int AIR_HANDLER_INITIAL_ANGLE_IN_DEGREES = 0;
 
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+
 /** @brief Initial temperature and humidity before the first reading. */
 static const float INITIAL_MEASUREMENT_VALUE = 0.0f;
 
@@ -66,6 +69,8 @@ static const int LCD_TARGET_MEASURE_ROW = 1;
 static const char* CURRENT_MEASURE_FORMAT = "Cur: %.1fC  %.0f%%";
 /** @brief Format of the target temperature line. */
 static const char* TARGET_MEASURE_FORMAT = "Target: %dC";
+/** @brief Current measurement line shown while the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_LINE = "Cur: sensor err";
 //@} // Character LCD Layout
 
 /** @name Serial Output Configuration */
@@ -78,6 +83,10 @@ static const char* DECREASE_BUTTON_CONTEXT = "Decrease";
 static const char* UNKNOWN_BUTTON_CONTEXT = "Unknown";
 /** @brief Format of the button press line (button context). */
 static const char* TARGET_BUTTON_PRESSED_FORMAT = "[AC Device] Target temperature %s button pressed.\n";
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = "[AC Device] DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = "[AC Device] DHT22 recovered.";
 /** @brief Message printed once the application has booted. */
 static const char* APPLICATION_ACTIVE_MESSAGE = "[System Boot] Loop-less Air Conditioning Orchestrator active.";
 //@} // Serial Output Configuration
@@ -144,6 +153,14 @@ class AirConditioningDevice : public Device {
     }
 
     /**
+     * @brief Replaces the current measurement line with a sensor fault notice.
+     */
+    void showSensorFaultDisplay() {
+        statusDisplay.setLineBuffer(LCD_CURRENT_MEASURE_ROW, SENSOR_FAULT_LINE);
+        statusDisplay.handle(CharacterLcdDisplay::UPDATE_TEXT_COMMAND);
+    }
+
+    /**
      * @brief Adjusts the air vent angle based on current vs target error offsets.
      */
     void evaluateAirHandlerOperationState() {
@@ -175,6 +192,9 @@ class AirConditioningDevice : public Device {
         currentHumidity(INITIAL_MEASUREMENT_VALUE),
         targetTemperature(DEFAULT_TARGET_TEMPERATURE)
     {
+        // Report a fault after consecutive failed DHT22 readings instead of failing silently
+        humidityAndTemperatureSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
+
         // 1. Register the DHT sensor using the baseline scheduler ticker token
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
@@ -207,6 +227,20 @@ class AirConditioningDevice : public Device {
 
         // Context A: DHT Sensor successfully finalized data acquisition
         if (event.identifier == DhtSensor::DATA_READ_EVENT_IDENTIFIER) {
+            currentTemperature = humidityAndTemperatureSensor.getTemperatureInCelsius();
+            currentHumidity = humidityAndTemperatureSensor.getRelativeHumidityInPercentage();
+            updateCurrentMeasureDisplay();
+        }
+
+        // Context A': DHT Sensor stopped answering (or answers again after a fault)
+        else if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER) {
+            Serial.println(SENSOR_FAULT_MESSAGE);
+            showSensorFaultDisplay();
+            return; // Keep the vent in its last state while there is no valid reading
+        }
+        else if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER) {
+            // The recovery event carries a fresh reading: refresh the display with it
+            Serial.println(SENSOR_RECOVERED_MESSAGE);
             currentTemperature = humidityAndTemperatureSensor.getTemperatureInCelsius();
             currentHumidity = humidityAndTemperatureSensor.getRelativeHumidityInPercentage();
             updateCurrentMeasureDisplay();

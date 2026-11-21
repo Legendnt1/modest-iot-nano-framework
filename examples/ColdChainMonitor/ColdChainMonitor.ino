@@ -108,6 +108,12 @@ static const char* COLD_CHAIN_MONITOR_FIRMWARE_VERSION = "CCM-200 FW 1.0.0";
 static const unsigned long SERIAL_BAUD_RATE = 115200;
 /** @brief Log prefix for all ColdChainMonitor serial output. */
 static const char* COLD_CHAIN_MONITOR_LOG_PREFIX = "[ColdChainMonitor]";
+/** @brief Consecutive failed DHT11 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+/** @brief Message printed when the DHT11 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = " DHT11 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT11 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = " DHT11 recovered.";
 /** @brief Delay in the main loop when no work is pending. */
 static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@} // Serial Output Configuration
@@ -333,6 +339,8 @@ public:
             &loadCell, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
 
         // Register DhtSensor with periodic sampling (not event-aggregated)
+        // Report a fault after consecutive failed readings instead of failing silently
+        tempSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(
             &tempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
@@ -379,6 +387,16 @@ public:
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT11 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == tempSensor.getPin()) {
+            Serial.println((String(COLD_CHAIN_MONITOR_LOG_PREFIX) + SENSOR_FAULT_MESSAGE).c_str());
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == tempSensor.getPin()) {
+            Serial.println((String(COLD_CHAIN_MONITOR_LOG_PREFIX) + SENSOR_RECOVERED_MESSAGE).c_str());
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         switch (event.identifier) {
             case COMPOSITE_ENERGY_SAVE:
                 // Pattern matched AND condition passed: door opened, weight changed,

@@ -48,6 +48,12 @@ static const char* BUTTON_PRESSED_MESSAGE = "[SmartBand UI] Action button click 
 
 /** @brief Message printed once the application has booted. */
 static const char* APPLICATION_ONLINE_MESSAGE = "[SmartBand Core] Thread execution loop online. Architecture finalized.";
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = "[SmartBand Sensors] DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = "[SmartBand Sensors] DHT22 recovered.";
 //@} // Serial Output Configuration
 
 /** @name Concrete Application Data Schema Specification */
@@ -129,6 +135,8 @@ class SmartBandDevice : public Device {
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&heartRateSensor,       Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+        // Report a fault after consecutive failed readings instead of failing silently
+        ambientClimateSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(&ambientClimateSensor,  Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
         appendSensorToTriggeringScheduler(&userActionButton,
                                           Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER,
@@ -147,6 +155,16 @@ class SmartBandDevice : public Device {
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT22 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == ambientClimateSensor.getPin()) {
+            Serial.println(SENSOR_FAULT_MESSAGE);
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == ambientClimateSensor.getPin()) {
+            Serial.println(SENSOR_RECOVERED_MESSAGE);
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             packageAndQueueTelemetrySnapshot();
         }

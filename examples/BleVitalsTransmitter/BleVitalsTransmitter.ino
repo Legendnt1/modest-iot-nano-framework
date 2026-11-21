@@ -63,6 +63,12 @@ static const unsigned long MAIN_LOOP_DELAY_IN_MILLISECONDS = 60000;
 //@{
 /** @brief Log prefix for all BleVitalsTransmitter serial output. */
 static const char* BLE_VITALS_TRANSMITTER_LOG_PREFIX = "[BleVitalsTransmitter]";
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = " DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = " DHT22 recovered.";
 
 /** @brief Format of the BLE transmission statistics line (prefix, succeeded, failed). */
 static const char* BLE_STATISTICS_FORMAT = "%s BLE stats -> succeeded: %lu, failed: %lu\n";
@@ -149,6 +155,8 @@ public:
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&heartRateSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+        // Report a fault after consecutive failed readings instead of failing silently
+        skinTempSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(&skinTempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
@@ -159,6 +167,16 @@ public:
     }
 
     void on(Event event) override {
+        // DHT22 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == skinTempSensor.getPin()) {
+            Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + SENSOR_FAULT_MESSAGE).c_str());
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == skinTempSensor.getPin()) {
+            Serial.println((String(BLE_VITALS_TRANSMITTER_LOG_PREFIX) + SENSOR_RECOVERED_MESSAGE).c_str());
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             packageAndQueueTelemetrySnapshot();
         }

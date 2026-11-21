@@ -73,6 +73,12 @@ static const unsigned long SERIAL_BAUD_RATE = 115200;
 //@{
 /** @brief Log prefix for all OtaUpdateDevice serial output. */
 static const char* OTA_UPDATE_DEVICE_LOG_PREFIX = "[OtaUpdateDevice]";
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = " DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = " DHT22 recovered.";
 /** @brief Buffer size for formatted sensor readings. */
 static const size_t SERIAL_OUTPUT_BUFFER_SIZE = 128;
 /** @brief Message printed when a telemetry package reaches the network task. */
@@ -146,6 +152,8 @@ public:
     {
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
+        // Report a fault after consecutive failed readings instead of failing silently
+        dhtSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(&dhtSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
@@ -161,6 +169,16 @@ public:
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT22 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == dhtSensor.getPin()) {
+            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + SENSOR_FAULT_MESSAGE).c_str());
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == dhtSensor.getPin()) {
+            Serial.println((String(OTA_UPDATE_DEVICE_LOG_PREFIX) + SENSOR_RECOVERED_MESSAGE).c_str());
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             char buffer[SERIAL_OUTPUT_BUFFER_SIZE];
             snprintf(buffer, sizeof(buffer),

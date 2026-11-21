@@ -107,6 +107,12 @@ static const char* BEARER_AUTHORIZATION_HEADER_FORMAT = "%s%.*s";
 //@{
 /** @brief Log prefix for all ClimateDataUploader serial output. */
 static const char* CLIMATE_DATA_UPLOADER_LOG_PREFIX = "[ClimateDataUploader]";
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = " DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = " DHT22 recovered.";
 /** @brief Format of the replay line (prefix, buffered JSON). */
 static const char* REPLAYING_PACKET_FORMAT = "%s Replaying buffered packet: %s\n";
 /** @brief Message printed when the offline buffer has been drained. */
@@ -341,6 +347,8 @@ public:
     {
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
+        // Report a fault after consecutive failed readings instead of failing silently
+        climateSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(&climateSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
         initializeAsynchronousEngine(SAMPLER_QUEUE_LENGTH);
@@ -356,6 +364,16 @@ public:
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT22 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == climateSensor.getPin()) {
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + SENSOR_FAULT_MESSAGE).c_str());
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == climateSensor.getPin()) {
+            Serial.println((String(CLIMATE_DATA_UPLOADER_LOG_PREFIX) + SENSOR_RECOVERED_MESSAGE).c_str());
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             packageAndQueueTelemetrySnapshot();
         }

@@ -57,6 +57,12 @@ static const char*          PUMP_ON_MESSAGE             = "[Irrigation] Pump ON 
 static const char*          PUMP_OFF_MESSAGE            = "[Irrigation] Pump OFF — soil moist.";
 static const char*          VENT_ON_MESSAGE             = "[Ventilation] Vent OPEN — temperature high.";
 static const char*          VENT_OFF_MESSAGE            = "[Ventilation] Vent CLOSED — temperature normal.";
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = "[Climate Sensor] DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = "[Climate Sensor] DHT22 recovered.";
 
 /** @brief Firmware version reported in the telemetry envelope. */
 static const char* FIRMWARE_VERSION = "SGD-707 FW 1.0.0";
@@ -92,6 +98,8 @@ public:
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
         appendSensorToScheduler(&soilSensor,        Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
+        // Report a fault after consecutive failed readings instead of failing silently
+        temperatureSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(&temperatureSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
         initializeAsynchronousEngine(ASYNC_ENGINE_QUEUE_DEPTH);
@@ -103,6 +111,16 @@ public:
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT22 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == temperatureSensor.getPin()) {
+            logMessage(SENSOR_FAULT_MESSAGE);
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == temperatureSensor.getPin()) {
+            logMessage(SENSOR_RECOVERED_MESSAGE);
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             if (event.sourceId == SOIL_MOISTURE_PIN) {
                 // Control water pump based on soil moisture

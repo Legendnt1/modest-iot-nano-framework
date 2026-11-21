@@ -46,6 +46,9 @@
 /** @brief Log tag for this device component. */
 static const char* EQUIP_HEALTH_LOG_TAG = "EquipHealth";
 
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+
 /**
  * @name Structured Log Formats
  *
@@ -68,6 +71,8 @@ static const char* EQUIP_HEALTH_LOG_TAG = "EquipHealth";
 #define HIGH_VIBRATION_LOG_FORMAT "High vibration detected: %.2f g (sample #%lu)"
 #define STARTING_LOG_FORMAT "Equipment health monitor starting..."
 #define RECALIBRATION_LOG_FORMAT "Load cell amplifier may need recalibration on pin %d"
+#define DHT_FAULT_LOG_FORMAT "DHT22 not responding on pin %d: check wiring and pull-up"
+#define DHT_RECOVERED_LOG_FORMAT "DHT22 recovered on pin %d"
 #define MONITORING_ACTIVE_LOG_FORMAT "Monitoring active. Diagnostics every %u samples."
 //@} // Structured Log Formats
 
@@ -209,6 +214,8 @@ public:
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
         appendToBothSchedulers(&vibrationSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER, FALLING);
+        // Report a fault after consecutive failed readings instead of failing silently
+        tempSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(&tempSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
         initializeAsynchronousEngine(config);
@@ -228,6 +235,16 @@ public:
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT22 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == tempSensor.getPin()) {
+            MIOT_LOG_E(EQUIP_HEALTH_LOG_TAG, DHT_FAULT_LOG_FORMAT, event.sourceId);
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == tempSensor.getPin()) {
+            MIOT_LOG_I(EQUIP_HEALTH_LOG_TAG, DHT_RECOVERED_LOG_FORMAT, event.sourceId);
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             sampleCount++;
 

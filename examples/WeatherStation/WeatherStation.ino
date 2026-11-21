@@ -74,6 +74,12 @@ static const float BATTERY_DIVIDER_RATIO = 2.0f;
 static const size_t SERIAL_OUTPUT_BUFFER_SIZE = 128;
 /** @brief Log prefix for all WeatherStation serial output. */
 static const char* WEATHER_STATION_LOG_PREFIX = "[WeatherStation]";
+/** @brief Consecutive failed DHT22 readings before the sensor reports a fault. */
+static const unsigned int SENSOR_FAULT_THRESHOLD = 3;
+/** @brief Message printed when the DHT22 reports a fault. */
+static const char* SENSOR_FAULT_MESSAGE = " DHT22 not responding: check wiring and pull-up.";
+/** @brief Message printed when the DHT22 answers again after a fault. */
+static const char* SENSOR_RECOVERED_MESSAGE = " DHT22 recovered.";
 /** @brief Format of the boot announcement line (prefix, boot count). */
 static const char* BOOT_ANNOUNCEMENT_FORMAT = "%s Boot #%lu | Deep Sleep: ~10µA (10,000x energy saving)";
 /** @brief Format of the weather readings line (prefix, temperature, humidity, pressure, light). */
@@ -210,6 +216,16 @@ public:
      * @runs_on{sampler}
      */
     void on(Event event) override {
+        // DHT22 health: report faults instead of failing silently
+        if (event.identifier == Sensor::SENSOR_FAULT_EVENT_IDENTIFIER && event.sourceId == dhtSensor.getPin()) {
+            Serial.println((String(WEATHER_STATION_LOG_PREFIX) + SENSOR_FAULT_MESSAGE).c_str());
+            return;
+        }
+        if (event.identifier == Sensor::SENSOR_RECOVERED_EVENT_IDENTIFIER && event.sourceId == dhtSensor.getPin()) {
+            Serial.println((String(WEATHER_STATION_LOG_PREFIX) + SENSOR_RECOVERED_MESSAGE).c_str());
+            event.identifier = Sensor::DATA_READ_EVENT_IDENTIFIER; // The recovery carries a fresh reading
+        }
+
         if (event.identifier == Sensor::DATA_READ_EVENT_IDENTIFIER) {
             displayWeatherReadings();
             displayBatteryStatus();
@@ -245,6 +261,9 @@ public:
         // IMPORTANT: Registration must occur before initializeAsynchronousEngine(), because
         // the engine start guard rejects any registration after the engine is running.
         // Register the DHT sensor for temperature and humidity
+        // Report a fault after consecutive failed readings instead of failing silently
+        // (in DeepSleep the failure counter restarts on every wake, so faults are reported in Periodic mode)
+        dhtSensor.setFaultThreshold(SENSOR_FAULT_THRESHOLD);
         appendSensorToScheduler(&dhtSensor, Sensor::MEASURE_DATA_REQUESTED_EVENT_IDENTIFIER);
 
         // Register the PthSensor for atmospheric pressure
